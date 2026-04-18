@@ -913,3 +913,162 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--bg-selected) !important;
   color: var(--color-primary-deep) !important;
 }
+
+/* ─── React Datepicker Overrides ─────────────────────────── */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+}
+
+.react-datepicker {
+  font-family: var(--font-sans) !important;
+  background-color: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.react-datepicker__header {
+  background-color: var(--bg-surface) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  border-top-left-radius: var(--radius-md) !important;
+  border-top-right-radius: var(--radius-md) !important;
+  padding-top: var(--space-md) !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__time-name {
+  color: var(--text-secondary) !important;
+  width: 2.2rem !important;
+  line-height: 2.2rem !important;
+  margin: 0.1rem !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: var(--bg-hover) !important;
+  border-radius: 50% !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: var(--color-primary-dark) !important;
+  color: var(--text-primary) !important;
+  border-radius: 50% !important;
+}
+
+.react-datepicker__day--disabled {
+  color: var(--text-muted) !important;
+}
+
+.react-datepicker__navigation--next,
+.react-datepicker__navigation--previous {
+  top: 15px !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+/* ─── Print Styles ────────────────────────────────────────── */
+@media print {
+  @page {
+    margin: 20mm;
+    size: A4;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+  }
+
+  .admin-sidebar,
+  .admin-topbar,
+  .no-print,
+  button,
+  .btn,
+  .badge {
+    display: none !important;
+  }
+
+  .admin-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    width: 100% !important;
+  }
+
+  .glass-card {
+    background: white !important;
+    border: none !important;
+    border-bottom: 1px solid #eee !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    padding: 20px 0 !important;
+    margin-bottom: 0 !important;
+    break-inside: avoid;
+    border-radius: 0 !important;
+  }
+
+  .print-only-header {
+    display: block !important;
+  }
+
+  .heading-sm {
+    border-bottom: 2px solid #000;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    color: black !important;
+    font-size: 14pt !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  span[style*="color: var(--text-muted)"],
+  span[style*="color: var(--text-secondary)"] {
+    color: #444 !important;
+  }
+
+  /* Force color printing */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Grid adjustment for print */
+  div[style*="grid-template-columns: 1fr 1fr"] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 40px !important;
+  }
+
+  .admin-page-title {
+    display: none;
+  }
+
+  /* Specific breakdown styles for print */
+  div[style*="font-family: var(--font-display)"] {
+    color: var(--color-primary-deep) !important;
+  }
+
+  .step-note {
+    font-style: italic;
+    font-size: 10pt;
+    color: #666;
+    margin-top: 10px;
+  }
+}

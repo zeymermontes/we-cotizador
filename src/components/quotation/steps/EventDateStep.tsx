@@ -1,5 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import type { QuotationFormData } from '../../../lib/quotation-types';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { es } from 'date-fns/locale/es';
+import { enUS } from 'date-fns/locale/en-US';
+
+// Register locales
+registerLocale('es', es);
+registerLocale('en', enUS);
 
 interface Props {
   formData: QuotationFormData;
@@ -7,7 +15,11 @@ interface Props {
 }
 
 export default function EventDateStep({ formData, updateField }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  
+  // Convert ISO string back to Date object for the picker
+  const selectedDate = formData.eventDate ? new Date(formData.eventDate) : null;
+  const currentLocale = i18n.language === 'en' ? 'en' : 'es';
 
   return (
     <div className="step-body">
@@ -18,13 +30,17 @@ export default function EventDateStep({ formData, updateField }: Props) {
 
       <div className="input-group">
         <label className="input-label">{t('step4.date_label')} *</label>
-        <input
+        <DatePicker
+          selected={selectedDate}
+          onChange={(date) => updateField('eventDate', date ? date.toISOString() : '')}
+          minDate={new Date()}
+          dateFormat="dd/MM/yyyy"
+          placeholderText={t('step4.date_label')}
           className="input-field"
-          type="date"
-          value={formData.eventDate}
-          onChange={(e) => updateField('eventDate', e.target.value)}
-          min={new Date().toISOString().split('T')[0]}
-          style={{ colorScheme: 'dark' }}
+          locale={currentLocale}
+          autoFocus
+          isClearable
+          showPopperArrow={false}
         />
       </div>
     </div>

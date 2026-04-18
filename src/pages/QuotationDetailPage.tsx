@@ -9,6 +9,7 @@ export default function QuotationDetailPage() {
   const [quotation, setQuotation] = useState<Quotation & { client: Client } | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingDoc, setGeneratingDoc] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     type: 'anticipo' as PaymentType,
@@ -16,6 +17,8 @@ export default function QuotationDetailPage() {
     description: '',
     payment_date: new Date().toISOString().split('T')[0],
   });
+  const [editingDriveUrl, setEditingDriveUrl] = useState(false);
+  const [driveUrlInput, setDriveUrlInput] = useState('');
 
   useEffect(() => {
     if (id) loadDetails(id);
@@ -29,7 +32,10 @@ export default function QuotationDetailPage() {
         .eq('id', qId)
         .single();
 
-      if (q) setQuotation(q as Quotation & { client: Client });
+      if (q) {
+        setQuotation(q as Quotation & { client: Client });
+        setDriveUrlInput(q.drive_document_url || '');
+      }
 
       const { data: p } = await supabase
         .from('payments')
@@ -73,6 +79,45 @@ export default function QuotationDetailPage() {
       loadDetails(id);
     }
   }
+
+  async function updateDriveUrl() {
+    if (!id) return;
+    const { error } = await supabase.from('quotations').update({ drive_document_url: driveUrlInput }).eq('id', id);
+    if (!error) {
+      setEditingDriveUrl(false);
+      if (quotation) setQuotation({ ...quotation, drive_document_url: driveUrlInput });
+    }
+  }
+
+  async function generateGoogleDocument() {
+    if (!id || !quotation) return;
+    try {
+      setGeneratingDoc(true);
+      const { data, error } = await supabase.functions.invoke('generate-quotation', {
+        body: { quotation_id: id }
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        setQuotation({ ...quotation, drive_document_url: data.pptxUrl });
+        setDriveUrlInput(data.pptxUrl);
+        // We could also store PDF url in state if we want to show it right away
+        alert('Documentos generados y guardados en Google Drive exitosamente.');
+      } else {
+        throw new Error(data?.error || 'Error desconocido');
+      }
+    } catch (err: any) {
+      console.error('Error generating document:', err);
+      alert('Error al generar los documentos: ' + err.message);
+    } finally {
+      setGeneratingDoc(false);
+    }
+  }
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(n);
@@ -149,7 +194,7 @@ export default function QuotationDetailPage() {
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/cotizaciones')}>← Volver</button>
           <h1 className="admin-page-title">Detalle de cotización</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }} className="no-print">
           {(['pendiente', 'enviada', 'aceptada', 'rechazada'] as QuotationStatus[]).map(s => (
             <button
               key={s}
@@ -244,14 +289,77 @@ export default function QuotationDetailPage() {
             ))}
           </div>
 
-          {/* Drive link */}
-          {quotation.drive_document_url && (
-            <div className="glass-card" style={{ textAlign: 'center' }}>
-              <a href={quotation.drive_document_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                📄 Ver PPTX en Google Drive
-              </a>
-            </div>
-          )}
+          {/* Drive link management */}
+          <div className="glass-card no-print">
+            <h3 className="heading-sm" style={{ marginBottom: 12 }}>📄 Documentos</h3>
+            {editingDriveUrl ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  className="input-field"
+                  placeholder="Pegar link manual de Drive PPTX..."
+                  value={driveUrlInput}
+                  onChange={(e) => setDriveUrlInput(e.target.value)}
+                  style={{ fontSize: 'var(--text-xs)' }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={updateDriveUrl}>Guardar Manual</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditingDriveUrl(false)}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {quotation.document_status === 'generating' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-primary-deep)', padding: '12px 0', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>⏳ Generando en Google Drive...</span>
+                  </div>
+                )}
+
+                {quotation.document_status === 'failed' && (
+                  <div style={{ background: '#FFF1F0', border: '1px solid #FFA39E', borderRadius: 8, padding: 12 }}>
+                    <p style={{ margin: 0, color: '#CF1322', fontSize: 'var(--text-sm)', fontWeight: 600 }}>Error al generar</p>
+                    <p style={{ margin: '4px 0 12px 0', color: '#CF1322', fontSize: 'var(--text-xs)' }}>{quotation.document_error}</p>
+                    <button className="btn btn-primary btn-sm" onClick={generateGoogleDocument} disabled={generatingDoc} style={{ width: '100%' }}>
+                      {generatingDoc ? 'Reintentando...' : 'Reintentar Generación'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Completed state or manual state */}
+                {(quotation.document_status === 'completed' || quotation.drive_document_url) && quotation.document_status !== 'generating' && quotation.document_status !== 'failed' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {quotation.document_pdf_url && (
+                      <a href={quotation.document_pdf_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                        Descargar Cotización (PDF)
+                      </a>
+                    )}
+                    <a href={quotation.drive_document_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                      Abrir Presentación (Drive) ↗
+                    </a>
+                  </div>
+                )}
+
+                {/* Pending state */}
+                {(!quotation.document_status || quotation.document_status === 'pending') && !quotation.drive_document_url && (
+                  <>
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>No hay documentos generados para esta cotización.</p>
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      onClick={generateGoogleDocument}
+                      disabled={generatingDoc}
+                    >
+                      {generatingDoc ? 'Generando documentos...' : 'Generar PDF y PPTX'}
+                    </button>
+                  </>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+                  <button className="btn btn-ghost btn-xs" onClick={() => setEditingDriveUrl(true)}>
+                    {quotation.drive_document_url ? 'Cambiar enlaces manualmente' : 'Agregar enlaces manualmente'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Financial Summary */}
           <div className="glass-card">
@@ -290,7 +398,24 @@ export default function QuotationDetailPage() {
               </div>
             )}
 
-            {/* Add payment */}
+            {/* Print-only branding header */}
+            <div className="print-only-header" style={{ display: 'none', marginBottom: 40 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid var(--color-primary-deep)', paddingBottom: 20 }}>
+                <div>
+                  <h1 style={{ fontSize: 32, fontWeight: 800, color: 'black', margin: 0 }}>We<span style={{ color: 'var(--color-primary-deep)' }}>.</span></h1>
+                  <p style={{ margin: '4px 0', fontSize: 14, color: '#666' }}>Potenciamos tu gran día.</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <h2 style={{ fontSize: 18, margin: 0, color: 'black' }}>COTIZACIÓN PROFESIONAL</h2>
+                  <p style={{ margin: '4px 0', fontSize: 12, color: '#666' }}>Fecha: {formatDate(new Date().toISOString())}</p>
+                  <p style={{ margin: '4px 0', fontSize: 12, color: '#666' }}>Folio: #{quotation.id.slice(0, 8).toUpperCase()}</p>
+                </div>
+              </div>
+            </div>
+            {/* End Print-only header */}
+
+          {/* Add payment */}
+          <div className="no-print">
             {showPaymentForm ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16, background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
                 <select
@@ -304,10 +429,15 @@ export default function QuotationDetailPage() {
                   <option value="extra">Extra</option>
                 </select>
                 <input
-                  type="number"
+                  type="text"
                   placeholder="Monto"
-                  value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
+                  value={paymentForm.amount.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/,/g, '');
+                    if (/^\d*$/.test(val)) {
+                      setPaymentForm(p => ({ ...p, amount: val }));
+                    }
+                  }}
                   style={{ padding: '10px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
                 />
                 <input
@@ -333,6 +463,7 @@ export default function QuotationDetailPage() {
                 + Agregar pago
               </button>
             )}
+          </div>
           </div>
         </div>
       </div>

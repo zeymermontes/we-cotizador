@@ -53,7 +53,7 @@ export default function QuotationWizard() {
         || null;
 
       // Create quotation
-      const { error: quotationError } = await supabase
+      const { data: insertedQuotation, error: quotationError } = await supabase
         .from('quotations')
         .insert({
           client_id: client.id,
@@ -65,9 +65,17 @@ export default function QuotationWizard() {
           price_breakdown: q.priceBreakdown,
           guest_count_range: guestRange,
           status: 'pendiente',
-        });
+          document_status: 'generating'
+        })
+        .select('id')
+        .single();
 
       if (quotationError) throw quotationError;
+
+      // Trigger background document generation (fire-and-forget)
+      supabase.functions.invoke('generate-quotation', {
+        body: { quotation_id: insertedQuotation.id }
+      }).catch(err => console.error("Background doc generation error:", err));
 
       q.setIsSubmitted(true);
     } catch (err) {

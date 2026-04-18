@@ -246,6 +246,8 @@ export interface Client {
   updated_at: string;
 }
 
+export type DocumentStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
 export interface Quotation {
   id: string;
   client_id: string;
@@ -257,7 +259,10 @@ export interface Quotation {
   price_breakdown: PriceBreakdown;
   guest_count_range?: string;
   drive_document_url?: string;
+  document_pdf_url?: string;
   document_type?: string;
+  document_status?: DocumentStatus;
+  document_error?: string;
   status: QuotationStatus;
   created_at: string;
   // Joined
