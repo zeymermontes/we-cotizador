@@ -60,6 +60,9 @@ export default function QuotationDetailPage() {
   async function updateClientStatus(clientStatus: string) {
     if (!quotation?.client_id) return;
     await supabase.from('clients').update({ status: clientStatus }).eq('id', quotation.client_id);
+    if (quotation?.client) {
+      setQuotation({ ...quotation, client: { ...quotation.client, status: clientStatus as any } });
+    }
   }
 
   async function addPayment() {
