@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { QuotationFormData } from '../../../lib/quotation-types';
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 interface Props {
   formData: QuotationFormData;
@@ -30,11 +32,10 @@ export default function ContactInfoStep({ formData, updateField }: Props) {
 
       <div className="input-group">
         <label className="input-label">{t('step1.phone')} *</label>
-        <input
-          className="input-field"
-          type="tel"
+        <PhoneInput
+          defaultCountry="mx"
           value={formData.contactPhone}
-          onChange={(e) => updateField('contactPhone', e.target.value)}
+          onChange={(phone) => updateField('contactPhone', phone)}
           placeholder={t('step1.phone_placeholder')}
         />
       </div>
