@@ -115,9 +115,6 @@ export default function QuotationDetailPage() {
     }
   }
 
-  const handlePrint = () => {
-    window.print();
-  };
 
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(n);

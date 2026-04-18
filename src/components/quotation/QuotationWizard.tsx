@@ -315,7 +315,7 @@ export default function QuotationWizard() {
               q.updateField('pdfAdditionalProducts', ['none']);
               return;
             }
-            let arr = q.formData.pdfAdditionalProducts.filter(x => x !== 'none');
+            let arr: AdditionalProduct[] = q.formData.pdfAdditionalProducts.filter(x => x !== 'none');
             arr = arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
             if (arr.length === 0) arr = ['none'];
             q.updateField('pdfAdditionalProducts', arr);
@@ -523,7 +523,7 @@ export default function QuotationWizard() {
               q.updateField('webAdditionalProducts', ['none']);
               return;
             }
-            let arr = q.formData.webAdditionalProducts.filter(x => x !== 'none');
+            let arr: AdditionalProduct[] = q.formData.webAdditionalProducts.filter(x => x !== 'none');
             arr = arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
             if (arr.length === 0) arr = ['none'];
             q.updateField('webAdditionalProducts', arr);

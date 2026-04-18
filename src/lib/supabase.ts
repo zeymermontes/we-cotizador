@@ -19,6 +19,6 @@ export function getSupabase(): SupabaseClient {
 // For auth operations (lazy)
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    return (getSupabase() as Record<string, unknown>)[prop as string];
+    return (getSupabase() as any)[prop as string];
   },
 });

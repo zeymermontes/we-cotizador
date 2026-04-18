@@ -32,7 +32,7 @@ export default function EventDateStep({ formData, updateField }: Props) {
         <label className="input-label">{t('step4.date_label')} *</label>
         <DatePicker
           selected={selectedDate}
-          onChange={(date) => updateField('eventDate', date ? date.toISOString() : '')}
+          onChange={(date: Date | null) => updateField('eventDate', date ? date.toISOString() : '')}
           minDate={new Date()}
           dateFormat="dd/MM/yyyy"
           placeholderText={t('step4.date_label')}
