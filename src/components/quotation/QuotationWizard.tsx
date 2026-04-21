@@ -163,7 +163,14 @@ export default function QuotationWizard() {
 
     switch (key) {
       case 'contact':
-        return <ContactInfoStep formData={q.formData} updateField={q.updateField} />;
+        return (
+          <ContactInfoStep
+            formData={q.formData}
+            updateField={q.updateField}
+            goNext={q.goNext}
+            canGoNext={q.canGoNext}
+          />
+        );
       case 'referral':
         return <ReferralStep formData={q.formData} updateField={q.updateField} />;
       case 'eventType':

@@ -6,10 +6,18 @@ import 'react-international-phone/style.css';
 interface Props {
   formData: QuotationFormData;
   updateField: <K extends keyof QuotationFormData>(field: K, value: QuotationFormData[K]) => void;
+  goNext: () => void;
+  canGoNext: boolean;
 }
 
-export default function ContactInfoStep({ formData, updateField }: Props) {
+export default function ContactInfoStep({ formData, updateField, goNext, canGoNext }: Props) {
   const { t } = useTranslation();
+  
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && canGoNext) {
+      goNext();
+    }
+  };
 
   return (
     <div className="step-body">
@@ -25,6 +33,7 @@ export default function ContactInfoStep({ formData, updateField }: Props) {
           type="text"
           value={formData.contactName}
           onChange={(e) => updateField('contactName', e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={t('step1.name_placeholder')}
           autoFocus
         />
@@ -36,6 +45,9 @@ export default function ContactInfoStep({ formData, updateField }: Props) {
           defaultCountry="mx"
           value={formData.contactPhone}
           onChange={(phone) => updateField('contactPhone', phone)}
+          inputProps={{
+            onKeyDown: handleKeyDown
+          }}
           placeholder={t('step1.phone_placeholder')}
         />
       </div>
