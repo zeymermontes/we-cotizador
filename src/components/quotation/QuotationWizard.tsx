@@ -11,6 +11,12 @@ import GenericRadioStep from './steps/GenericRadioStep';
 import GenericCheckStep from './steps/GenericCheckStep';
 import GuestCountStep from './steps/GuestCountStep';
 import ThankYouStep from './steps/ThankYouStep';
+// Images
+import monogramImg from '../../assets/questions/Monograma.png';
+import elementsImg from '../../assets/questions/elementos.png';
+import rsvpImg from '../../assets/questions/Diseño.png';
+import stdBasicoImg from '../../assets/questions/STD Basico.png';
+import stdExtImg from '../../assets/questions/STD ext.png';
 // PriceSummary removed - prices are internal only
 import { supabase } from '../../lib/supabase';
 import type { QuotationFormData, GuestCountRange, SubEvent, InfoCategory, WebExtra, AdditionalProduct, MonogramChoice, ExperienceTier, InfoOptionsCount, DesignStyle, GiftTableChoice } from '../../lib/quotation-types';
@@ -180,6 +186,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<MonogramChoice>
           title={t('pdf.monogram_title')}
           subtitle={t('pdf.monogram_desc')}
+          questionImage={monogramImg}
           options={[
             { value: 'yes', label: t('pdf.monogram_yes'), price: t('pdf.monogram_yes_price') },
             { value: 'no', label: t('pdf.monogram_no') },
@@ -192,6 +199,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.illustrations_title')}
           subtitle={t('pdf.illustrations_desc')}
+          questionImage={elementsImg}
           options={[
             { value: true, label: t('pdf.illustrations_yes'), price: t('pdf.illustrations_yes_price') },
             { value: false, label: t('pdf.illustrations_no') },
@@ -281,6 +289,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.rsvp_title')}
           subtitle={`${t('pdf.rsvp_desc_1')}\n${t('pdf.rsvp_desc_2')}\n${t('pdf.rsvp_desc_3')}`}
+          questionImage={rsvpImg}
           options={[
             { value: true, label: t('pdf.rsvp_yes') },
             { value: false, label: t('pdf.rsvp_no') },
@@ -557,8 +566,8 @@ export default function QuotationWizard() {
         return <GenericRadioStep<string>
           title={t('std.format_title')}
           options={[
-            { value: 'basico', label: t('std.format_basico'), desc: t('std.format_basico_desc'), price: t('std.format_basico_price') },
-            { value: 'extendido', label: t('std.format_extendido'), desc: t('std.format_extendido_desc'), price: t('std.format_extendido_price') },
+            { value: 'basico', label: t('std.format_basico'), desc: t('std.format_basico_desc'), price: t('std.format_basico_price'), image: stdBasicoImg },
+            { value: 'extendido', label: t('std.format_extendido'), desc: t('std.format_extendido_desc'), price: t('std.format_extendido_price'), image: stdExtImg },
           ]}
           selected={q.formData.stdFormat}
           onSelect={(v) => q.updateField('stdFormat', v as QuotationFormData['stdFormat'])}

@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { QuotationFormData, InvitationFormat } from '../../../lib/quotation-types';
+import webImg from '../../../assets/questions/Pag web.png';
+import pdfImg from '../../../assets/questions/pdf interactivo.png';
 
 interface Props {
   formData: QuotationFormData;
@@ -9,9 +11,9 @@ interface Props {
 export default function FormatSelectionStep({ formData, updateField }: Props) {
   const { t } = useTranslation();
 
-  const formats: { value: InvitationFormat; key: string }[] = [
-    { value: 'pagina_web', key: 'pagina_web' },
-    { value: 'pdf_interactivo', key: 'pdf_interactivo' },
+  const formats: { value: InvitationFormat; key: string; image: string }[] = [
+    { value: 'pagina_web', key: 'pagina_web', image: webImg },
+    { value: 'pdf_interactivo', key: 'pdf_interactivo', image: pdfImg },
   ];
 
   return (
@@ -20,21 +22,27 @@ export default function FormatSelectionStep({ formData, updateField }: Props) {
         <h2 className="step-title">{t('step6_format.title')}</h2>
       </div>
 
-      {formats.map(fmt => (
-        <div
-          key={fmt.value}
-          className={`option-card ${formData.invitationFormat === fmt.value ? 'selected' : ''}`}
-          onClick={() => updateField('invitationFormat', fmt.value)}
-        >
-          <div className="option-radio" />
-          <div className="option-content">
-            <div className="option-title" style={{ fontSize: '1.1rem' }}>
-              {t(`step6_format.${fmt.key}`)}
+      <div className="options-grid">
+        {formats.map((fmt, i) => (
+          <div
+            key={fmt.value}
+            className={`option-card has-image ${formData.invitationFormat === fmt.value ? 'selected' : ''} animate-slide-up`}
+            style={{ animationDelay: `${i * 100}ms` }}
+            onClick={() => updateField('invitationFormat', fmt.value)}
+          >
+            <div className="option-card-image-wrapper">
+              <img src={fmt.image} alt={t(`step6_format.${fmt.key}`)} className="option-card-image" />
             </div>
-            <div className="option-desc">{t(`step6_format.${fmt.key}_desc`)}</div>
+            <div className="option-radio" />
+            <div className="option-content">
+              <div className="option-title" style={{ fontSize: '1.1rem' }}>
+                {t(`step6_format.${fmt.key}`)}
+              </div>
+              <div className="option-desc">{t(`step6_format.${fmt.key}_desc`)}</div>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
