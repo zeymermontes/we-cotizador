@@ -198,6 +198,8 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--bg-input);
   color: var(--text-secondary);
   border: 1px solid var(--border-default);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .btn-secondary:hover {
   background: var(--bg-hover);
@@ -379,11 +381,12 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Form Layout ─────────────────────────────────────────── */
 .form-page {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   background: url('/src/assets/large-bg.jpeg') center center / cover no-repeat fixed;
+  overflow: hidden; /* Prevent global scroll */
 }
 
 .form-header {
@@ -412,10 +415,63 @@ h1, h2, h3, h4, h5, h6 {
 .form-container {
   width: 100%;
   max-width: var(--max-form-width);
-  padding: var(--space-2xl) var(--space-xl);
+  padding: var(--space-xl) var(--space-xl) 0; /* Reduced top, zero bottom */
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Contain scroll indicator and content */
+}
+
+.step-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.step-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md) 4px var(--space-2xl); /* Bottom padding for scroll room */
+  margin: 0 -4px; /* Offset parent padding for scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary-dark) transparent;
+}
+
+.step-content-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.step-content-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-primary-dark);
+  border-radius: var(--radius-full);
+}
+
+.scroll-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px; /* Slightly taller for a smoother transition */
+  background: linear-gradient(to top, 
+    rgba(244, 242, 239, 0.8) 0%, 
+    rgba(244, 242, 239, 0.4) 40%, 
+    transparent 100%
+  );
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black);
+  mask-image: linear-gradient(to bottom, transparent, black);
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity var(--transition-base), transform var(--transition-base);
+  transform: translateY(10px);
+}
+
+.scroll-gradient.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .step-header {
@@ -460,9 +516,10 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: var(--space-2xl);
-  margin-top: auto;
+  padding: var(--space-lg) 0 var(--space-xl);
+  border-top: 1px solid var(--border-subtle);
   gap: var(--space-md);
+  z-index: 10;
 }
 
 .step-note {

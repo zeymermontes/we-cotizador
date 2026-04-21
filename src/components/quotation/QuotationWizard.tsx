@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuotation } from '../../hooks/useQuotation';
 import ContactInfoStep from './steps/ContactInfoStep';
@@ -17,6 +18,27 @@ import type { QuotationFormData, GuestCountRange, SubEvent, InfoCategory, WebExt
 export default function QuotationWizard() {
   const { t } = useTranslation();
   const q = useQuotation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showIndicator, setShowIndicator] = useState(false);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const canScroll = scrollHeight > clientHeight;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 20; 
+      setShowIndicator(canScroll && !isAtBottom);
+    }
+  };
+
+  useEffect(() => {
+    // Small timeout to ensure DOM is updated
+    const timer = setTimeout(checkScroll, 100);
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [q.currentStep, q.formData]); // Re-check if step or form data (which might change content) updates
 
   const handleSubmit = async () => {
     q.setIsSubmitting(true);
@@ -606,8 +628,16 @@ export default function QuotationWizard() {
           {t('common.step')} {q.currentStep + 1} {t('common.of')} {q.totalSteps}
         </div>
 
-        <div key={q.currentStepKey} className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {renderStep()}
+        <div className="step-content-wrapper">
+          <div 
+            ref={scrollRef}
+            key={q.currentStepKey} 
+            className="animate-fade-in step-content-scroll"
+            onScroll={checkScroll}
+          >
+            {renderStep()}
+          </div>
+          <div className={`scroll-gradient ${showIndicator ? 'visible' : ''}`} />
         </div>
 
         <div className="step-footer">
