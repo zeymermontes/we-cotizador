@@ -76,7 +76,7 @@ export function useQuotation() {
         steps.push('web_domain');
         steps.push('web_monogram');
         steps.push('web_design');
-        steps.push('web_special');
+        steps.push('web_illustrations');
         steps.push('web_gift_table');
         if (formData.webGiftTable === 'mesa_experiencias') {
           steps.push('web_experiences');
@@ -86,6 +86,7 @@ export function useQuotation() {
           steps.push('web_info_categories');
           steps.push('web_info_options');
         }
+        steps.push('web_rsvp');
         steps.push('web_extras');
         steps.push('web_sending');
         steps.push('web_confirmation');
@@ -135,7 +136,7 @@ export function useQuotation() {
     // Validate current step
     switch (currentStepKey) {
       case 'contact':
-        return formData.contactName.trim().length > 0 && formData.contactPhone.trim().length > 0;
+        return formData.contactName.trim().length > 0 && formData.contactPhone.trim().replace(/\D/g, '').length >= 10;
       case 'referral':
         return formData.referralSource !== null &&
           (formData.referralSource !== 'wedding_planner' || formData.weddingPlannerName.trim().length > 0);
@@ -189,8 +190,8 @@ export function useQuotation() {
         return formData.webMonogram !== null;
       case 'web_design':
         return formData.webDesignStyle !== null;
-      case 'web_special':
-        return formData.webSpecialElements !== null;
+      case 'web_illustrations':
+        return formData.webIllustrations !== null;
       case 'web_gift_table':
         return formData.webGiftTable !== null;
       case 'web_experiences':
@@ -201,6 +202,8 @@ export function useQuotation() {
         return formData.webInfoCategories.length > 0;
       case 'web_info_options':
         return formData.webInfoOptionsCount !== null;
+      case 'web_rsvp':
+        return formData.webRsvp !== null;
       case 'web_extras':
         return true; // optional multi-select
       case 'web_sending':

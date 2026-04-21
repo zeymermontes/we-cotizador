@@ -123,12 +123,13 @@ export interface QuotationFormData {
   webDomainType: 'generic' | 'custom' | null;
   webMonogram: MonogramChoice | null;
   webDesignStyle: DesignStyle | null;
-  webSpecialElements: boolean | null;
+  webIllustrations: boolean | null;
   webGiftTable: GiftTableChoice | null;
   webExperienceTier: ExperienceTier | null;
   webAdditionalInfo: boolean | null;
   webInfoCategories: InfoCategory[];
   webInfoOptionsCount: InfoOptionsCount | null;
+  webRsvp: boolean | null;
   webExtras: WebExtra[];
   webSending: boolean | null;
   webConfirmation: boolean | null;
@@ -208,12 +209,13 @@ export const INITIAL_FORM_DATA: QuotationFormData = {
   webDomainType: null,
   webMonogram: null,
   webDesignStyle: null,
-  webSpecialElements: null,
+  webIllustrations: null,
   webGiftTable: null,
   webExperienceTier: null,
   webAdditionalInfo: null,
   webInfoCategories: [],
   webInfoOptionsCount: null,
+  webRsvp: null,
   webExtras: [],
   webSending: null,
   webConfirmation: null,

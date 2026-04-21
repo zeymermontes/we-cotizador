@@ -216,11 +216,11 @@ export function calculatePrice(data: QuotationFormData): PriceBreakdown {
       });
     }
 
-    // Special elements
-    if (data.webSpecialElements === true) {
+    // Illustrations
+    if (data.webIllustrations === true) {
       items.push({
-        key: 'web_special',
-        label: { es: 'Elementos especiales', en: 'Special elements' },
+        key: 'web_illustrations',
+        label: { es: 'Ilustraciones personalizadas', en: 'Custom illustrations' },
         amount: 800,
       });
     }

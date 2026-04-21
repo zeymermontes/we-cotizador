@@ -33,6 +33,7 @@ export default function EventDateStep({ formData, updateField }: Props) {
         <DatePicker
           selected={selectedDate}
           onChange={(date: Date | null) => updateField('eventDate', date ? date.toISOString() : '')}
+          onChangeRaw={(e) => e.preventDefault()}
           minDate={new Date()}
           dateFormat="dd/MM/yyyy"
           placeholderText={t('step4.date_label')}
@@ -41,6 +42,7 @@ export default function EventDateStep({ formData, updateField }: Props) {
           autoFocus
           isClearable
           showPopperArrow={false}
+          readOnly
         />
       </div>
     </div>

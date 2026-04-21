@@ -391,6 +391,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<MonogramChoice>
           title={t('pdf.monogram_title')}
           subtitle={t('pdf.monogram_desc')}
+          questionImage={monogramImg}
           options={[
             { value: 'yes', label: t('pdf.monogram_yes'), price: t('pdf.monogram_yes_price') },
             { value: 'no', label: t('pdf.monogram_no') },
@@ -411,16 +412,17 @@ export default function QuotationWizard() {
           selected={q.formData.webDesignStyle}
           onSelect={(v) => q.updateField('webDesignStyle', v)}
         />;
-      case 'web_special':
-        return <GenericRadioStep<boolean | null>
-          title={t('web.special_title')}
-          subtitle={t('web.special_desc')}
+      case 'web_illustrations':
+        return <GenericRadioStep<boolean>
+          title={t('pdf.illustrations_title')}
+          subtitle={t('pdf.illustrations_desc')}
+          questionImage={elementsImg}
           options={[
-            { value: true, label: t('web.special_yes'), price: t('web.special_yes_price') },
-            { value: false, label: t('web.special_no') },
+            { value: true, label: t('pdf.illustrations_yes'), price: t('pdf.illustrations_yes_price') },
+            { value: false, label: t('pdf.illustrations_no') },
           ]}
-          selected={q.formData.webSpecialElements}
-          onSelect={(v) => q.updateField('webSpecialElements', v as boolean)}
+          selected={q.formData.webIllustrations}
+          onSelect={(v) => q.updateField('webIllustrations', v)}
         />;
       case 'web_gift_table':
         return <GenericRadioStep<GiftTableChoice>
@@ -488,6 +490,18 @@ export default function QuotationWizard() {
           ]}
           selected={q.formData.webInfoOptionsCount}
           onSelect={(v) => q.updateField('webInfoOptionsCount', v)}
+        />;
+      case 'web_rsvp':
+        return <GenericRadioStep<boolean>
+          title={t('pdf.rsvp_title')}
+          subtitle={`${t('pdf.rsvp_desc_1')}\n${t('pdf.rsvp_desc_2')}\n${t('pdf.rsvp_desc_3')}`}
+          questionImage={rsvpImg}
+          options={[
+            { value: true, label: t('pdf.rsvp_yes') },
+            { value: false, label: t('pdf.rsvp_no') },
+          ]}
+          selected={q.formData.webRsvp}
+          onSelect={(v) => q.updateField('webRsvp', v)}
         />;
       case 'web_extras':
         return <GenericCheckStep<WebExtra>
