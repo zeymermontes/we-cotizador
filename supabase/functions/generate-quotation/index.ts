@@ -165,23 +165,96 @@ serve(async (req) => {
 
     // 7. Replace Variables in Slides
     try {
-      const formatCurrency = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(n);
-      
-      const bd = quotation.price_breakdown;
-      const anticipoVal = (quotation.total_price * 0.5); 
-      
-      const envioItem = bd?.perGuestItems?.find((i: any) => i.key.includes('sending') || i.key.includes('envio'));
-      const envioPriceText = envioItem ? formatCurrency(envioItem.estimatedTotal) : "$0.00";
+      const formatMoney = (n: number | undefined | null) => {
+        if (typeof n !== 'number') return '0.00';
+        return new Intl.NumberFormat('es-MX', { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 2 
+        }).format(n);
+      };
 
-      const replacements = [
+      const formatDate = (dateStr: string | undefined | null) => {
+        if (!dateStr) return '—';
+        try {
+          return new Date(dateStr).toLocaleDateString('es-MX', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        } catch {
+          return dateStr;
+        }
+      };
+
+      const bd = quotation.price_breakdown;
+      const res = quotation.responses || {};
+      const productType = quotation.product_type;
+      const invitationFormat = res.invitationFormat;
+      
+      const total = quotation.total_price || 0;
+      const anticipoVal = total * 0.7;
+      const entregaVal = total * 0.3;
+
+      // Helper to find breakdown prices
+      const getBreakdownPrice = (keys: string[]) => {
+        const item = bd?.perGuestItems?.find((i: any) => keys.includes(i.key)) || 
+                     bd?.items?.find((i: any) => keys.includes(i.key));
+        return item ? (item.estimatedTotal || item.amount || 0) : 0;
+      };
+
+      const envioPrice = getBreakdownPrice(['pdf_sending', 'web_sending', 'std_sending', 'send_only']);
+      const confirmPrice = getBreakdownPrice(['pdf_confirmation', 'web_confirmation', 'confirm_only']);
+      const stdPrice = getBreakdownPrice(['pdf_extra_std', 'web_extra_std', 'std_base']);
+
+      // Common replacements
+      const replacements: { text: string; replaceWith: string }[] = [
         { text: '{{name}}', replaceWith: quotation.client.name },
-        { text: '{{sub_total}}', replaceWith: formatCurrency(bd?.subtotal || quotation.total_price) },
-        { text: '{{descuento}}', replaceWith: '$0.00' }, 
-        { text: '{{anticipo}}', replaceWith: formatCurrency(anticipoVal) },
-        { text: '{{entrega}}', replaceWith: formatCurrency(quotation.total_price - anticipoVal) },
-        { text: '{{envio}}', replaceWith: envioPriceText },
-        { text: '{{invitados}}', replaceWith: quotation.responses?.pdfGuestCountRange || quotation.responses?.webGuestCountRange || 'N/A' },
+        { text: '{{telefono}}', replaceWith: quotation.client.phone },
+        { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
+        { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
+        { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
+        { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
+        { text: '{{sub_total}}', replaceWith: formatMoney(bd?.subtotal || total) },
+        { text: '{{anticipo}}', replaceWith: formatMoney(anticipoVal) },
+        { text: '{{entrega}}', replaceWith: formatMoney(entregaVal) },
+        { text: '{{envio}}', replaceWith: formatMoney(envioPrice) },
+        { text: '{{confirmaciones}}', replaceWith: formatMoney(confirmPrice) },
+        { text: '{{invitados}}', replaceWith: res.pdfGuestCountRange || res.webGuestCountRange || res.stdGuestCountRange || res.sendGuestCountRange || res.confirmGuestCountRange || '—' },
+        { text: '{{número}}', replaceWith: res.pdfGuestCountRange || res.webGuestCountRange || '—' },
       ];
+
+      // Product specific replacements
+      if (productType === 'invitacion_digital' && invitationFormat === 'pdf_interactivo') {
+        replacements.push(
+          { text: '{{cantidad_de_eventos}}', replaceWith: String(res.pdfMultipleEvents ? (res.pdfSubEvents?.length + 1) : 1) },
+          { text: '{{monograma}}', replaceWith: res.pdfMonogram === 'yes' ? 'Sí' : res.pdfMonogram === 'already_have' ? 'Ya cuento con uno' : 'No' },
+          { text: '{{elementos}}', replaceWith: res.pdfIllustrations ? 'Sí' : 'No' },
+          { text: '{{mesa}}', replaceWith: res.pdfGiftTable === 'link_tienda' ? 'Link a tienda' : res.pdfGiftTable === 'transferencia' ? 'Transferencia' : res.pdfGiftTable === 'mesa_experiencias' ? 'Mesa de experiencias' : 'No' },
+          { text: '{{info_adicional}}', replaceWith: res.pdfInfoCategories?.length > 0 ? res.pdfInfoCategories.join(', ') : 'No' },
+          { text: '{{cantidad_de_info}}', replaceWith: String(res.pdfInfoCategories?.length || 0) },
+          { text: '{{Rotulado}}', replaceWith: res.pdfPersonalized ? 'Sí' : 'No' },
+          { text: '{{extras}}', replaceWith: res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').join(', ') || 'Ninguno' }
+        );
+      } else if (productType === 'invitacion_digital' && invitationFormat === 'pagina_web') {
+        replacements.push(
+          { text: '{{cantidad_de_eventos}}', replaceWith: String(res.webEventCount || 1) },
+          { text: '{{cantidad_de_paginas}}', replaceWith: String(res.webSeparatePages ? (res.webEventCount || 1) : 1) },
+          { text: '{{dominio}}', replaceWith: res.webDomainType === 'custom' ? 'Personalizado' : 'Genérico' },
+          { text: '{{monograma}}', replaceWith: res.webMonogram === 'yes' ? 'Sí' : res.webMonogram === 'already_have' ? 'Ya cuento con uno' : 'No' },
+          { text: '{{diseño}}', replaceWith: res.webDesignStyle || '—' },
+          { text: '{{elementos}}', replaceWith: res.webSpecialElements ? 'Sí' : 'No' },
+          { text: '{{mesa}}', replaceWith: res.webGiftTable || 'No' },
+          { text: '{{info_adicional}}', replaceWith: res.webInfoCategories?.length > 0 ? res.webInfoCategories.join(', ') : 'No' },
+          { text: '{{cantidad_de_info}}', replaceWith: String(res.webInfoCategories?.length || 0) },
+          { text: '{{extras}}', replaceWith: res.webExtras?.length > 0 ? res.webExtras.join(', ') : 'Ninguno' }
+        );
+      } else if (productType === 'save_the_date') {
+        replacements.push(
+          { text: '{{formato}}', replaceWith: res.stdFormat || '—' },
+          { text: '{{diseño}}', replaceWith: res.stdDesignStyle || '—' },
+          { text: '{{precio_std}}', replaceWith: formatMoney(stdPrice) }
+        );
+      }
 
       const slideRequests = replacements.map(r => ({
         replaceAllText: {
