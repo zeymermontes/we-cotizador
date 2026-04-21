@@ -20,6 +20,8 @@ import stdBasicoImg from '../../assets/questions/STD Basico.webp';
 import stdExtImg from '../../assets/questions/STD ext.webp';
 import webImg from '../../assets/questions/Pag web.webp';
 import pdfImg from '../../assets/questions/pdf interactivo.webp';
+import sendingImg from '../../assets/questions/Envio.webp';
+import confirmationImg from '../../assets/questions/Confirmaciones.webp';
 import heroImg from '../../assets/hero.png';
 import bgImg from '../../assets/large-bg.jpeg';
 
@@ -34,6 +36,8 @@ const IMAGES_TO_PRELOAD = [
   stdExtImg,
   webImg,
   pdfImg,
+  sendingImg,
+  confirmationImg,
   heroImg,
   bgImg
 ];
@@ -409,6 +413,7 @@ export default function QuotationWizard() {
             { value: false, label: t('pdf.sending_no') },
           ]}
           selected={q.formData.pdfSending}
+          questionImage={sendingImg}
           onSelect={(v) => q.updateField('pdfSending', v)}
         />;
       case 'pdf_confirmation':
@@ -421,6 +426,7 @@ export default function QuotationWizard() {
             { value: false, label: t('pdf.confirmation_no') },
           ]}
           selected={q.formData.pdfConfirmation}
+          questionImage={confirmationImg}
           onSelect={(v) => q.updateField('pdfConfirmation', v)}
         />;
       case 'pdf_guest_count':
@@ -638,6 +644,7 @@ export default function QuotationWizard() {
             { value: false, label: t('pdf.sending_no') },
           ]}
           selected={q.formData.webSending}
+          questionImage={sendingImg}
           onSelect={(v) => q.updateField('webSending', v)}
         />;
       case 'web_confirmation':
@@ -650,6 +657,7 @@ export default function QuotationWizard() {
             { value: false, label: t('pdf.confirmation_no') },
           ]}
           selected={q.formData.webConfirmation}
+          questionImage={confirmationImg}
           onSelect={(v) => q.updateField('webConfirmation', v)}
         />;
       case 'web_guest_count':
