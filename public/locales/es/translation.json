@@ -6,7 +6,7 @@
   "common": {
     "next": "Siguiente",
     "back": "Anterior",
-    "submit": "Enviar cotización",
+    "submit": "Enviar",
     "required": "Este campo es obligatorio",
     "select_one": "Selecciona una opción",
     "select_multiple": "Puedes seleccionar varias opciones",
