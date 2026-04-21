@@ -380,6 +380,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.personalized_title')}
           subtitle={t('pdf.personalized_desc')}
+          questionImage={designImg}
           options={[
             { value: true, label: t('pdf.personalized_yes') },
             { value: false, label: t('pdf.personalized_no') },
@@ -391,7 +392,6 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.rsvp_title')}
           subtitle={`${t('pdf.rsvp_desc_1')}\n${t('pdf.rsvp_desc_2')}\n${t('pdf.rsvp_desc_3')}`}
-          questionImage={designImg}
           options={[
             { value: true, label: t('pdf.rsvp_yes') },
             { value: false, label: t('pdf.rsvp_no') },
@@ -604,7 +604,6 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.rsvp_title')}
           subtitle={`${t('pdf.rsvp_desc_1')}\n${t('pdf.rsvp_desc_2')}\n${t('pdf.rsvp_desc_3')}`}
-          questionImage={designImg}
           options={[
             { value: true, label: t('pdf.rsvp_yes') },
             { value: false, label: t('pdf.rsvp_no') },
