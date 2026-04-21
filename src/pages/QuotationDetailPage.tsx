@@ -194,7 +194,7 @@ export default function QuotationDetailPage() {
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/cotizaciones')}>← Volver</button>
           <h1 className="admin-page-title">Detalle de cotización</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }} className="no-print">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }} className="no-print">
           {(['pendiente', 'enviada', 'aceptada', 'rechazada'] as QuotationStatus[]).map(s => (
             <button
               key={s}
@@ -208,13 +208,13 @@ export default function QuotationDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
+      <div className="quotation-detail-grid">
         {/* Left: Client + Responses */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
           {/* Client Card */}
           <div className="glass-card">
             <h3 className="heading-sm" style={{ marginBottom: 16 }}>👤 Cliente</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 'var(--text-sm)' }}>
+            <div className="detail-info-grid" style={{ fontSize: 'var(--text-sm)' }}>
               <div><span style={{ color: 'var(--text-muted)' }}>Nombre:</span> {quotation.client?.name}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Teléfono:</span> {quotation.client?.phone}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Evento:</span> {quotation.client?.event_type}</div>
@@ -365,7 +365,7 @@ export default function QuotationDetailPage() {
           <div className="glass-card">
             <h3 className="heading-sm" style={{ marginBottom: 16 }}>💳 Pagos</h3>
 
-            <div className="stats-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 16 }}>
+            <div className="stats-grid" style={{ marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Total</div>
                 <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'var(--text-xl)' }}>{formatCurrency(quotation.total_price)}</div>
