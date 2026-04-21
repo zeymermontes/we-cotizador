@@ -11,21 +11,72 @@ import GenericRadioStep from './steps/GenericRadioStep';
 import GenericCheckStep from './steps/GenericCheckStep';
 import GuestCountStep from './steps/GuestCountStep';
 import ThankYouStep from './steps/ThankYouStep';
+import { LoadingScreen } from '../common/LoadingScreen';
 // Images
 import monogramImg from '../../assets/questions/Monograma.webp';
 import elementsImg from '../../assets/questions/elementos.webp';
-import rsvpImg from '../../assets/questions/diseno.webp';
+import designImg from '../../assets/questions/diseno.webp';
 import stdBasicoImg from '../../assets/questions/STD Basico.webp';
 import stdExtImg from '../../assets/questions/STD ext.webp';
-// PriceSummary removed - prices are internal only
+import webImg from '../../assets/questions/Pag web.webp';
+import pdfImg from '../../assets/questions/pdf interactivo.webp';
+import heroImg from '../../assets/hero.png';
+import bgImg from '../../assets/large-bg.jpeg';
+
 import { supabase } from '../../lib/supabase';
 import type { QuotationFormData, GuestCountRange, SubEvent, InfoCategory, WebExtra, AdditionalProduct, MonogramChoice, ExperienceTier, InfoOptionsCount, DesignStyle, GiftTableChoice } from '../../lib/quotation-types';
+
+const IMAGES_TO_PRELOAD = [
+  monogramImg,
+  elementsImg,
+  designImg,
+  stdBasicoImg,
+  stdExtImg,
+  webImg,
+  pdfImg,
+  heroImg,
+  bgImg
+];
 
 export default function QuotationWizard() {
   const { t } = useTranslation();
   const q = useQuotation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showIndicator, setShowIndicator] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+
+  // Asset pre-loading
+  useEffect(() => {
+    let loadedCount = 0;
+    const total = IMAGES_TO_PRELOAD.length;
+
+    const loadImage = (src: string) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false); // Resolve even on error to not block forever
+      });
+    };
+
+    const preload = async () => {
+      for (const src of IMAGES_TO_PRELOAD) {
+        await loadImage(src);
+        loadedCount++;
+        setLoadingProgress(loadedCount / total);
+      }
+      
+      // Small artificial delay for smooth experience
+      setTimeout(() => {
+        setIsFadingOut(true);
+        setTimeout(() => setIsLoaded(true), 600);
+      }, 500);
+    };
+
+    preload();
+  }, []);
 
   const checkScroll = () => {
     if (scrollRef.current) {
@@ -146,6 +197,10 @@ export default function QuotationWizard() {
       q.setIsSubmitting(false);
     }
   };
+
+  if (!isLoaded) {
+    return <LoadingScreen progress={loadingProgress} isFadingOut={isFadingOut} />;
+  }
 
   if (q.isSubmitted) {
     return (
@@ -329,7 +384,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.rsvp_title')}
           subtitle={`${t('pdf.rsvp_desc_1')}\n${t('pdf.rsvp_desc_2')}\n${t('pdf.rsvp_desc_3')}`}
-          questionImage={rsvpImg}
+          questionImage={designImg}
           options={[
             { value: true, label: t('pdf.rsvp_yes') },
             { value: false, label: t('pdf.rsvp_no') },
@@ -535,7 +590,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('pdf.rsvp_title')}
           subtitle={`${t('pdf.rsvp_desc_1')}\n${t('pdf.rsvp_desc_2')}\n${t('pdf.rsvp_desc_3')}`}
-          questionImage={rsvpImg}
+          questionImage={designImg}
           options={[
             { value: true, label: t('pdf.rsvp_yes') },
             { value: false, label: t('pdf.rsvp_no') },
