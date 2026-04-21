@@ -174,7 +174,8 @@ export default function QuotationDetailPage() {
   if (responses.webDomainType) responseEntries.push({ label: 'Dominio', value: responses.webDomainType });
   if (responses.webMonogram) responseEntries.push({ label: 'Monograma web', value: responses.webMonogram });
   if (responses.webDesignStyle) responseEntries.push({ label: 'Estilo de diseño', value: responses.webDesignStyle });
-  if (responses.webSpecialElements !== null) responseEntries.push({ label: 'Elementos especiales', value: responses.webSpecialElements ? 'Sí' : 'No' });
+  if (responses.webIllustrations !== null) responseEntries.push({ label: 'Ilustraciones', value: responses.webIllustrations ? 'Sí' : 'No' });
+  if (responses.webRsvp !== null) responseEntries.push({ label: 'RSVP', value: responses.webRsvp ? 'Sí' : 'No' });
   if (responses.webExtras?.length) responseEntries.push({ label: 'Extras web', value: responses.webExtras.join(', ') });
   if (responses.webGuestCountRange) responseEntries.push({ label: 'Rango invitados', value: responses.webGuestCountRange });
 
