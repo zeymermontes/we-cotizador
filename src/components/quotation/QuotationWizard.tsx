@@ -14,7 +14,7 @@ import ThankYouStep from './steps/ThankYouStep';
 // Images
 import monogramImg from '../../assets/questions/Monograma.png';
 import elementsImg from '../../assets/questions/elementos.png';
-import rsvpImg from '../../assets/questions/Diseño.png';
+import rsvpImg from '../../assets/questions/diseno.png';
 import stdBasicoImg from '../../assets/questions/STD Basico.png';
 import stdExtImg from '../../assets/questions/STD ext.png';
 // PriceSummary removed - prices are internal only
