@@ -64,7 +64,7 @@ export function calculatePrice(data: QuotationFormData): PriceBreakdown {
     }
 
     // Experience table
-    if (data.pdfGiftTable === 'mesa_experiencias' && data.pdfExperienceTier) {
+    if (data.pdfGiftTable.includes('mesa_experiencias') && data.pdfExperienceTier) {
       const tierPrices: Record<string, number> = {
         essential_10: 2000,
         intermediate_20: 2500,
@@ -226,7 +226,7 @@ export function calculatePrice(data: QuotationFormData): PriceBreakdown {
     }
 
     // Experience table
-    if (data.webGiftTable === 'mesa_experiencias' && data.webExperienceTier) {
+    if (data.webGiftTable.includes('mesa_experiencias') && data.webExperienceTier) {
       const tierPrices: Record<string, number> = {
         essential_10: 2000,
         intermediate_20: 2500,

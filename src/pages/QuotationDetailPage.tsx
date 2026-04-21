@@ -156,7 +156,7 @@ export default function QuotationDetailPage() {
   if (responses.pdfSameGuests !== null) responseEntries.push({ label: 'Mismos invitados', value: responses.pdfSameGuests ? 'Sí' : 'No' });
   if (responses.pdfMonogram) responseEntries.push({ label: 'Monograma', value: responses.pdfMonogram });
   if (responses.pdfIllustrations !== null) responseEntries.push({ label: 'Ilustraciones', value: responses.pdfIllustrations ? 'Sí' : 'No' });
-  if (responses.pdfGiftTable) responseEntries.push({ label: 'Mesa de regalos', value: responses.pdfGiftTable });
+  if (responses.pdfGiftTable?.length) responseEntries.push({ label: 'Mesa de regalos', value: responses.pdfGiftTable.join(', ') });
   if (responses.pdfExperienceTier) responseEntries.push({ label: 'Mesa experiencias', value: responses.pdfExperienceTier });
   if (responses.pdfAdditionalInfo !== null) responseEntries.push({ label: 'Info adicional', value: responses.pdfAdditionalInfo ? 'Sí' : 'No' });
   if (responses.pdfInfoCategories?.length) responseEntries.push({ label: 'Categorías info', value: responses.pdfInfoCategories.join(', ') });
@@ -176,6 +176,8 @@ export default function QuotationDetailPage() {
   if (responses.webDesignStyle) responseEntries.push({ label: 'Estilo de diseño', value: responses.webDesignStyle });
   if (responses.webIllustrations !== null) responseEntries.push({ label: 'Ilustraciones', value: responses.webIllustrations ? 'Sí' : 'No' });
   if (responses.webRsvp !== null) responseEntries.push({ label: 'RSVP', value: responses.webRsvp ? 'Sí' : 'No' });
+  if (responses.webGiftTable?.length) responseEntries.push({ label: 'Mesa de regalos', value: responses.webGiftTable.join(', ') });
+  if (responses.webExperienceTier) responseEntries.push({ label: 'Mesa experiencias', value: responses.webExperienceTier });
   if (responses.webExtras?.length) responseEntries.push({ label: 'Extras web', value: responses.webExtras.join(', ') });
   if (responses.webGuestCountRange) responseEntries.push({ label: 'Rango invitados', value: responses.webGuestCountRange });
 

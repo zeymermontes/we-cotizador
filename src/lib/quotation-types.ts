@@ -105,7 +105,7 @@ export interface QuotationFormData {
   pdfSameGuests: boolean | null;
   pdfMonogram: MonogramChoice | null;
   pdfIllustrations: boolean | null;
-  pdfGiftTable: GiftTableChoice | null;
+  pdfGiftTable: GiftTableChoice[];
   pdfExperienceTier: ExperienceTier | null;
   pdfAdditionalInfo: boolean | null;
   pdfInfoCategories: InfoCategory[];
@@ -124,7 +124,7 @@ export interface QuotationFormData {
   webMonogram: MonogramChoice | null;
   webDesignStyle: DesignStyle | null;
   webIllustrations: boolean | null;
-  webGiftTable: GiftTableChoice | null;
+  webGiftTable: GiftTableChoice[];
   webExperienceTier: ExperienceTier | null;
   webAdditionalInfo: boolean | null;
   webInfoCategories: InfoCategory[];
@@ -192,7 +192,7 @@ export const INITIAL_FORM_DATA: QuotationFormData = {
   pdfSameGuests: null,
   pdfMonogram: null,
   pdfIllustrations: null,
-  pdfGiftTable: null,
+  pdfGiftTable: [],
   pdfExperienceTier: null,
   pdfAdditionalInfo: null,
   pdfInfoCategories: [],
@@ -210,7 +210,7 @@ export const INITIAL_FORM_DATA: QuotationFormData = {
   webMonogram: null,
   webDesignStyle: null,
   webIllustrations: null,
-  webGiftTable: null,
+  webGiftTable: [],
   webExperienceTier: null,
   webAdditionalInfo: null,
   webInfoCategories: [],

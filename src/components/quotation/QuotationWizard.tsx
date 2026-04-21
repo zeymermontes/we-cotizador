@@ -303,7 +303,7 @@ export default function QuotationWizard() {
           onSelect={(v) => q.updateField('pdfIllustrations', v)}
         />;
       case 'pdf_gift_table':
-        return <GenericRadioStep<GiftTableChoice>
+        return <GenericCheckStep<GiftTableChoice>
           title={t('pdf.gift_table_title')}
           options={[
             { value: 'link_tienda', label: t('pdf.gift_link') },
@@ -312,7 +312,14 @@ export default function QuotationWizard() {
             { value: 'not_sure', label: t('pdf.gift_not_sure') },
           ]}
           selected={q.formData.pdfGiftTable}
-          onSelect={(v) => q.updateField('pdfGiftTable', v)}
+          onToggle={(v) => {
+            const current = q.formData.pdfGiftTable;
+            if (current.includes(v)) {
+              q.updateField('pdfGiftTable', current.filter(i => i !== v));
+            } else {
+              q.updateField('pdfGiftTable', [...current, v]);
+            }
+          }}
         />;
       case 'pdf_experiences':
         return <GenericRadioStep<ExperienceTier>
@@ -520,7 +527,7 @@ export default function QuotationWizard() {
           onSelect={(v) => q.updateField('webIllustrations', v)}
         />;
       case 'web_gift_table':
-        return <GenericRadioStep<GiftTableChoice>
+        return <GenericCheckStep<GiftTableChoice>
           title={t('pdf.gift_table_title')}
           options={[
             { value: 'link_tienda', label: t('pdf.gift_link') },
@@ -529,7 +536,14 @@ export default function QuotationWizard() {
             { value: 'not_sure', label: t('pdf.gift_not_sure') },
           ]}
           selected={q.formData.webGiftTable}
-          onSelect={(v) => q.updateField('webGiftTable', v)}
+          onToggle={(v) => {
+            const current = q.formData.webGiftTable;
+            if (current.includes(v)) {
+              q.updateField('webGiftTable', current.filter(i => i !== v));
+            } else {
+              q.updateField('webGiftTable', [...current, v]);
+            }
+          }}
         />;
       case 'web_experiences':
         return <GenericRadioStep<ExperienceTier>

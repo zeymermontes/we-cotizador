@@ -92,7 +92,7 @@ export function useQuotation() {
         steps.push('pdf_monogram');
         steps.push('pdf_illustrations');
         steps.push('pdf_gift_table');
-        if (formData.pdfGiftTable === 'mesa_experiencias') {
+        if (formData.pdfGiftTable.includes('mesa_experiencias')) {
           steps.push('pdf_experiences');
         }
         steps.push('pdf_info');
@@ -121,7 +121,7 @@ export function useQuotation() {
         steps.push('web_design');
         steps.push('web_illustrations');
         steps.push('web_gift_table');
-        if (formData.webGiftTable === 'mesa_experiencias') {
+        if (formData.webGiftTable.includes('mesa_experiencias')) {
           steps.push('web_experiences');
         }
         steps.push('web_info');
@@ -202,7 +202,7 @@ export function useQuotation() {
       case 'pdf_illustrations':
         return formData.pdfIllustrations !== null;
       case 'pdf_gift_table':
-        return formData.pdfGiftTable !== null;
+        return formData.pdfGiftTable.length > 0;
       case 'pdf_experiences':
         return formData.pdfExperienceTier !== null;
       case 'pdf_info':
@@ -236,7 +236,7 @@ export function useQuotation() {
       case 'web_illustrations':
         return formData.webIllustrations !== null;
       case 'web_gift_table':
-        return formData.webGiftTable !== null;
+        return formData.webGiftTable.length > 0;
       case 'web_experiences':
         return formData.webExperienceTier !== null;
       case 'web_info':
