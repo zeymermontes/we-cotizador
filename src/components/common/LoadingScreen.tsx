@@ -5,7 +5,7 @@ interface Props {
   isFadingOut: boolean;
 }
 
-export default function LoadingScreen({ progress, isFadingOut }: Props) {
+export function LoadingScreen({ progress, isFadingOut }: Props) {
   return (
     <div className={`loading-screen ${isFadingOut ? 'fade-out' : ''}`}>
       <img src={logo} alt="We Page Logo" className="loading-logo" />
