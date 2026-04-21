@@ -16,7 +16,50 @@ export function useQuotation() {
     field: K,
     value: QuotationFormData[K]
   ) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      // If product type changes, reset all product-specific fields
+      if (field === 'productType' && value !== prev.productType) {
+        return {
+          ...INITIAL_FORM_DATA,
+          contactName: prev.contactName,
+          contactPhone: prev.contactPhone,
+          referralSource: prev.referralSource,
+          weddingPlannerName: prev.weddingPlannerName,
+          eventType: prev.eventType,
+          eventDate: prev.eventDate,
+          lang: prev.lang,
+          productType: value as any,
+        };
+      }
+
+      // If invitation format changes, reset only format-specific fields
+      if (field === 'invitationFormat' && value !== prev.invitationFormat) {
+        const newData = { ...prev, [field]: value };
+        
+        // Reset PDF fields if switching away from PDF or switching to PDF (to be safe)
+        const pdfFields: (keyof QuotationFormData)[] = [
+          'pdfMultipleEvents', 'pdfSubEvents', 'pdfSameGuests', 'pdfMonogram',
+          'pdfIllustrations', 'pdfGiftTable', 'pdfExperienceTier', 'pdfAdditionalInfo',
+          'pdfInfoCategories', 'pdfInfoOptionsCount', 'pdfPersonalized', 'pdfRsvp',
+          'pdfSending', 'pdfConfirmation', 'pdfGuestCountRange', 'pdfAdditionalProducts'
+        ];
+        
+        // Reset Web fields
+        const webFields: (keyof QuotationFormData)[] = [
+          'webEventCount', 'webSeparatePages', 'webDomainType', 'webMonogram',
+          'webDesignStyle', 'webIllustrations', 'webGiftTable', 'webExperienceTier',
+          'webAdditionalInfo', 'webInfoCategories', 'webInfoOptionsCount', 'webRsvp',
+          'webExtras', 'webSending', 'webConfirmation', 'webGuestCountRange', 'webAdditionalProducts'
+        ];
+
+        pdfFields.forEach(f => (newData[f] as any) = INITIAL_FORM_DATA[f]);
+        webFields.forEach(f => (newData[f] as any) = INITIAL_FORM_DATA[f]);
+
+        return newData;
+      }
+
+      return { ...prev, [field]: value };
+    });
   }, []);
 
   const updateFields = useCallback((fields: Partial<QuotationFormData>) => {

@@ -80,6 +80,39 @@ export default function QuotationWizard() {
         || q.formData.confirmGuestCountRange
         || null;
 
+      // Clean responses before submitting to remove stale data from "explored but changed" branches
+      const responses: any = {
+        contactName: q.formData.contactName,
+        contactPhone: q.formData.contactPhone,
+        referralSource: q.formData.referralSource,
+        weddingPlannerName: q.formData.weddingPlannerName,
+        eventType: q.formData.eventType,
+        eventDate: q.formData.eventDate,
+        productType: q.formData.productType,
+        lang: q.formData.lang,
+      };
+
+      if (q.formData.productType === 'invitacion_digital') {
+        responses.invitationFormat = q.formData.invitationFormat;
+        if (q.formData.invitationFormat === 'pdf_interactivo') {
+          Object.keys(q.formData).filter(k => k.startsWith('pdf')).forEach(k => {
+            responses[k] = (q.formData as any)[k];
+          });
+        } else if (q.formData.invitationFormat === 'pagina_web') {
+          Object.keys(q.formData).filter(k => k.startsWith('web')).forEach(k => {
+            responses[k] = (q.formData as any)[k];
+          });
+        }
+      } else if (q.formData.productType === 'save_the_date') {
+        Object.keys(q.formData).filter(k => k.startsWith('std')).forEach(k => {
+          responses[k] = (q.formData as any)[k];
+        });
+      } else if (q.formData.productType === 'envio_invitaciones') {
+        responses.sendGuestCountRange = q.formData.sendGuestCountRange;
+      } else if (q.formData.productType === 'confirmaciones') {
+        responses.confirmGuestCountRange = q.formData.confirmGuestCountRange;
+      }
+
       // Create quotation
       const { data: insertedQuotation, error: quotationError } = await supabase
         .from('quotations')
@@ -89,7 +122,7 @@ export default function QuotationWizard() {
           base_price: q.priceBreakdown.basePrice,
           extras_price: q.priceBreakdown.subtotal - q.priceBreakdown.basePrice,
           total_price: q.priceBreakdown.estimatedTotal,
-          responses: q.formData,
+          responses: responses,
           price_breakdown: q.priceBreakdown,
           guest_count_range: guestRange,
           status: 'pendiente',
