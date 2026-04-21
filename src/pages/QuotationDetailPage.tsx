@@ -146,7 +146,7 @@ export default function QuotationDetailPage() {
   if (responses.referralSource) responseEntries.push({ label: 'Referencia', value: responses.referralSource });
   if (responses.weddingPlannerName) responseEntries.push({ label: 'Wedding Planner', value: responses.weddingPlannerName });
   if (responses.eventType) responseEntries.push({ label: 'Tipo de evento', value: responses.eventType });
-  if (responses.eventDate) responseEntries.push({ label: 'Fecha del evento', value: responses.eventDate });
+  if (responses.eventDate) responseEntries.push({ label: 'Fecha del evento', value: formatDate(responses.eventDate) });
   if (responses.productType) responseEntries.push({ label: 'Producto', value: responses.productType });
   if (responses.invitationFormat) responseEntries.push({ label: 'Formato', value: responses.invitationFormat });
 
@@ -194,17 +194,16 @@ export default function QuotationDetailPage() {
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/cotizaciones')}>← Volver</button>
           <h1 className="admin-page-title">Detalle de cotización</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }} className="no-print">
-          {(['pendiente', 'enviada', 'aceptada', 'rechazada'] as QuotationStatus[]).map(s => (
-            <button
-              key={s}
-              className={`btn btn-sm ${quotation.status === s ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => updateStatus(s)}
-              style={{ textTransform: 'capitalize' }}
-            >
-              {s}
-            </button>
-          ))}
+        <div className="no-print">
+          <select
+            value={quotation.status}
+            onChange={(e) => updateStatus(e.target.value as QuotationStatus)}
+            className="glass-select"
+          >
+            {(['pendiente', 'enviada', 'aceptada', 'rechazada'] as QuotationStatus[]).map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -218,32 +217,31 @@ export default function QuotationDetailPage() {
               <div><span style={{ color: 'var(--text-muted)' }}>Nombre:</span> {quotation.client?.name}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Teléfono:</span> {quotation.client?.phone}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Evento:</span> {quotation.client?.event_type}</div>
-              <div><span style={{ color: 'var(--text-muted)' }}>Fecha:</span> {quotation.client?.event_date || '—'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Fecha:</span> {quotation.client?.event_date ? formatDate(quotation.client.event_date) : '—'}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Estado:</span> <span className={`badge badge-${quotation.client?.status}`}>{quotation.client?.status}</span></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Idioma:</span> {quotation.client?.lang?.toUpperCase()}</div>
             </div>
-            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-              {(['nuevo', 'cotizado', 'anticipo', 'en_proceso', 'finalizado', 'cancelado']).map(s => (
-                <button
-                  key={s}
-                  className={`btn btn-sm ${quotation.client?.status === s ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => updateClientStatus(s)}
-                  style={{ fontSize: 'var(--text-xs)', textTransform: 'capitalize' }}
-                >
-                  {s.replace('_', ' ')}
-                </button>
-              ))}
+            <div style={{ marginTop: 12 }}>
+              <select
+                value={quotation.client?.status}
+                onChange={(e) => updateClientStatus(e.target.value)}
+                className="glass-select"
+                style={{ width: '100%', fontSize: 'var(--text-xs)' }}
+              >
+                {(['nuevo', 'cotizado', 'anticipo', 'en_proceso', 'finalizado', 'cancelado']).map(s => (
+                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* Responses */}
           <div className="glass-card">
             <h3 className="heading-sm" style={{ marginBottom: 16 }}>📋 Respuestas del formulario</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {responseEntries.map((entry, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)' }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{entry.label}</span>
-                  <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{entry.value.replace(/_/g, ' ')}</span>
+                  <span style={{ fontWeight: 500, textTransform: 'capitalize', textAlign: 'right' }}>{entry.value.replace(/_/g, ' ')}</span>
                 </div>
               ))}
             </div>
@@ -256,20 +254,20 @@ export default function QuotationDetailPage() {
           <div className="glass-card">
             <h3 className="heading-sm" style={{ marginBottom: 16 }}>💰 Desglose de precio</h3>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
               <span>{breakdown?.baseLabel?.es || 'Base'}</span>
               <span style={{ fontWeight: 600 }}>{formatCurrency(breakdown?.basePrice || 0)}</span>
             </div>
 
             {breakdown?.items?.map((item, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>{item.label.es}</span>
                 <span style={{ fontWeight: 500 }}>{formatCurrency(item.amount)}</span>
               </div>
             ))}
 
             {breakdown?.perGuestItems?.map((item, i) => (
-              <div key={`pg-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)' }}>
+              <div key={`pg-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>
                   {item.label.es} ({item.guestRange} — ${item.pricePerGuest}/invitado × {item.estimatedGuests})
                 </span>
@@ -384,7 +382,7 @@ export default function QuotationDetailPage() {
             {payments.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 {payments.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)' }}>
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
                     <div>
                       <span className={`badge badge-${p.status}`} style={{ marginRight: 8 }}>{p.type}</span>
                       {p.description && <span style={{ color: 'var(--text-muted)' }}>{p.description}</span>}
