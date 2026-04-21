@@ -19,7 +19,7 @@ export default function ThankYouStep() {
           href="https://www.instagram.com/we.page.mx/"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 'var(--text-sm)' }}
+          style={{ fontSize: 'var(--text-sm)', color: '#000' }}
         >
           📸 {t('thank_you.instagram')}
         </a>
@@ -27,7 +27,7 @@ export default function ThankYouStep() {
           href="https://wa.me/523315807471"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 'var(--text-sm)' }}
+          style={{ fontSize: 'var(--text-sm)', color: '#000' }}
         >
           📱 {t('thank_you.whatsapp')}
         </a>
