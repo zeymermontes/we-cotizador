@@ -28,7 +28,7 @@ export default function GenericCheckStep<T>({
   const hasOptionImages = options.some(opt => opt.image);
   return (
     <div className="step-body">
-      <div className="step-header">
+      <div className={`step-header ${questionImage ? 'has-image' : ''}`}>
         <h2 className="step-title">{title}</h2>
         {subtitle && <p className="step-subtitle">{subtitle}</p>}
         {questionImage && (

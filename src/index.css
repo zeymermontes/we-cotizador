@@ -639,6 +639,10 @@ h6 {
   margin-bottom: var(--space-xl);
 }
 
+.step-header.has-image {
+  margin-bottom: 0;
+}
+
 .step-counter {
   display: inline-flex;
   align-items: center;
