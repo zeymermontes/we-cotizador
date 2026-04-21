@@ -312,9 +312,9 @@ h1, h2, h3, h4, h5, h6 {
 
 .option-card-image-wrapper {
   width: 100%;
-  aspect-ratio: 1 / 1.25;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 2px solid var(--border-default);
   background: #f9f8f6;
   display: flex;
   align-items: center;
@@ -586,13 +586,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .question-example-image-wrapper {
-  margin: var(--space-md) 0 var(--space-lg);
+  margin: var(--space-md) auto var(--space-lg);
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   background: white;
   box-shadow: var(--shadow-sm);
-  max-width: 100%;
+  max-width: 50%;
 }
 
 .question-example-image {
@@ -609,12 +609,16 @@ h1, h2, h3, h4, h5, h6 {
 
 .options-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-md);
 }
 
+.options-grid.force-horizontal {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
 @media (max-width: 480px) {
-  .options-grid {
+  .options-grid:not(.force-horizontal) {
     grid-template-columns: 1fr;
   }
 }

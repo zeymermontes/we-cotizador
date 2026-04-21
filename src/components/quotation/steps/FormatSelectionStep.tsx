@@ -22,7 +22,7 @@ export default function FormatSelectionStep({ formData, updateField }: Props) {
         <h2 className="step-title">{t('step6_format.title')}</h2>
       </div>
 
-      <div className="options-grid">
+      <div className="options-grid force-horizontal">
         {formats.map((fmt, i) => (
           <div
             key={fmt.value}

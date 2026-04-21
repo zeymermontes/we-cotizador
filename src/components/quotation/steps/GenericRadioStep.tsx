@@ -45,7 +45,7 @@ export default function GenericRadioStep<T>({
 
       {note && <div className="step-note">{note}</div>}
 
-      <div className={hasOptionImages ? 'options-grid' : 'options-list'}>
+      <div className={hasOptionImages ? `options-grid ${options.length === 2 ? 'force-horizontal' : ''}` : 'options-list'}>
         {options.map((opt, i) => (
           <div
             key={i}
