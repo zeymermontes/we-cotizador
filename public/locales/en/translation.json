@@ -6,7 +6,7 @@
   "common": {
     "next": "Next",
     "back": "Back",
-    "submit": "Submit quotation",
+    "submit": "Submit",
     "required": "This field is required",
     "select_one": "Select an option",
     "select_multiple": "You can select multiple options",
