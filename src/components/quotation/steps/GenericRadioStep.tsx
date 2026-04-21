@@ -1,3 +1,5 @@
+import BlurredImage from '../../common/BlurredImage';
+
 interface Option<T> {
   value: T;
   label: string;
@@ -38,7 +40,11 @@ export default function GenericRadioStep<T>({
         )}
         {questionImage && (
           <div className="question-example-image-wrapper animate-fade-in">
-            <img src={questionImage} alt="Example" className="question-example-image" />
+            <BlurredImage 
+              src={questionImage} 
+              alt="Example" 
+              className="question-example-image" 
+            />
           </div>
         )}
       </div>
@@ -55,7 +61,11 @@ export default function GenericRadioStep<T>({
           >
             {opt.image && (
               <div className="option-card-image-wrapper">
-                <img src={opt.image} alt={opt.label} className="option-card-image" />
+                <BlurredImage 
+                  src={opt.image} 
+                  alt={opt.label} 
+                  className="option-card-image" 
+                />
               </div>
             )}
             <div className="option-radio" />

@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import BlurredImage from '../../common/BlurredImage';
 import logo from '../../../assets/logo.png';
 
 export default function ThankYouStep() {
@@ -7,7 +7,7 @@ export default function ThankYouStep() {
   return (
     <div className="thank-you animate-fade-in">
       <div className="form-logo" style={{ justifyContent: 'center', marginBottom: 'var(--space-lg)' }}>
-        <img src={logo} alt="We.Page Logo" style={{ height: 80 }} />
+        <BlurredImage src={logo} alt="We.Page Logo" className="thank-you-logo" />
       </div>
       <h1>{t('thank_you.title')}</h1>
       <p className="step-subtitle" style={{ marginBottom: 16 }}>{t('thank_you.subtitle')}</p>

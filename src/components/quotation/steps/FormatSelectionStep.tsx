@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import BlurredImage from '../../common/BlurredImage';
 import type { QuotationFormData, InvitationFormat } from '../../../lib/quotation-types';
 import webImg from '../../../assets/questions/Pag web.webp';
 import pdfImg from '../../../assets/questions/pdf interactivo.webp';
@@ -31,7 +32,11 @@ export default function FormatSelectionStep({ formData, updateField }: Props) {
             onClick={() => updateField('invitationFormat', fmt.value)}
           >
             <div className="option-card-image-wrapper">
-              <img src={fmt.image} alt={t(`step6_format.${fmt.key}`)} className="option-card-image" />
+              <BlurredImage 
+                src={fmt.image} 
+                alt={t(`step6_format.${fmt.key}`)} 
+                className="option-card-image" 
+              />
             </div>
             <div className="option-radio" />
             <div className="option-content">

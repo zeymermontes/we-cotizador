@@ -643,6 +643,41 @@ h6 {
   margin-bottom: 0;
 }
 
+/* ─── Blurred Image Loading ───────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.image-placeholder {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  animation: shimmer 1s linear infinite forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.blurred-image {
+  filter: blur(20px);
+  opacity: 0;
+  transition: filter 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: filter, opacity;
+}
+
+.blurred-image.loaded {
+  filter: blur(0);
+  opacity: 1;
+}
+
+.thank-you-logo {
+  height: 80px;
+  width: auto;
+  display: block;
+  margin: 0 auto;
+}
+
 .step-counter {
   display: inline-flex;
   align-items: center;
