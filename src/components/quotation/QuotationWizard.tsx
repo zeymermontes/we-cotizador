@@ -12,11 +12,11 @@ import GenericCheckStep from './steps/GenericCheckStep';
 import GuestCountStep from './steps/GuestCountStep';
 import ThankYouStep from './steps/ThankYouStep';
 // Images
-import monogramImg from '../../assets/questions/Monograma.png';
-import elementsImg from '../../assets/questions/elementos.png';
-import rsvpImg from '../../assets/questions/diseno.png';
-import stdBasicoImg from '../../assets/questions/STD Basico.png';
-import stdExtImg from '../../assets/questions/STD ext.png';
+import monogramImg from '../../assets/questions/Monograma.webp';
+import elementsImg from '../../assets/questions/elementos.webp';
+import rsvpImg from '../../assets/questions/diseno.webp';
+import stdBasicoImg from '../../assets/questions/STD Basico.webp';
+import stdExtImg from '../../assets/questions/STD ext.webp';
 // PriceSummary removed - prices are internal only
 import { supabase } from '../../lib/supabase';
 import type { QuotationFormData, GuestCountRange, SubEvent, InfoCategory, WebExtra, AdditionalProduct, MonogramChoice, ExperienceTier, InfoOptionsCount, DesignStyle, GiftTableChoice } from '../../lib/quotation-types';

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { QuotationFormData, InvitationFormat } from '../../../lib/quotation-types';
-import webImg from '../../../assets/questions/Pag web.png';
-import pdfImg from '../../../assets/questions/pdf interactivo.png';
+import webImg from '../../../assets/questions/Pag web.webp';
+import pdfImg from '../../../assets/questions/pdf interactivo.webp';
 
 interface Props {
   formData: QuotationFormData;
