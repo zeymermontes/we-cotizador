@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import BlurredImage from '../../common/BlurredImage';
 import logo from '../../../assets/logo.png';
 
