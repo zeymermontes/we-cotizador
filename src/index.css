@@ -598,11 +598,16 @@ h6 {
 
 .scroll-gradient::after {
   content: '';
-  width: 24px;
-  height: 24px;
+  width: 44px;
+  height: 44px;
+  background-color: var(--color-primary);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='%232d5a57' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
+  background-size: 24px;
+  border-radius: 50%;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   animation: bounceVertical 2s infinite;
 }
 
