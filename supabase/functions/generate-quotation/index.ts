@@ -71,6 +71,8 @@ serve(async (req) => {
       templateId = Deno.env.get('TEMPLATE_ID_STD') || '';
     } else if (type === 'envio_invitaciones') {
       templateId = Deno.env.get('TEMPLATE_ID_ENVIO') || '';
+    } else if (type === 'confirmaciones') {
+      templateId = Deno.env.get('TEMPLATE_ID_CONFIRMACIONES') || Deno.env.get('TEMPLATE_ID_ENVIO') || '';
     } else {
       // Default to PDF if not sure
       templateId = Deno.env.get('TEMPLATE_ID_PDF') || '';
@@ -167,6 +169,7 @@ serve(async (req) => {
     try {
       const formatMoney = (n: number | undefined | null) => {
         if (typeof n !== 'number') return '0.00';
+        // No $ symbol — the templates already include it
         return new Intl.NumberFormat('es-MX', { 
           minimumFractionDigits: 2, 
           maximumFractionDigits: 2 
@@ -184,6 +187,20 @@ serve(async (req) => {
         } catch {
           return dateStr;
         }
+      };
+
+      // Helper: format gift table array to readable string
+      const formatGiftTable = (arr: string[] | string | null | undefined): string => {
+        if (!arr) return 'No';
+        if (typeof arr === 'string') return arr; // legacy single value
+        if (Array.isArray(arr) && arr.length === 0) return 'No';
+        const labelMap: Record<string, string> = {
+          'link_tienda': 'Link a tienda',
+          'transferencia': 'Transferencia',
+          'mesa_experiencias': 'Mesa de experiencias',
+          'not_sure': 'No estoy seguro',
+        };
+        return arr.map((v: string) => labelMap[v] || v).join(', ');
       };
 
       const bd = quotation.price_breakdown;
@@ -204,55 +221,87 @@ serve(async (req) => {
 
       const envioPrice = getBreakdownPrice(['pdf_sending', 'web_sending', 'std_sending', 'send_only']);
       const confirmPrice = getBreakdownPrice(['pdf_confirmation', 'web_confirmation', 'confirm_only']);
-      const stdPrice = getBreakdownPrice(['pdf_extra_std', 'web_extra_std', 'std_base']);
 
-      // Common replacements
-      const replacements: { text: string; replaceWith: string }[] = [
-        { text: '{{name}}', replaceWith: quotation.client.name },
-        { text: '{{telefono}}', replaceWith: quotation.client.phone },
-        { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
-        { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
-        { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
-        { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
-        { text: '{{sub_total}}', replaceWith: formatMoney(bd?.subtotal || total) },
-        { text: '{{anticipo}}', replaceWith: formatMoney(anticipoVal) },
-        { text: '{{entrega}}', replaceWith: formatMoney(entregaVal) },
-        { text: '{{envio}}', replaceWith: formatMoney(envioPrice) },
-        { text: '{{confirmaciones}}', replaceWith: formatMoney(confirmPrice) },
-        { text: '{{invitados}}', replaceWith: res.pdfGuestCountRange || res.webGuestCountRange || res.stdGuestCountRange || res.sendGuestCountRange || res.confirmGuestCountRange || '—' },
-        { text: '{{número}}', replaceWith: res.pdfGuestCountRange || res.webGuestCountRange || '—' },
-      ];
+      // Build replacements per document type
+      const replacements: { text: string; replaceWith: string }[] = [];
 
-      // Product specific replacements
-      if (productType === 'invitacion_digital' && invitationFormat === 'pdf_interactivo') {
+      // ─── ENVÍO / CONFIRMACIONES ────────────────────────────
+      if (productType === 'envio_invitaciones' || productType === 'confirmaciones') {
         replacements.push(
+          { text: '{{name}}', replaceWith: quotation.client.name || '—' },
+          { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
+          { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
+          { text: '{{invitados}}', replaceWith: res.sendGuestCountRange || res.confirmGuestCountRange || '—' },
+          { text: '{{envio}}', replaceWith: formatMoney(envioPrice) },
+          { text: '{{confirmaciones}}', replaceWith: formatMoney(confirmPrice) },
+        );
+      }
+
+      // ─── PDF INTERACTIVO ───────────────────────────────────
+      else if (productType === 'invitacion_digital' && invitationFormat === 'pdf_interactivo') {
+        replacements.push(
+          { text: '{{name}}', replaceWith: quotation.client.name || '—' },
+          { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
+          { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
+          { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
+          { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
           { text: '{{cantidad_de_eventos}}', replaceWith: String(res.pdfMultipleEvents ? (res.pdfSubEvents?.length + 1) : 1) },
           { text: '{{monograma}}', replaceWith: res.pdfMonogram === 'yes' ? 'Sí' : res.pdfMonogram === 'already_have' ? 'Ya cuento con uno' : 'No' },
           { text: '{{elementos}}', replaceWith: res.pdfIllustrations ? 'Sí' : 'No' },
-          { text: '{{mesa}}', replaceWith: res.pdfGiftTable === 'link_tienda' ? 'Link a tienda' : res.pdfGiftTable === 'transferencia' ? 'Transferencia' : res.pdfGiftTable === 'mesa_experiencias' ? 'Mesa de experiencias' : 'No' },
+          { text: '{{mesa}}', replaceWith: formatGiftTable(res.pdfGiftTable) },
           { text: '{{info_adicional}}', replaceWith: res.pdfInfoCategories?.length > 0 ? res.pdfInfoCategories.join(', ') : 'No' },
           { text: '{{cantidad_de_info}}', replaceWith: String(res.pdfInfoCategories?.length || 0) },
           { text: '{{Rotulado}}', replaceWith: res.pdfPersonalized ? 'Sí' : 'No' },
-          { text: '{{extras}}', replaceWith: res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').join(', ') || 'Ninguno' }
+          { text: '{{número}}', replaceWith: res.pdfGuestCountRange || '—' },
+          { text: '{{extras}}', replaceWith: res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').join(', ') || 'Ninguno' },
+          { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
+          { text: '{{sub_total}}', replaceWith: formatMoney(bd?.subtotal || total) },
+          { text: '{{anticipo}}', replaceWith: formatMoney(anticipoVal) },
+          { text: '{{entrega}}', replaceWith: formatMoney(entregaVal) },
+          { text: '{{invitados}}', replaceWith: res.pdfGuestCountRange || '—' },
+          { text: '{{envio}}', replaceWith: formatMoney(envioPrice) },
+          { text: '{{confirmaciones}}', replaceWith: formatMoney(confirmPrice) },
         );
-      } else if (productType === 'invitacion_digital' && invitationFormat === 'pagina_web') {
+      }
+
+      // ─── PÁGINA WEB ────────────────────────────────────────
+      else if (productType === 'invitacion_digital' && invitationFormat === 'pagina_web') {
         replacements.push(
+          { text: '{{name}}', replaceWith: quotation.client.name || '—' },
+          { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
+          { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
+          { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
+          { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
           { text: '{{cantidad_de_eventos}}', replaceWith: String(res.webEventCount || 1) },
           { text: '{{cantidad_de_paginas}}', replaceWith: String(res.webSeparatePages ? (res.webEventCount || 1) : 1) },
           { text: '{{dominio}}', replaceWith: res.webDomainType === 'custom' ? 'Personalizado' : 'Genérico' },
           { text: '{{monograma}}', replaceWith: res.webMonogram === 'yes' ? 'Sí' : res.webMonogram === 'already_have' ? 'Ya cuento con uno' : 'No' },
-          { text: '{{diseño}}', replaceWith: res.webDesignStyle || '—' },
-          { text: '{{elementos}}', replaceWith: res.webSpecialElements ? 'Sí' : 'No' },
-          { text: '{{mesa}}', replaceWith: res.webGiftTable || 'No' },
+          { text: '{{diseño}}', replaceWith: res.webDesignStyle === 'photo' ? 'Fotográfico' : res.webDesignStyle === 'graphic' ? 'Gráfico' : res.webDesignStyle === 'mixed' ? 'Mixto' : '—' },
+          { text: '{{elementos}}', replaceWith: res.webIllustrations ? 'Sí' : 'No' },
+          { text: '{{mesa}}', replaceWith: formatGiftTable(res.webGiftTable) },
           { text: '{{info_adicional}}', replaceWith: res.webInfoCategories?.length > 0 ? res.webInfoCategories.join(', ') : 'No' },
           { text: '{{cantidad_de_info}}', replaceWith: String(res.webInfoCategories?.length || 0) },
-          { text: '{{extras}}', replaceWith: res.webExtras?.length > 0 ? res.webExtras.join(', ') : 'Ninguno' }
+          { text: '{{extras}}', replaceWith: res.webExtras?.length > 0 ? res.webExtras.join(', ') : 'Ninguno' },
+          { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
+          { text: '{{sub_total}}', replaceWith: formatMoney(bd?.subtotal || total) },
+          { text: '{{anticipo}}', replaceWith: formatMoney(anticipoVal) },
+          { text: '{{entrega}}', replaceWith: formatMoney(entregaVal) },
+          { text: '{{invitados}}', replaceWith: res.webGuestCountRange || '—' },
+          { text: '{{envio}}', replaceWith: formatMoney(envioPrice) },
+          { text: '{{confirmaciones}}', replaceWith: formatMoney(confirmPrice) },
         );
-      } else if (productType === 'save_the_date') {
+      }
+
+      // ─── SAVE THE DATE ─────────────────────────────────────
+      else if (productType === 'save_the_date') {
+        const stdBasePrice = bd?.basePrice || total;
         replacements.push(
-          { text: '{{formato}}', replaceWith: res.stdFormat || '—' },
-          { text: '{{diseño}}', replaceWith: res.stdDesignStyle || '—' },
-          { text: '{{precio_std}}', replaceWith: formatMoney(stdPrice) }
+          { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
+          { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
+          { text: '{{formato}}', replaceWith: res.stdFormat === 'basico' ? 'Básico' : res.stdFormat === 'extendido' ? 'Extendido' : '—' },
+          { text: '{{diseño}}', replaceWith: res.stdDesignStyle === 'photo' ? 'Fotográfico' : res.stdDesignStyle === 'graphic' ? 'Gráfico' : res.stdDesignStyle === 'mixed' ? 'Mixto' : '—' },
+          { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
+          { text: '{{precio_std}}', replaceWith: formatMoney(stdBasePrice) },
         );
       }
 
