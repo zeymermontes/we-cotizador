@@ -51,32 +51,27 @@ export default function QuotationWizard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
-  // Asset pre-loading
+  // Asset pre-loading (parallel, non-blocking)
   useEffect(() => {
-    let loadedCount = 0;
-    const total = IMAGES_TO_PRELOAD.length;
-
-    const loadImage = (src: string) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = src;
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false); // Resolve even on error to not block forever
-      });
-    };
-
     const preload = async () => {
-      for (const src of IMAGES_TO_PRELOAD) {
-        await loadImage(src);
-        loadedCount++;
-        setLoadingProgress(loadedCount / total);
-      }
-      
-      // Small artificial delay for smooth experience
+      const promises = IMAGES_TO_PRELOAD.map(src => {
+        return new Promise<void>((resolve) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => resolve();
+          img.onerror = () => resolve(); // Don't block on errors
+        });
+      });
+
+      // Load all images simultaneously
+      await Promise.all(promises);
+      setLoadingProgress(1);
+
+      // Minimal transition since images are now tiny
       setTimeout(() => {
         setIsFadingOut(true);
-        setTimeout(() => setIsLoaded(true), 600);
-      }, 500);
+        setTimeout(() => setIsLoaded(true), 400);
+      }, 200);
     };
 
     preload();
