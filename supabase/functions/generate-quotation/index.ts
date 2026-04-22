@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { google } from "npm:googleapis@133";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
@@ -22,10 +22,15 @@ serve(async (req) => {
       throw new Error("quotation_id is required");
     }
 
-    // 1. Init Supabase to fetch quotation data (Usar SERVICE_ROLE para bypass RLS y evitar problemas de permisos al actualizar)
+    // 1. Init Supabase to fetch quotation data (Usar SERVICE_ROLE para bypass RLS)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+        },
+      }
     );
 
     const { data: quotation, error: qError } = await supabaseClient
