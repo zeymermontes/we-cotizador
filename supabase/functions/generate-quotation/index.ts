@@ -225,12 +225,19 @@ serve(async (req) => {
       // Build replacements per document type
       const replacements: { text: string; replaceWith: string }[] = [];
 
+      // ─── Base replacements (Always included to avoid empty requests) ───
+      replacements.push(
+        { text: '{{name}}', replaceWith: quotation.client.name || '—' },
+        { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
+        { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
+        { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
+        { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
+        { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
+      );
+
       // ─── ENVÍO / CONFIRMACIONES ────────────────────────────
       if (productType === 'envio_invitaciones' || productType === 'confirmaciones') {
         replacements.push(
-          { text: '{{name}}', replaceWith: quotation.client.name || '—' },
-          { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
-          { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
           { text: '{{invitados}}', replaceWith: res.sendGuestCountRange || res.confirmGuestCountRange || '—' },
           { text: '{{envio}}', replaceWith: formatMoney(envioPrice) },
           { text: '{{confirmaciones}}', replaceWith: formatMoney(confirmPrice) },
@@ -238,14 +245,9 @@ serve(async (req) => {
       }
 
       // ─── PDF INTERACTIVO ───────────────────────────────────
-      else if (productType === 'invitacion_digital' && invitationFormat === 'pdf_interactivo') {
+      else if (productType === 'pdf_interactivo' || (productType === 'invitacion_digital' && invitationFormat === 'pdf_interactivo')) {
         replacements.push(
-          { text: '{{name}}', replaceWith: quotation.client.name || '—' },
-          { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
-          { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
-          { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
-          { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
-          { text: '{{cantidad_de_eventos}}', replaceWith: String(res.pdfMultipleEvents ? (res.pdfSubEvents?.length + 1) : 1) },
+          { text: '{{cantidad_de_eventos}}', replaceWith: String(res.pdfMultipleEvents ? ((res.pdfSubEvents?.length || 0) + 1) : 1) },
           { text: '{{monograma}}', replaceWith: res.pdfMonogram === 'yes' ? 'Sí' : res.pdfMonogram === 'already_have' ? 'Ya cuento con uno' : 'No' },
           { text: '{{elementos}}', replaceWith: res.pdfIllustrations ? 'Sí' : 'No' },
           { text: '{{mesa}}', replaceWith: formatGiftTable(res.pdfGiftTable) },
@@ -254,7 +256,6 @@ serve(async (req) => {
           { text: '{{Rotulado}}', replaceWith: res.pdfPersonalized ? 'Sí' : 'No' },
           { text: '{{número}}', replaceWith: res.pdfGuestCountRange || '—' },
           { text: '{{extras}}', replaceWith: res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').join(', ') || 'Ninguno' },
-          { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
           { text: '{{sub_total}}', replaceWith: formatMoney(bd?.subtotal || total) },
           { text: '{{anticipo}}', replaceWith: formatMoney(anticipoVal) },
           { text: '{{entrega}}', replaceWith: formatMoney(entregaVal) },
@@ -265,13 +266,8 @@ serve(async (req) => {
       }
 
       // ─── PÁGINA WEB ────────────────────────────────────────
-      else if (productType === 'invitacion_digital' && invitationFormat === 'pagina_web') {
+      else if (productType === 'pagina_web' || (productType === 'invitacion_digital' && invitationFormat === 'pagina_web')) {
         replacements.push(
-          { text: '{{name}}', replaceWith: quotation.client.name || '—' },
-          { text: '{{telefono}}', replaceWith: quotation.client.phone || '—' },
-          { text: '{{fecha_coti}}', replaceWith: formatDate(quotation.created_at) },
-          { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
-          { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
           { text: '{{cantidad_de_eventos}}', replaceWith: String(res.webEventCount || 1) },
           { text: '{{cantidad_de_paginas}}', replaceWith: String(res.webSeparatePages ? (res.webEventCount || 1) : 1) },
           { text: '{{dominio}}', replaceWith: res.webDomainType === 'custom' ? 'Personalizado' : 'Genérico' },
@@ -282,7 +278,6 @@ serve(async (req) => {
           { text: '{{info_adicional}}', replaceWith: res.webInfoCategories?.length > 0 ? res.webInfoCategories.join(', ') : 'No' },
           { text: '{{cantidad_de_info}}', replaceWith: String(res.webInfoCategories?.length || 0) },
           { text: '{{extras}}', replaceWith: res.webExtras?.length > 0 ? res.webExtras.join(', ') : 'Ninguno' },
-          { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
           { text: '{{sub_total}}', replaceWith: formatMoney(bd?.subtotal || total) },
           { text: '{{anticipo}}', replaceWith: formatMoney(anticipoVal) },
           { text: '{{entrega}}', replaceWith: formatMoney(entregaVal) },
@@ -296,11 +291,8 @@ serve(async (req) => {
       else if (productType === 'save_the_date') {
         const stdBasePrice = bd?.basePrice || total;
         replacements.push(
-          { text: '{{cotización}}', replaceWith: quotation.id.slice(0, 8).toUpperCase() },
-          { text: '{{tipo_de_evento}}', replaceWith: quotation.client.event_type || '—' },
           { text: '{{formato}}', replaceWith: res.stdFormat === 'basico' ? 'Básico' : res.stdFormat === 'extendido' ? 'Extendido' : '—' },
           { text: '{{diseño}}', replaceWith: res.stdDesignStyle === 'photo' ? 'Fotográfico' : res.stdDesignStyle === 'graphic' ? 'Gráfico' : res.stdDesignStyle === 'mixed' ? 'Mixto' : '—' },
-          { text: '{{fecha}}', replaceWith: formatDate(quotation.client.event_date) },
           { text: '{{precio_std}}', replaceWith: formatMoney(stdBasePrice) },
         );
       }
@@ -312,10 +304,13 @@ serve(async (req) => {
         }
       }));
 
-      await slides.presentations.batchUpdate({
-        presentationId: newPptxId as string,
-        requestBody: { requests: slideRequests }
-      });
+      // Only run batchUpdate if there are actual requests to avoid "Must specify at least one request" error
+      if (slideRequests.length > 0) {
+        await slides.presentations.batchUpdate({
+          presentationId: newPptxId as string,
+          requestBody: { requests: slideRequests }
+        });
+      }
     } catch (e: any) {
       throw new Error(`Error en Paso 7 (Slides API batchUpdate): ${e.message}`);
     }
