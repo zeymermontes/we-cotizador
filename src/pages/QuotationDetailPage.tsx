@@ -158,7 +158,7 @@ export default function QuotationDetailPage() {
       if (responses.pdfMultipleEvents !== null) responseEntries.push({ label: 'Múltiples eventos', value: responses.pdfMultipleEvents ? 'Sí' : 'No' });
       if (responses.pdfSubEvents?.length) responseEntries.push({ label: 'Sub-eventos', value: responses.pdfSubEvents.join(', ') });
       if (responses.pdfSameGuests !== null) responseEntries.push({ label: 'Mismos invitados', value: responses.pdfSameGuests ? 'Sí' : 'No' });
-      if (responses.pdfMonogram) responseEntries.push({ label: 'Monogram', value: responses.pdfMonogram });
+      if (responses.pdfMonogram) responseEntries.push({ label: 'Monograma', value: responses.pdfMonogram });
       if (responses.pdfIllustrations !== null) responseEntries.push({ label: 'Ilustraciones', value: responses.pdfIllustrations ? 'Sí' : 'No' });
       if (responses.pdfGiftTable?.length) responseEntries.push({ label: 'Mesa de regalos', value: responses.pdfGiftTable.join(', ') });
       if (responses.pdfExperienceTier) responseEntries.push({ label: 'Mesa experiencias', value: responses.pdfExperienceTier });
@@ -181,12 +181,19 @@ export default function QuotationDetailPage() {
       if (responses.webRsvp !== null) responseEntries.push({ label: 'RSVP', value: responses.webRsvp ? 'Sí' : 'No' });
       if (responses.webGiftTable?.length) responseEntries.push({ label: 'Mesa de regalos', value: responses.webGiftTable.join(', ') });
       if (responses.webExperienceTier) responseEntries.push({ label: 'Mesa experiencias', value: responses.webExperienceTier });
-      if (responses.webExtras?.length) responseEntries.push({ label: 'Extras web', value: responses.webExtras.join(', ') });
+      if (responses.webAdditionalInfo !== null) responseEntries.push({ label: 'Info adicional', value: responses.webAdditionalInfo ? 'Sí' : 'No' });
+      if (responses.webInfoCategories?.length) responseEntries.push({ label: 'Categorías info', value: responses.webInfoCategories.join(', ') });
+      if (responses.webInfoOptionsCount) responseEntries.push({ label: 'Opciones por cat.', value: responses.webInfoOptionsCount });
+      if (responses.webSending !== null) responseEntries.push({ label: 'Envío', value: responses.webSending ? 'Sí' : 'No' });
+      if (responses.webConfirmation !== null) responseEntries.push({ label: 'Confirmación', value: responses.webConfirmation ? 'Sí' : 'No' });
       if (responses.webGuestCountRange) responseEntries.push({ label: 'Rango invitados', value: responses.webGuestCountRange });
+      if (responses.webExtras?.length) responseEntries.push({ label: 'Extras web', value: responses.webExtras.join(', ') });
+      if (responses.webAdditionalProducts?.length) responseEntries.push({ label: 'Extras adicionales web', value: responses.webAdditionalProducts.join(', ') });
     }
   } else if (productType === 'save_the_date') {
     if (responses.stdFormat) responseEntries.push({ label: 'Formato STD', value: responses.stdFormat });
     if (responses.stdDesignStyle) responseEntries.push({ label: 'Estilo STD', value: responses.stdDesignStyle });
+    if (responses.stdSending !== null) responseEntries.push({ label: 'Envío STD', value: responses.stdSending ? 'Sí' : 'No' });
     if (responses.stdGuestCountRange) responseEntries.push({ label: 'Rango invitados STD', value: responses.stdGuestCountRange });
   } else if (productType === 'envio_invitaciones') {
     if (responses.sendGuestCountRange) responseEntries.push({ label: 'Rango envío', value: responses.sendGuestCountRange });
