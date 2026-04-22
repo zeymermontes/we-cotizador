@@ -141,65 +141,108 @@ export default function QuotationDetailPage() {
   const responses = quotation.responses;
   const responseEntries: { label: string; value: string }[] = [];
 
-  if (responses.contactName) responseEntries.push({ label: 'Nombre', value: responses.contactName });
-  if (responses.contactPhone) responseEntries.push({ label: 'Teléfono', value: responses.contactPhone });
-  if (responses.referralSource) responseEntries.push({ label: 'Referencia', value: responses.referralSource });
-  if (responses.weddingPlannerName) responseEntries.push({ label: 'Wedding Planner', value: responses.weddingPlannerName });
-  if (responses.eventType) responseEntries.push({ label: 'Tipo de evento', value: responses.eventType });
-  if (responses.eventDate) responseEntries.push({ label: 'Fecha del evento', value: formatDate(responses.eventDate) });
-  if (responses.productType) responseEntries.push({ label: 'Producto', value: responses.productType });
-  if (responses.invitationFormat) responseEntries.push({ label: 'Formato', value: responses.invitationFormat });
+  const labelMap: Record<string, string> = {
+    // General
+    contactName: 'Nombre',
+    contactPhone: 'Teléfono',
+    referralSource: 'Referencia',
+    weddingPlannerName: 'Wedding Planner',
+    eventType: 'Tipo de evento',
+    eventDate: 'Fecha del evento',
+    productType: 'Producto',
+    invitationFormat: 'Formato',
+    lang: 'Idioma',
+    // PDF
+    pdfMultipleEvents: 'Múltiples eventos',
+    pdfSubEvents: 'Sub-eventos',
+    pdfSameGuests: 'Mismos invitados',
+    pdfMonogram: 'Monograma',
+    pdfIllustrations: 'Ilustraciones',
+    pdfGiftTable: 'Mesa de regalos',
+    pdfExperienceTier: 'Mesa experiencias',
+    pdfAdditionalInfo: 'Info adicional',
+    pdfInfoCategories: 'Categorías info',
+    pdfInfoOptionsCount: 'Opciones por cat.',
+    pdfPersonalized: 'Personalizada',
+    pdfRsvp: 'RSVP',
+    pdfSending: 'Envío',
+    pdfConfirmation: 'Confirmación',
+    pdfGuestCountRange: 'Rango invitados',
+    pdfAdditionalProducts: 'Extras adicionales',
+    // Web
+    webEventCount: 'Eventos web',
+    webSeparatePages: 'Páginas separadas',
+    webDomainType: 'Dominio',
+    webMonogram: 'Monograma web',
+    webDesignStyle: 'Estilo de diseño',
+    webIllustrations: 'Ilustraciones',
+    webRsvp: 'RSVP',
+    webGiftTable: 'Mesa de regalos',
+    webExperienceTier: 'Mesa experiencias',
+    webAdditionalInfo: 'Info adicional',
+    webInfoCategories: 'Categorías info',
+    webInfoOptionsCount: 'Opciones por cat.',
+    webSending: 'Envío',
+    webConfirmation: 'Confirmación',
+    webGuestCountRange: 'Rango invitados',
+    webExtras: 'Extras web',
+    webAdditionalProducts: 'Extras adicionales web',
+    // STD
+    stdFormat: 'Formato STD',
+    stdDesignStyle: 'Estilo STD',
+    stdSending: 'Envío STD',
+    stdGuestCountRange: 'Rango invitados STD',
+    // Units
+    sendGuestCountRange: 'Rango envío',
+    confirmGuestCountRange: 'Rango confirmación',
+  };
 
-  const productType = quotation.product_type;
-  const format = responses.invitationFormat;
+  const productType = (quotation.product_type || '').toLowerCase();
+  const format = (responses.invitationFormat || '').toLowerCase();
 
-  if (productType === 'invitacion_digital') {
-    if (format === 'pdf_interactivo') {
-      if (responses.pdfMultipleEvents !== null) responseEntries.push({ label: 'Múltiples eventos', value: responses.pdfMultipleEvents ? 'Sí' : 'No' });
-      if (responses.pdfSubEvents?.length) responseEntries.push({ label: 'Sub-eventos', value: responses.pdfSubEvents.join(', ') });
-      if (responses.pdfSameGuests !== null) responseEntries.push({ label: 'Mismos invitados', value: responses.pdfSameGuests ? 'Sí' : 'No' });
-      if (responses.pdfMonogram) responseEntries.push({ label: 'Monograma', value: responses.pdfMonogram });
-      if (responses.pdfIllustrations !== null) responseEntries.push({ label: 'Ilustraciones', value: responses.pdfIllustrations ? 'Sí' : 'No' });
-      if (responses.pdfGiftTable?.length) responseEntries.push({ label: 'Mesa de regalos', value: responses.pdfGiftTable.join(', ') });
-      if (responses.pdfExperienceTier) responseEntries.push({ label: 'Mesa experiencias', value: responses.pdfExperienceTier });
-      if (responses.pdfAdditionalInfo !== null) responseEntries.push({ label: 'Info adicional', value: responses.pdfAdditionalInfo ? 'Sí' : 'No' });
-      if (responses.pdfInfoCategories?.length) responseEntries.push({ label: 'Categorías info', value: responses.pdfInfoCategories.join(', ') });
-      if (responses.pdfInfoOptionsCount) responseEntries.push({ label: 'Opciones por cat.', value: responses.pdfInfoOptionsCount });
-      if (responses.pdfPersonalized !== null) responseEntries.push({ label: 'Personalizada', value: responses.pdfPersonalized ? 'Sí' : 'No' });
-      if (responses.pdfRsvp !== null) responseEntries.push({ label: 'RSVP', value: responses.pdfRsvp ? 'Sí' : 'No' });
-      if (responses.pdfSending !== null) responseEntries.push({ label: 'Envío', value: responses.pdfSending ? 'Sí' : 'No' });
-      if (responses.pdfConfirmation !== null) responseEntries.push({ label: 'Confirmación', value: responses.pdfConfirmation ? 'Sí' : 'No' });
-      if (responses.pdfGuestCountRange) responseEntries.push({ label: 'Rango invitados', value: responses.pdfGuestCountRange });
-      if (responses.pdfAdditionalProducts?.length) responseEntries.push({ label: 'Extras', value: responses.pdfAdditionalProducts.join(', ') });
-    } else if (format === 'pagina_web') {
-      if (responses.webEventCount) responseEntries.push({ label: 'Eventos web', value: String(responses.webEventCount) });
-      if (responses.webSeparatePages !== null) responseEntries.push({ label: 'Páginas separadas', value: responses.webSeparatePages ? 'Sí' : 'No' });
-      if (responses.webDomainType) responseEntries.push({ label: 'Dominio', value: responses.webDomainType });
-      if (responses.webMonogram) responseEntries.push({ label: 'Monograma web', value: responses.webMonogram });
-      if (responses.webDesignStyle) responseEntries.push({ label: 'Estilo de diseño', value: responses.webDesignStyle });
-      if (responses.webIllustrations !== null) responseEntries.push({ label: 'Ilustraciones', value: responses.webIllustrations ? 'Sí' : 'No' });
-      if (responses.webRsvp !== null) responseEntries.push({ label: 'RSVP', value: responses.webRsvp ? 'Sí' : 'No' });
-      if (responses.webGiftTable?.length) responseEntries.push({ label: 'Mesa de regalos', value: responses.webGiftTable.join(', ') });
-      if (responses.webExperienceTier) responseEntries.push({ label: 'Mesa experiencias', value: responses.webExperienceTier });
-      if (responses.webAdditionalInfo !== null) responseEntries.push({ label: 'Info adicional', value: responses.webAdditionalInfo ? 'Sí' : 'No' });
-      if (responses.webInfoCategories?.length) responseEntries.push({ label: 'Categorías info', value: responses.webInfoCategories.join(', ') });
-      if (responses.webInfoOptionsCount) responseEntries.push({ label: 'Opciones por cat.', value: responses.webInfoOptionsCount });
-      if (responses.webSending !== null) responseEntries.push({ label: 'Envío', value: responses.webSending ? 'Sí' : 'No' });
-      if (responses.webConfirmation !== null) responseEntries.push({ label: 'Confirmación', value: responses.webConfirmation ? 'Sí' : 'No' });
-      if (responses.webGuestCountRange) responseEntries.push({ label: 'Rango invitados', value: responses.webGuestCountRange });
-      if (responses.webExtras?.length) responseEntries.push({ label: 'Extras web', value: responses.webExtras.join(', ') });
-      if (responses.webAdditionalProducts?.length) responseEntries.push({ label: 'Extras adicionales web', value: responses.webAdditionalProducts.join(', ') });
+  // 1. First add general fields in specific order
+  const generalKeys = ['contactName', 'contactPhone', 'referralSource', 'weddingPlannerName', 'eventType', 'eventDate', 'productType', 'invitationFormat'];
+  generalKeys.forEach(key => {
+    const val = responses[key as keyof typeof responses];
+    if (val) {
+      responseEntries.push({ 
+        label: labelMap[key] || key, 
+        value: key === 'eventDate' ? formatDate(val as string) : String(val) 
+      });
     }
-  } else if (productType === 'save_the_date') {
-    if (responses.stdFormat) responseEntries.push({ label: 'Formato STD', value: responses.stdFormat });
-    if (responses.stdDesignStyle) responseEntries.push({ label: 'Estilo STD', value: responses.stdDesignStyle });
-    if (responses.stdSending !== null) responseEntries.push({ label: 'Envío STD', value: responses.stdSending ? 'Sí' : 'No' });
-    if (responses.stdGuestCountRange) responseEntries.push({ label: 'Rango invitados STD', value: responses.stdGuestCountRange });
-  } else if (productType === 'envio_invitaciones') {
-    if (responses.sendGuestCountRange) responseEntries.push({ label: 'Rango envío', value: responses.sendGuestCountRange });
-  } else if (productType === 'confirmaciones') {
-    if (responses.confirmGuestCountRange) responseEntries.push({ label: 'Rango confirmación', value: responses.confirmGuestCountRange });
-  }
+  });
+
+  // 2. Add product-specific fields
+  Object.entries(responses).forEach(([key, value]) => {
+    // Skip general fields already added
+    if (generalKeys.includes(key) || key === 'lang') return;
+
+    // Filter by relevance to avoid duplicates (pdf vs web vs std)
+    if (productType.includes('invitacion_digital')) {
+      if (format === 'pdf_interactivo' && key.startsWith('web')) return;
+      if (format === 'pagina_web' && key.startsWith('pdf')) return;
+      if (key.startsWith('std')) return;
+    } else if (productType.includes('save_the_date')) {
+      if (key.startsWith('pdf') || key.startsWith('web')) return;
+    } else if (productType.includes('envio')) {
+       if (key.startsWith('pdf') || key.startsWith('web') || key.startsWith('std') || key.startsWith('confirm')) return;
+    } else if (productType.includes('confirm')) {
+       if (key.startsWith('pdf') || key.startsWith('web') || key.startsWith('std') || key.startsWith('send')) return;
+    }
+
+    // Skip technical/formatting fields
+    if (value === null || value === undefined || value === '') return;
+    if (Array.isArray(value) && value.length === 0) return;
+
+    const displayValue = Array.isArray(value) 
+      ? value.join(', ') 
+      : (typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value));
+
+    responseEntries.push({ 
+      label: labelMap[key] || key, 
+      value: displayValue 
+    });
+  });
 
   return (
     <div className="animate-fade-in">
@@ -255,7 +298,7 @@ export default function QuotationDetailPage() {
               {responseEntries.map((entry, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
                   <span style={{ color: 'var(--text-muted)' }}>{entry.label}</span>
-                  <span style={{ fontWeight: 500, textTransform: 'capitalize', textAlign: 'right' }}>{entry.value.replace(/_/g, ' ')}</span>
+                  <span style={{ fontWeight: 500, textTransform: 'capitalize', textAlign: 'right' }}>{entry.value.replace(/(\d)_(\d)/g, '$1-$2').replace(/_/g, ' ')}</span>
                 </div>
               ))}
             </div>
