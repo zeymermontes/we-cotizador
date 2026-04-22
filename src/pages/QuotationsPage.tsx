@@ -95,7 +95,7 @@ export default function QuotationsPage() {
               <th>Total estimado</th>
               <th>Estado</th>
               <th>Fecha</th>
-              <th>PPTX</th>
+              <th>Documento</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -119,7 +119,17 @@ export default function QuotationsPage() {
                   <td><span className={`badge badge-${q.status}`}>{q.status}</span></td>
                   <td style={{ color: 'var(--text-secondary)' }}>{formatDate(q.created_at)}</td>
                   <td>
-                    {q.drive_document_url ? (
+                    {q.document_pdf_url ? (
+                      <a
+                        href={q.document_pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary-deep)', fontWeight: 600 }}
+                      >
+                        📥 PDF
+                      </a>
+                    ) : q.drive_document_url ? (
                       <a
                         href={q.drive_document_url}
                         target="_blank"
@@ -127,7 +137,7 @@ export default function QuotationsPage() {
                         onClick={(e) => e.stopPropagation()}
                         style={{ fontSize: 'var(--text-xs)' }}
                       >
-                        📄 Ver PPTX
+                        📄 PPTX
                       </a>
                     ) : '—'}
                   </td>
