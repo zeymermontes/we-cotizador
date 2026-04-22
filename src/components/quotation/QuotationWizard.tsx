@@ -771,7 +771,18 @@ export default function QuotationWizard() {
           >
             {renderStep()}
           </div>
-          <div className={`scroll-gradient ${showIndicator ? 'visible' : ''}`} />
+          <div 
+            className={`scroll-gradient ${showIndicator ? 'visible' : ''}`} 
+            onClick={() => {
+              if (scrollRef.current) {
+                scrollRef.current.scrollTo({
+                  top: scrollRef.current.scrollHeight,
+                  behavior: 'smooth'
+                });
+              }
+            }}
+            style={{ cursor: 'pointer', pointerEvents: showIndicator ? 'auto' : 'none' }}
+          />
         </div>
 
         <div className="step-footer">

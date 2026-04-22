@@ -568,6 +568,48 @@ h6 {
   width: auto;
 }
 
+@keyframes bounceVertical {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+  60% { transform: translateY(-4px); }
+}
+
+.scroll-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(to top,
+      rgba(244, 242, 239, 0.95) 0%,
+      rgba(244, 242, 239, 0.6) 50%,
+      transparent 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity var(--transition-base), transform var(--transition-base);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 12px;
+}
+
+.scroll-gradient::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='%232d5a57' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  animation: bounceVertical 2s infinite;
+}
+
+.scroll-gradient.visible {
+  opacity: 1;
+}
+
 .form-container {
   width: 100%;
   max-width: var(--max-form-width);
@@ -591,8 +633,8 @@ h6 {
 .step-content-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-md) 4px var(--space-2xl);
-  /* Bottom padding for scroll room */
+  padding: var(--space-md) 8px 100px;
+  /* Bottom padding for scroll indicator room */
   margin: 0 -4px;
   /* Offset parent padding for scrollbar */
   scrollbar-width: thin;
