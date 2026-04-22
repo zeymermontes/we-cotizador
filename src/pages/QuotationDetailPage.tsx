@@ -103,9 +103,8 @@ export default function QuotationDetailPage() {
       if (error) throw error;
       
       if (data?.success) {
-        setQuotation({ ...quotation, drive_document_url: data.pptxUrl });
-        setDriveUrlInput(data.pptxUrl);
-        // We could also store PDF url in state if we want to show it right away
+        // Refresh all details to get the newest status and links from DB
+        await loadDetails(id);
         alert('Documentos generados y guardados en Google Drive exitosamente.');
       } else {
         throw new Error(data?.error || 'Error desconocido');
