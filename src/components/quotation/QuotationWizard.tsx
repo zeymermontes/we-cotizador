@@ -424,13 +424,15 @@ export default function QuotationWizard() {
           questionImage={confirmationImg}
           onSelect={(v) => q.updateField('pdfConfirmation', v)}
         />;
-      case 'pdf_guest_count':
+      case 'pdf_guest_count': {
+        const isSendingOrConfirming = q.formData.pdfSending || q.formData.pdfConfirmation;
         return <GuestCountStep
-          title={t('pdf.guest_count_title')}
-          note={t('pdf.guest_count_tip')}
+          title={isSendingOrConfirming ? t('pdf.guest_count_title') : t('pdf.guest_count_title_no_sending')}
+          note={isSendingOrConfirming ? t('pdf.guest_count_tip') : undefined}
           selected={q.formData.pdfGuestCountRange}
           onSelect={(v) => q.updateField('pdfGuestCountRange', v as GuestCountRange)}
         />;
+      }
       case 'pdf_extras':
         return <GenericCheckStep<AdditionalProduct>
           title={t('pdf.extras_title')}
@@ -655,13 +657,15 @@ export default function QuotationWizard() {
           questionImage={confirmationImg}
           onSelect={(v) => q.updateField('webConfirmation', v)}
         />;
-      case 'web_guest_count':
+      case 'web_guest_count': {
+        const isSendingOrConfirming = q.formData.webSending || q.formData.webConfirmation;
         return <GuestCountStep
-          title={t('pdf.guest_count_title')}
-          note={t('pdf.guest_count_tip')}
+          title={isSendingOrConfirming ? t('pdf.guest_count_title') : t('pdf.guest_count_title_no_sending')}
+          note={isSendingOrConfirming ? t('pdf.guest_count_tip') : undefined}
           selected={q.formData.webGuestCountRange}
           onSelect={(v) => q.updateField('webGuestCountRange', v as GuestCountRange)}
         />;
+      }
       case 'web_additional':
         return <GenericCheckStep<AdditionalProduct>
           title={t('pdf.extras_title')}
@@ -712,7 +716,7 @@ export default function QuotationWizard() {
         return <GenericRadioStep<boolean>
           title={t('std.sending_title')}
           subtitle={t('std.sending_desc')}
-          note={t('std.sending_note')}
+          note={t('pdf.sending_note')}
           options={[
             { value: true, label: t('pdf.sending_yes'), price: t('std.sending_yes_price') },
             { value: false, label: t('pdf.sending_no') },
@@ -720,13 +724,15 @@ export default function QuotationWizard() {
           selected={q.formData.stdSending}
           onSelect={(v) => q.updateField('stdSending', v)}
         />;
-      case 'std_guest_count':
+      case 'std_guest_count': {
+        const isSendingOrConfirming = q.formData.stdSending;
         return <GuestCountStep
-          title={t('pdf.guest_count_title')}
-          note={t('pdf.guest_count_tip')}
+          title={isSendingOrConfirming ? t('pdf.guest_count_title') : t('pdf.guest_count_title_no_sending')}
+          note={isSendingOrConfirming ? t('pdf.guest_count_tip') : undefined}
           selected={q.formData.stdGuestCountRange}
           onSelect={(v) => q.updateField('stdGuestCountRange', v as GuestCountRange)}
         />;
+      }
 
       // ─── Send / Confirm only ───
       case 'send_guest_count':

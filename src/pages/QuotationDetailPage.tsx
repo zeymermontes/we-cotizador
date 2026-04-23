@@ -362,52 +362,51 @@ export default function QuotationDetailPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                
+                {/* 1. Status Messages */}
                 {quotation.document_status === 'generating' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-primary-deep)', padding: '12px 0', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>⏳ Generando en Google Drive...</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-primary-deep)', padding: '4px 0', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>⏳ Generando en Google Drive...</span>
                   </div>
                 )}
 
                 {quotation.document_status === 'failed' && (
                   <div style={{ background: '#FFF1F0', border: '1px solid #FFA39E', borderRadius: 8, padding: 12 }}>
                     <p style={{ margin: 0, color: '#CF1322', fontSize: 'var(--text-sm)', fontWeight: 600 }}>Error al generar</p>
-                    <p style={{ margin: '4px 0 12px 0', color: '#CF1322', fontSize: 'var(--text-xs)' }}>{quotation.document_error}</p>
-                    <button className="btn btn-primary btn-sm" onClick={generateGoogleDocument} disabled={generatingDoc} style={{ width: '100%' }}>
-                      {generatingDoc ? 'Reintentando...' : 'Reintentar Generación'}
-                    </button>
+                    <p style={{ margin: '4px 0 0 0', color: '#CF1322', fontSize: 'var(--text-xs)' }}>{quotation.document_error}</p>
                   </div>
                 )}
 
-                {/* Completed state or manual state */}
-                {(quotation.document_status === 'completed' || quotation.drive_document_url) && quotation.document_status !== 'generating' && quotation.document_status !== 'failed' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* 2. Available Links */}
+                {(quotation.document_pdf_url || quotation.drive_document_url) && (
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {quotation.document_pdf_url && (
                       <a href={quotation.document_pdf_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
                         Descargar Cotización (PDF)
                       </a>
                     )}
-                    <a href={quotation.drive_document_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
-                      Abrir Presentación (Drive) ↗
-                    </a>
+                    {quotation.drive_document_url && (
+                      <a href={quotation.drive_document_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                        Abrir Presentación (Drive) ↗
+                      </a>
+                    )}
                   </div>
                 )}
 
-                {/* Pending state */}
-                {(!quotation.document_status || quotation.document_status === 'pending') && !quotation.drive_document_url && (
-                  <>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>No hay documentos generados para esta cotización.</p>
-                    <button 
-                      className="btn btn-primary btn-sm" 
-                      onClick={generateGoogleDocument}
-                      disabled={generatingDoc}
-                    >
-                      {generatingDoc ? 'Generando documentos...' : 'Generar PDF y PPTX'}
-                    </button>
-                  </>
-                )}
+                {/* 3. Permanent Regeneration Button */}
+                <div style={{ marginTop: 4 }}>
+                  <button 
+                    className="btn btn-ghost btn-sm" 
+                    onClick={generateGoogleDocument}
+                    disabled={generatingDoc}
+                    style={{ width: '100%', justifyContent: 'center', border: '1px dashed var(--border-default)' }}
+                  >
+                    {generatingDoc ? 'Procesando...' : (quotation.document_pdf_url ? '🔄 Regenerar PPTX y PDF' : '✨ Generar PPTX y PDF')}
+                  </button>
+                </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
-                  <button className="btn btn-ghost btn-xs" onClick={() => setEditingDriveUrl(true)}>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button className="btn btn-ghost btn-xs" onClick={() => setEditingDriveUrl(true)} style={{ opacity: 0.6 }}>
                     {quotation.drive_document_url ? 'Cambiar enlaces manualmente' : 'Agregar enlaces manualmente'}
                   </button>
                 </div>
