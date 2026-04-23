@@ -272,11 +272,11 @@ serve(async (req) => {
         allReplacements['{{monograma}}'] = res.pdfMonogram === 'yes' ? 'Sí' : res.pdfMonogram === 'already_have' ? 'Ya cuento con uno' : 'No';
         allReplacements['{{elementos}}'] = res.pdfIllustrations ? 'Sí' : 'No';
         allReplacements['{{mesa}}'] = formatGiftTable(res.pdfGiftTable);
-        allReplacements['{{info_adicional}}'] = res.pdfInfoCategories?.length > 0 ? res.pdfInfoCategories.join(', ') : 'No';
+        allReplacements['{{info_adicional}}'] = res.pdfInfoCategories?.length > 0 ? res.pdfInfoCategories.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'No';
         allReplacements['{{cantidad_de_info}}'] = String(res.pdfInfoCategories?.length || 0);
         allReplacements['{{Rotulado}}'] = res.pdfPersonalized ? 'Sí' : 'No';
         allReplacements['{{número}}'] = res.pdfGuestCountRange || '0';
-        allReplacements['{{extras}}'] = res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').join(', ') || 'Ninguno';
+        allReplacements['{{extras}}'] = res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').map((p: string) => p.replace(/_/g, ' ')).join(', ') || 'Ninguno';
         allReplacements['{{invitados}}'] = res.pdfGuestCountRange || '0';
         allReplacements['{{envio}}'] = formatMoney(envioPrice);
         allReplacements['{{confirmaciones}}'] = formatMoney(confirmPrice);
@@ -291,9 +291,9 @@ serve(async (req) => {
         allReplacements['{{diseño}}'] = res.webDesignStyle === 'photo' ? 'Fotográfico' : res.webDesignStyle === 'graphic' ? 'Gráfico' : res.webDesignStyle === 'mixed' ? 'Mixto' : '—';
         allReplacements['{{elementos}}'] = res.webIllustrations ? 'Sí' : 'No';
         allReplacements['{{mesa}}'] = formatGiftTable(res.webGiftTable);
-        allReplacements['{{info_adicional}}'] = res.webInfoCategories?.length > 0 ? res.webInfoCategories.join(', ') : 'No';
+        allReplacements['{{info_adicional}}'] = res.webInfoCategories?.length > 0 ? res.webInfoCategories.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'No';
         allReplacements['{{cantidad_de_info}}'] = String(res.webInfoCategories?.length || 0);
-        allReplacements['{{extras}}'] = res.webExtras?.length > 0 ? res.webExtras.join(', ') : 'Ninguno';
+        allReplacements['{{extras}}'] = res.webExtras?.length > 0 ? res.webExtras.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'Ninguno';
         allReplacements['{{invitados}}'] = res.webGuestCountRange || '0';
         allReplacements['{{envio}}'] = formatMoney(envioPrice);
         allReplacements['{{confirmaciones}}'] = formatMoney(confirmPrice);
