@@ -68,9 +68,9 @@ serve(async (req) => {
     const type = quotation.product_type;
     const format = quotation.responses?.invitationFormat;
     
-    if (type === 'invitacion_digital' && format === 'pagina_web') {
+    if (type === 'pagina_web' || (type === 'invitacion_digital' && format === 'pagina_web')) {
       templateId = Deno.env.get('TEMPLATE_ID_WEBSITE') || '';
-    } else if (type === 'invitacion_digital' && format === 'pdf_interactivo') {
+    } else if (type === 'pdf_interactivo' || (type === 'invitacion_digital' && format === 'pdf_interactivo')) {
       templateId = Deno.env.get('TEMPLATE_ID_PDF') || '';
     } else if (type === 'save_the_date') {
       templateId = Deno.env.get('TEMPLATE_ID_STD') || '';
@@ -240,7 +240,7 @@ serve(async (req) => {
         '{{envio}}': '0.00',
         '{{confirmaciones}}': '0.00',
         '{{total}}': formatMoney(totalVal),
-        '{{cantidad_de_eventos}}': '0',
+        '{{cantidad_de_evento}}': '1',
         '{{monograma}}': 'No',
         '{{elementos}}': 'No',
         '{{mesa}}': 'No',
@@ -271,7 +271,7 @@ serve(async (req) => {
 
       // PDF INTERACTIVO
       else if (productType === 'pdf_interactivo' || (productType === 'invitacion_digital' && invitationFormat === 'pdf_interactivo')) {
-        allReplacements['{{cantidad_de_eventos}}'] = String(res.pdfMultipleEvents ? ((res.pdfSubEvents?.length || 0) + 1) : 1);
+        allReplacements['{{cantidad_de_evento}}'] = String(res.pdfMultipleEvents ? ((res.pdfSubEvents?.length || 0) + 1) : 1);
         allReplacements['{{monograma}}'] = res.pdfMonogram === 'yes' ? 'Sí' : res.pdfMonogram === 'already_have' ? 'Ya cuento con uno' : 'No';
         allReplacements['{{elementos}}'] = res.pdfIllustrations ? 'Sí' : 'No';
         allReplacements['{{mesa}}'] = formatGiftTable(res.pdfGiftTable);
@@ -295,7 +295,7 @@ serve(async (req) => {
 
       // PÁGINA WEB
       else if (productType === 'pagina_web' || (productType === 'invitacion_digital' && invitationFormat === 'pagina_web')) {
-        allReplacements['{{cantidad_de_eventos}}'] = String(res.webEventCount || 1);
+        allReplacements['{{cantidad_de_evento}}'] = String(res.webEventCount || 1);
         allReplacements['{{cantidad_de_paginas}}'] = String(res.webSeparatePages ? (res.webEventCount || 1) : 1);
         allReplacements['{{dominio}}'] = res.webDomainType === 'custom' ? 'Personalizado' : 'Genérico';
         allReplacements['{{monograma}}'] = res.webMonogram === 'yes' ? 'Sí' : res.webMonogram === 'already_have' ? 'Ya cuento con uno' : 'No';
