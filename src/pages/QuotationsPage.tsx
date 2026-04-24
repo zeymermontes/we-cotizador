@@ -8,7 +8,6 @@ export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<(Quotation & { client: Client })[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilters, setStatusFilters] = useState<QuotationStatus[]>([]);
-  const [productFilters, setProductFilters] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -40,9 +39,6 @@ export default function QuotationsPage() {
     // Multi-select status filter
     if (statusFilters.length > 0 && !statusFilters.includes(q.status)) return false;
 
-    // Multi-select product filter
-    if (productFilters.length > 0 && !productFilters.includes(q.product_type)) return false;
-
     if (search) {
       const s = search.toLowerCase();
       return (
@@ -55,22 +51,10 @@ export default function QuotationsPage() {
   });
 
   const statusOptions: QuotationStatus[] = ['pendiente', 'enviada', 'aceptada', 'rechazada'];
-  const productOptions = [
-    { id: 'invitacion_digital', label: 'Invitación' },
-    { id: 'save_the_date', label: 'STD' },
-    { id: 'envio_invitaciones', label: 'Solo Envío' },
-    { id: 'confirmaciones', label: 'Solo Confirmación' },
-  ];
 
   const toggleStatus = (s: QuotationStatus) => {
     setStatusFilters(prev => 
       prev.includes(s) ? prev.filter(item => item !== s) : [...prev, s]
-    );
-  };
-
-  const toggleProduct = (p: string) => {
-    setProductFilters(prev => 
-      prev.includes(p) ? prev.filter(item => item !== p) : [...prev, p]
     );
   };
 
@@ -114,31 +98,6 @@ export default function QuotationsPage() {
           ))}
           {statusFilters.length > 0 && (
             <button className="btn btn-ghost btn-xs" onClick={() => setStatusFilters([])} style={{ fontSize: 10 }}>Limpiar</button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Producto:</span>
-          {productOptions.map(p => (
-            <button
-              key={p.id}
-              onClick={() => toggleProduct(p.id)}
-              className={`badge`}
-              style={{ 
-                cursor: 'pointer', 
-                color: 'var(--text-primary)',
-                background: productFilters.includes(p.id) ? 'var(--color-primary-light)' : 'var(--bg-elevated)',
-                opacity: productFilters.length === 0 || productFilters.includes(p.id) ? 1 : 0.4,
-                border: productFilters.includes(p.id) ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
-                transition: 'all 0.2s',
-                padding: '4px 10px'
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-          {productFilters.length > 0 && (
-            <button className="btn btn-ghost btn-xs" onClick={() => setProductFilters([])} style={{ fontSize: 10 }}>Limpiar</button>
           )}
         </div>
       </div>
