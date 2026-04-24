@@ -109,7 +109,12 @@ export default function ClientsPage() {
             ) : (
               filtered.map(c => (
                 <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/cotizaciones`)}>
-                  <td style={{ fontWeight: 500 }}>{c.name}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span className={`status-indicator status-${c.status}`} title={`Estado: ${c.status}`}></span>
+                      {c.name}
+                    </div>
+                  </td>
                   <td>{c.phone}</td>
                   <td style={{ textTransform: 'capitalize' }}>{c.event_type?.replace(/_/g, ' ') || '—'}</td>
                   <td>{c.event_date ? formatDate(c.event_date) : '—'}</td>

@@ -1182,6 +1182,30 @@ h6 {
   background: var(--color-error);
 }
 
+/* Status Indicator Dot */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator.status-pendiente,
+.status-indicator.status-nuevo { background: var(--color-info); }
+
+.status-indicator.status-enviada,
+.status-indicator.status-cotizado { background: var(--color-warning); }
+
+.status-indicator.status-aceptada,
+.status-indicator.status-anticipo,
+.status-indicator.status-finalizado { background: var(--color-success); }
+
+.status-indicator.status-rechazada,
+.status-indicator.status-cancelado { background: var(--color-error); }
+
+.status-indicator.status-en_proceso { background: var(--color-primary-dark); }
+
 /* ─── Login Page ──────────────────────────────────────────── */
 .login-page {
   min-height: 100vh;

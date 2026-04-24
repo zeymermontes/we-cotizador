@@ -179,9 +179,14 @@ export default function QuotationsPage() {
 
                   return (
                     <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/cotizaciones/${q.id}`)}>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{q.client?.name || '—'}</div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{q.client?.phone || '—'}</div>
+                      <td style={{ fontWeight: 500 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span className={`status-indicator status-${q.status}`} title={`Estado: ${q.status}`}></span>
+                          <div>
+                            <div>{q.client?.name || '—'}</div>
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 400 }}>{q.client?.phone || '—'}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ textTransform: 'capitalize' }}>{q.product_type.replace(/_/g, ' ')}</td>
                       <td>{q.guest_count_range || '—'}</td>
