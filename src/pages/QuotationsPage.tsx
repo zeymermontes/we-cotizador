@@ -18,7 +18,7 @@ export default function QuotationsPage() {
     try {
       const { data } = await supabase
         .from('quotations')
-        .select('*, client:clients(*)')
+        .select('*, client:clients(*), payments(*)')
         .order('created_at', { ascending: false });
 
       if (data) setQuotations(data as (Quotation & { client: Client })[]);
@@ -91,66 +91,85 @@ export default function QuotationsPage() {
             <tr>
               <th>Cliente</th>
               <th>Producto</th>
-              <th>Rango invitados</th>
-              <th>Total estimado</th>
+              <th>Invitados</th>
+              <th>Total</th>
+              <th>Anticipo</th>
+              <th>Extras</th>
+              <th>Finiquito</th>
+              <th>Por pagar</th>
               <th>Estado</th>
               <th>Fecha</th>
-              <th>Documento</th>
+              <th>Doc</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
+                <td colSpan={12} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>
                   No se encontraron cotizaciones
                 </td>
               </tr>
             ) : (
-              filtered.map(q => (
-                <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/cotizaciones/${q.id}`)}>
-                  <td>
-                    <div style={{ fontWeight: 500 }}>{q.client?.name || '—'}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{q.client?.phone || '—'}</div>
-                  </td>
-                  <td style={{ textTransform: 'capitalize' }}>{q.product_type.replace(/_/g, ' ')}</td>
-                  <td>{q.guest_count_range || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>{formatCurrency(q.total_price)}</td>
-                  <td><span className={`badge badge-${q.status}`}>{q.status}</span></td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{formatDate(q.created_at)}</td>
-                  <td>
-                    {q.document_pdf_url ? (
-                      <a
-                        href={q.document_pdf_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary-deep)', fontWeight: 600 }}
-                      >
-                        📥 PDF
-                      </a>
-                    ) : q.drive_document_url ? (
-                      <a
-                        href={q.drive_document_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: 'var(--text-xs)' }}
-                      >
-                        📄 PPTX
-                      </a>
-                    ) : '—'}
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/cotizaciones/${q.id}`); }}
-                    >
-                      Ver →
-                    </button>
-                  </td>
-                </tr>
-              ))
+                filtered.map(q => {
+                  const paid = q.payments?.filter(p => p.status === 'pagado') || [];
+                  const totalPaid = paid.reduce((sum, p) => sum + Number(p.amount), 0);
+                  const anticipo = paid.filter(p => p.type === 'anticipo').reduce((sum, p) => sum + Number(p.amount), 0);
+                  const extras = paid.filter(p => p.type === 'pago' || p.type === 'extra').reduce((sum, p) => sum + Number(p.amount), 0);
+                  const finiquito = paid.filter(p => p.type === 'finiquito').reduce((sum, p) => sum + Number(p.amount), 0);
+                  const remaining = q.total_price - totalPaid;
+
+                  return (
+                    <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/cotizaciones/${q.id}`)}>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{q.client?.name || '—'}</div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{q.client?.phone || '—'}</div>
+                      </td>
+                      <td style={{ textTransform: 'capitalize' }}>{q.product_type.replace(/_/g, ' ')}</td>
+                      <td>{q.guest_count_range || '—'}</td>
+                      <td style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>{formatCurrency(q.total_price)}</td>
+                      <td style={{ color: anticipo > 0 ? 'var(--color-success)' : 'var(--text-muted)' }}>{anticipo > 0 ? formatCurrency(anticipo) : '—'}</td>
+                      <td style={{ color: extras > 0 ? 'var(--color-success)' : 'var(--text-muted)' }}>{extras > 0 ? formatCurrency(extras) : '—'}</td>
+                      <td style={{ color: finiquito > 0 ? 'var(--color-success)' : 'var(--text-muted)' }}>{finiquito > 0 ? formatCurrency(finiquito) : '—'}</td>
+                      <td style={{ fontWeight: 600, color: remaining > 0 ? 'var(--color-warning)' : 'var(--color-success)' }}>
+                        {remaining > 0 ? formatCurrency(remaining) : 'Pagado'}
+                      </td>
+                      <td><span className={`badge badge-${q.status}`}>{q.status}</span></td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{formatDate(q.created_at)}</td>
+                      <td>
+                        {q.document_pdf_url ? (
+                          <a
+                            href={q.document_pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary-deep)', fontWeight: 600 }}
+                          >
+                            PDF
+                          </a>
+                        ) : q.drive_document_url ? (
+                          <a
+                            href={q.drive_document_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: 'var(--text-xs)' }}
+                          >
+                            PPTX
+                          </a>
+                        ) : '—'}
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/admin/cotizaciones/${q.id}`); }}
+                        >
+                          Ver →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
             )}
           </tbody>
         </table>

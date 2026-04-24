@@ -471,6 +471,19 @@ export default function QuotationDetailPage() {
               </div>
             </div>
 
+            {/* Suggested Payments 70/30 */}
+            <div style={{ background: 'rgba(187, 235, 232, 0.05)', padding: 12, borderRadius: 8, border: '1px dashed var(--border-subtle)', marginBottom: 16 }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>PAGOS SUGERIDOS (70% / 30%)</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
+                <span>Anticipo (70%):</span>
+                <span style={{ fontWeight: 600 }}>{formatCurrency(quotation.total_price * 0.7)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', marginTop: 4 }}>
+                <span>Entrega (30%):</span>
+                <span style={{ fontWeight: 600 }}>{formatCurrency(quotation.total_price * 0.3)}</span>
+              </div>
+            </div>
+
             {/* Payment history */}
             {payments.length > 0 && (
               <div style={{ marginBottom: 16 }}>

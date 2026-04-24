@@ -269,6 +269,7 @@ export interface Quotation {
   created_at: string;
   // Joined
   client?: Client;
+  payments?: Payment[];
 }
 
 export interface Payment {

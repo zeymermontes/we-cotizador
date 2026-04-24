@@ -213,10 +213,6 @@ serve(async (req) => {
       const productType = quotation.product_type;
       const invitationFormat = res.invitationFormat;
       
-      const total = quotation.total_price || 0;
-      const anticipoVal = total * 0.7;
-      const entregaVal = total * 0.3;
-
       // Helper to find breakdown prices
       const getBreakdownPrice = (keys: string[]) => {
         const item = bd?.perGuestItems?.find((i: any) => keys.includes(i.key)) || 
@@ -226,6 +222,11 @@ serve(async (req) => {
 
       const envioPrice = getBreakdownPrice(['pdf_sending', 'web_sending', 'std_sending', 'send_only']);
       const confirmPrice = getBreakdownPrice(['pdf_confirmation', 'web_confirmation', 'confirm_only']);
+      const subTotalVal = bd?.subtotal || 0;
+      const totalVal = subTotalVal + envioPrice + confirmPrice;
+      
+      const anticipoVal = totalVal * 0.7;
+      const entregaVal = totalVal * 0.3;
 
       // ─── Build comprehensive replacements with defaults ───
       const allReplacements: Record<string, string> = {
@@ -238,6 +239,7 @@ serve(async (req) => {
         '{{invitados}}': '0',
         '{{envio}}': '0.00',
         '{{confirmaciones}}': '0.00',
+        '{{total}}': formatMoney(totalVal),
         '{{cantidad_de_eventos}}': '0',
         '{{monograma}}': 'No',
         '{{elementos}}': 'No',
@@ -248,7 +250,7 @@ serve(async (req) => {
         '{{num_rotulados}}': '0',
         '{{número}}': '0',
         '{{extras}}': 'Ninguno',
-        '{{sub_total}}': formatMoney(bd?.subtotal || total),
+        '{{sub_total}}': formatMoney(subTotalVal),
         '{{anticipo}}': formatMoney(anticipoVal),
         '{{entrega}}': formatMoney(entregaVal),
         '{{cantidad_de_paginas}}': '0',

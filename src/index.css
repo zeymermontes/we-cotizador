@@ -952,7 +952,10 @@ h6 {
 .admin-main {
   flex: 1;
   margin-left: var(--sidebar-width);
-  padding: var(--space-xl) var(--space-2xl);
+  padding: var(--space-xl) 32px; /* Reduced from 48px to give more space for the table */
+  min-width: 0;
+  position: relative;
+  width: 100%;
 }
 
 .admin-topbar {
@@ -1040,12 +1043,33 @@ h6 {
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  width: 100%;
+  display: block;
+  box-shadow: var(--shadow-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary-dark) var(--bg-surface);
+}
+
+.data-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.data-table-wrapper::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--color-primary-dark);
+  border-radius: 4px;
 }
 
 .data-table {
   width: 100%;
+  min-width: 1000px; 
   border-collapse: collapse;
+  table-layout: auto;
 }
 
 .data-table th {
@@ -1447,8 +1471,7 @@ h6 {
   }
 
   .data-table {
-    min-width: 700px;
-    /* Ensure table has enough space horizontally */
+    /* min-width inherited from global style to ensure consistency */
   }
 
   .form-container {
