@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { Quotation, Client, Payment, QuotationStatus, PaymentType } from '../lib/quotation-types';
+import type { Quotation, Client, Payment, QuotationStatus, PaymentType, QuotationFormData } from '../lib/quotation-types';
+import { calculatePrice } from '../lib/pricing-engine';
+import ResponseEditor from '../components/admin/ResponseEditor';
 
 export default function QuotationDetailPage() {
   const { id } = useParams();
@@ -19,6 +21,7 @@ export default function QuotationDetailPage() {
   });
   const [editingDriveUrl, setEditingDriveUrl] = useState(false);
   const [driveUrlInput, setDriveUrlInput] = useState('');
+  const [showResponseEditor, setShowResponseEditor] = useState(false);
 
   useEffect(() => {
     if (id) loadDetails(id);
@@ -136,8 +139,34 @@ export default function QuotationDetailPage() {
   const totalPaid = payments.filter(p => p.status === 'pagado').reduce((sum, p) => sum + Number(p.amount), 0);
   const remaining = quotation.total_price - totalPaid;
 
+  async function handleSaveResponses(newResponses: QuotationFormData) {
+    if (!quotation) return;
+
+    try {
+      const newBreakdown = calculatePrice(newResponses);
+      const newTotal = newBreakdown.estimatedTotal;
+
+      const { error } = await supabase
+        .from('quotations')
+        .update({
+          responses: newResponses,
+          total_price: newTotal,
+          price_breakdown: newBreakdown
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setQuotation(prev => prev ? { ...prev, responses: newResponses, total_price: newTotal, price_breakdown: newBreakdown } : null);
+      setShowResponseEditor(false);
+    } catch (err) {
+      console.error('Update responses error:', err);
+      alert('Error al actualizar las respuestas');
+    }
+  }
+
   // Build a readable response summary from the form data
-  const responses = quotation.responses;
+  const responses = quotation.responses || {};
   const responseEntries: { label: string; value: string }[] = [];
 
   const labelMap: Record<string, string> = {
@@ -292,7 +321,16 @@ export default function QuotationDetailPage() {
           </div>
 
           <div className="glass-card">
-            <h3 className="heading-sm" style={{ marginBottom: 16 }}>📋 Respuestas del formulario</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 className="heading-sm" style={{ margin: 0 }}>📋 Respuestas del formulario</h3>
+              <button 
+                className="btn btn-ghost btn-xs" 
+                style={{ color: 'var(--color-primary-deep)', border: '1px solid currentColor' }}
+                onClick={() => setShowResponseEditor(true)}
+              >
+                Editar
+              </button>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {responseEntries.map((entry, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
@@ -517,9 +555,17 @@ export default function QuotationDetailPage() {
               </button>
             )}
           </div>
-          </div>
         </div>
       </div>
+
+      {showResponseEditor && quotation && (
+        <ResponseEditor
+          initialData={quotation.responses}
+          onSave={handleSaveResponses}
+          onClose={() => setShowResponseEditor(false)}
+        />
+      )}
     </div>
+  </div>
   );
 }

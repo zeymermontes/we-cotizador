@@ -245,6 +245,7 @@ serve(async (req) => {
         '{{info_adicional}}': 'No',
         '{{cantidad_de_info}}': '0',
         '{{Rotulado}}': 'No',
+        '{{num_rotulados}}': '0',
         '{{número}}': '0',
         '{{extras}}': 'Ninguno',
         '{{sub_total}}': formatMoney(bd?.subtotal || total),
@@ -274,7 +275,15 @@ serve(async (req) => {
         allReplacements['{{mesa}}'] = formatGiftTable(res.pdfGiftTable);
         allReplacements['{{info_adicional}}'] = res.pdfInfoCategories?.length > 0 ? res.pdfInfoCategories.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'No';
         allReplacements['{{cantidad_de_info}}'] = String(res.pdfInfoCategories?.length || 0);
+        const extractMax = (range: string | null) => {
+          if (!range) return '0';
+          if (range.includes('+')) return range.replace('+', '');
+          const parts = range.split(/[–-]/);
+          return parts[parts.length - 1].trim();
+        };
+
         allReplacements['{{Rotulado}}'] = res.pdfPersonalized ? 'Sí' : 'No';
+        allReplacements['{{num_rotulados}}'] = res.pdfPersonalized ? extractMax(res.pdfGuestCountRange) : '0';
         allReplacements['{{número}}'] = res.pdfGuestCountRange || '0';
         allReplacements['{{extras}}'] = res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').map((p: string) => p.replace(/_/g, ' ')).join(', ') || 'Ninguno';
         allReplacements['{{invitados}}'] = res.pdfGuestCountRange || '0';

@@ -2,16 +2,18 @@ import { GUEST_COUNT_RANGES, type GuestCountRange } from '../../../lib/quotation
 
 interface Props {
   title: string;
+  subtitle?: string;
   note?: string;
   selected: GuestCountRange | null;
   onSelect: (value: string) => void;
 }
 
-export default function GuestCountStep({ title, note, selected, onSelect }: Props) {
+export default function GuestCountStep({ title, subtitle, note, selected, onSelect }: Props) {
   return (
     <div className="step-body">
       <div className="step-header">
         <h2 className="step-title">{title}</h2>
+        {subtitle && <p className="step-subtitle" style={{ whiteSpace: 'pre-line' }}>{subtitle}</p>}
       </div>
 
       {note && <div className="step-note">{note}</div>}

@@ -428,6 +428,7 @@ export default function QuotationWizard() {
         const isSendingOrConfirming = q.formData.pdfSending || q.formData.pdfConfirmation;
         return <GuestCountStep
           title={isSendingOrConfirming ? t('pdf.guest_count_title') : t('pdf.guest_count_title_no_sending')}
+          subtitle="Las invitaciones no se envían de forma individual, sino por grupo (parejas o familias). Por eso, el número de invitaciones suele ser aproximadamente la mitad del total de invitados."
           note={isSendingOrConfirming ? t('pdf.guest_count_tip') : undefined}
           selected={q.formData.pdfGuestCountRange}
           onSelect={(v) => q.updateField('pdfGuestCountRange', v as GuestCountRange)}
@@ -661,6 +662,7 @@ export default function QuotationWizard() {
         const isSendingOrConfirming = q.formData.webSending || q.formData.webConfirmation;
         return <GuestCountStep
           title={isSendingOrConfirming ? t('pdf.guest_count_title') : t('pdf.guest_count_title_no_sending')}
+          subtitle="Las invitaciones no se envían de forma individual, sino por grupo (parejas o familias). Por eso, el número de invitaciones suele ser aproximadamente la mitad del total de invitados."
           note={isSendingOrConfirming ? t('pdf.guest_count_tip') : undefined}
           selected={q.formData.webGuestCountRange}
           onSelect={(v) => q.updateField('webGuestCountRange', v as GuestCountRange)}
@@ -728,6 +730,7 @@ export default function QuotationWizard() {
         const isSendingOrConfirming = q.formData.stdSending;
         return <GuestCountStep
           title={isSendingOrConfirming ? t('pdf.guest_count_title') : t('pdf.guest_count_title_no_sending')}
+          subtitle="Las invitaciones no se envían de forma individual, sino por grupo (parejas o familias). Por eso, el número de invitaciones suele ser aproximadamente la mitad del total de invitados."
           note={isSendingOrConfirming ? t('pdf.guest_count_tip') : undefined}
           selected={q.formData.stdGuestCountRange}
           onSelect={(v) => q.updateField('stdGuestCountRange', v as GuestCountRange)}
@@ -738,6 +741,7 @@ export default function QuotationWizard() {
       case 'send_guest_count':
         return <GuestCountStep
           title={t('send.guest_count_title')}
+          subtitle="Las invitaciones no se envían de forma individual, sino por grupo (parejas o familias). Por eso, el número de invitaciones suele ser aproximadamente la mitad del total de invitados."
           note={t('pdf.guest_count_tip')}
           selected={q.formData.sendGuestCountRange}
           onSelect={(v) => q.updateField('sendGuestCountRange', v as GuestCountRange)}
@@ -745,6 +749,7 @@ export default function QuotationWizard() {
       case 'confirm_guest_count':
         return <GuestCountStep
           title={t('confirm.guest_count_title')}
+          subtitle="Las invitaciones no se envían de forma individual, sino por grupo (parejas o familias). Por eso, el número de invitaciones suele ser aproximadamente la mitad del total de invitados."
           note={t('pdf.guest_count_tip')}
           selected={q.formData.confirmGuestCountRange}
           onSelect={(v) => q.updateField('confirmGuestCountRange', v as GuestCountRange)}
