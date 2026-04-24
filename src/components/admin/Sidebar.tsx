@@ -55,6 +55,28 @@ export default function Sidebar({ isOpen, onClose, onLogout }: SidebarProps) {
         >
           <span>💰</span> Pagos
         </NavLink>
+
+        <div style={{ margin: 'var(--space-md) var(--space-sm)', height: 1, background: 'var(--border-subtle)' }}></div>
+        
+        <p style={{ padding: '0 var(--space-md)', fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 8 }}>OTROS SERVICIOS</p>
+
+        <a 
+          href="https://we-page-confirm.web.app/super-admin" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="admin-nav-item"
+        >
+          <span>✅</span> We Confirm
+        </a>
+
+        <a 
+          href="https://we-bot-server.onrender.com/" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="admin-nav-item"
+        >
+          <span>🤖</span> We Bot
+        </a>
       </nav>
 
       <div style={{ padding: '0 var(--space-sm)', marginTop: 'auto' }}>
