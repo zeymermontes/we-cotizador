@@ -318,12 +318,79 @@ serve(async (req) => {
         allReplacements['{{precio_std}}'] = formatMoney(stdBasePrice);
       }
 
-      const slideRequests = Object.entries(allReplacements).map(([text, replaceWith]) => ({
+      // ─── Retrieve presentation to find slide object IDs for deletion ───
+      let presentationObj;
+      try {
+        const presRes = await slides.presentations.get({ presentationId: newPptxId });
+        presentationObj = presRes.data;
+      } catch (e: any) {
+        throw new Error(`Error retrieving presentation for slide analysis: ${e.message}`);
+      }
+
+      const extractTextFromPage = (page: any) => {
+        let content = '';
+        if (!page.pageElements) return content;
+        for (const element of page.pageElements) {
+          if (element.shape && element.shape.text && element.shape.text.textElements) {
+            for (const textElement of element.shape.text.textElements) {
+              if (textElement.textRun && textElement.textRun.content) {
+                content += textElement.textRun.content;
+              }
+            }
+          }
+          if (element.table && element.table.tableRows) {
+            for (const row of element.table.tableRows) {
+              if (row.tableCells) {
+                for (const cell of row.tableCells) {
+                  if (cell.text && cell.text.textElements) {
+                    for (const textElement of cell.text.textElements) {
+                      if (textElement.textRun && textElement.textRun.content) {
+                        content += textElement.textRun.content;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        return content;
+      };
+
+      const slidesToDelete: string[] = [];
+
+      // Only delete if the product is a digital invitation or we're sure it's not a standalone product
+      if (productType !== 'envio_invitaciones' && productType !== 'confirmaciones') {
+        const pages = presentationObj?.slides || [];
+        
+        for (const page of pages) {
+          const text = extractTextFromPage(page);
+          
+          // Delete "Envio" slide if not selected (contains {{envio}} but not {{total}})
+          if (envioPrice === 0 && text.includes('{{envio}}') && !text.includes('{{total}}')) {
+            if (page.objectId) slidesToDelete.push(page.objectId);
+          }
+          
+          // Delete "Confirmaciones" slide if not selected (contains {{confirmaciones}} but not {{total}})
+          if (confirmPrice === 0 && text.includes('{{confirmaciones}}') && !text.includes('{{total}}')) {
+            if (page.objectId) slidesToDelete.push(page.objectId);
+          }
+        }
+      }
+
+      const slideRequests: any[] = Object.entries(allReplacements).map(([text, replaceWith]) => ({
         replaceAllText: {
           containsText: { text, matchCase: true },
           replaceText: String(replaceWith)
         }
       }));
+
+      // Add delete requests for unnecessary slides
+      for (const objectId of slidesToDelete) {
+        slideRequests.push({
+          deleteObject: { objectId }
+        });
+      }
 
       // Only run batchUpdate if there are actual requests to avoid "Must specify at least one request" error
       if (slideRequests.length > 0) {
