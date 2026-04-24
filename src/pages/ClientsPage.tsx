@@ -7,7 +7,7 @@ export default function ClientsPage() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ClientStatus | 'all'>('all');
+  const [statusFilters, setStatusFilters] = useState<ClientStatus[]>([]);
   const [search, setSearch] = useState('');
 
   useEffect(() => { loadClients(); }, []);
@@ -30,7 +30,7 @@ export default function ClientsPage() {
     new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const filtered = clients.filter(c => {
-    if (filter !== 'all' && c.status !== filter) return false;
+    if (statusFilters.length > 0 && !statusFilters.includes(c.status)) return false;
     if (search) {
       const s = search.toLowerCase();
       return c.name.toLowerCase().includes(s) || c.phone.includes(s);
@@ -38,7 +38,13 @@ export default function ClientsPage() {
     return true;
   });
 
-  const statusOptions: (ClientStatus | 'all')[] = ['all', 'nuevo', 'cotizado', 'anticipo', 'en_proceso', 'finalizado', 'cancelado'];
+  const statusOptions: ClientStatus[] = ['nuevo', 'cotizado', 'anticipo', 'en_proceso', 'finalizado', 'cancelado'];
+
+  const toggleStatus = (s: ClientStatus) => {
+    setStatusFilters(prev => 
+      prev.includes(s) ? prev.filter(item => item !== s) : [...prev, s]
+    );
+  };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 64, color: 'var(--text-muted)' }}>Cargando...</div>;
 
@@ -54,16 +60,30 @@ export default function ClientsPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: 220, padding: '10px 16px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
           />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as ClientStatus | 'all')}
-            style={{ padding: '10px 16px', fontSize: 'var(--text-sm)', background: 'var(--bg-input)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)' }}
-          >
-            {statusOptions.map(s => (
-              <option key={s} value={s}>{s === 'all' ? 'Todos' : s.replace('_', ' ')}</option>
-            ))}
-          </select>
         </div>
+      </div>
+
+      <div className="filter-bar" style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estado:</span>
+        {statusOptions.map(s => (
+          <button
+            key={s}
+            onClick={() => toggleStatus(s)}
+            className={`badge badge-${s}`}
+            style={{ 
+              cursor: 'pointer', 
+              opacity: statusFilters.length === 0 || statusFilters.includes(s) ? 1 : 0.4,
+              border: statusFilters.includes(s) ? '1px solid var(--text-primary)' : '1px solid transparent',
+              transition: 'all 0.2s',
+              padding: '4px 10px'
+            }}
+          >
+            {s.replace('_', ' ')}
+          </button>
+        ))}
+        {statusFilters.length > 0 && (
+          <button className="btn btn-ghost btn-xs" onClick={() => setStatusFilters([])} style={{ fontSize: 10 }}>Limpiar</button>
+        )}
       </div>
 
       <div className="data-table-wrapper">

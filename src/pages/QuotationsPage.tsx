@@ -7,7 +7,8 @@ export default function QuotationsPage() {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState<(Quotation & { client: Client })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<QuotationStatus | 'all'>('all');
+  const [statusFilters, setStatusFilters] = useState<QuotationStatus[]>([]);
+  const [productFilters, setProductFilters] = useState<string[]>([]);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -36,7 +37,12 @@ export default function QuotationsPage() {
     new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const filtered = quotations.filter(q => {
-    if (filter !== 'all' && q.status !== filter) return false;
+    // Multi-select status filter
+    if (statusFilters.length > 0 && !statusFilters.includes(q.status)) return false;
+
+    // Multi-select product filter
+    if (productFilters.length > 0 && !productFilters.includes(q.product_type)) return false;
+
     if (search) {
       const s = search.toLowerCase();
       return (
@@ -48,7 +54,25 @@ export default function QuotationsPage() {
     return true;
   });
 
-  const statusOptions: (QuotationStatus | 'all')[] = ['all', 'pendiente', 'enviada', 'aceptada', 'rechazada'];
+  const statusOptions: QuotationStatus[] = ['pendiente', 'enviada', 'aceptada', 'rechazada'];
+  const productOptions = [
+    { id: 'invitacion_digital', label: 'Invitación' },
+    { id: 'save_the_date', label: 'STD' },
+    { id: 'envio_invitaciones', label: 'Solo Envío' },
+    { id: 'confirmaciones', label: 'Solo Confirmación' },
+  ];
+
+  const toggleStatus = (s: QuotationStatus) => {
+    setStatusFilters(prev => 
+      prev.includes(s) ? prev.filter(item => item !== s) : [...prev, s]
+    );
+  };
+
+  const toggleProduct = (p: string) => {
+    setProductFilters(prev => 
+      prev.includes(p) ? prev.filter(item => item !== p) : [...prev, p]
+    );
+  };
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: 64, color: 'var(--text-muted)' }}>Cargando...</div>;
@@ -56,32 +80,66 @@ export default function QuotationsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="admin-topbar">
+      <div className="admin-topbar" style={{ marginBottom: 12 }}>
         <h1 className="admin-page-title">Cotizaciones</h1>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <input
             className="input-field"
-            placeholder="Buscar..."
+            placeholder="Buscar por cliente o teléfono..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ width: 220, padding: '10px 16px', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            style={{ width: 260, padding: '10px 16px', fontSize: 'var(--text-sm)' }}
           />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as QuotationStatus | 'all')}
-            style={{
-              padding: '10px 16px',
-              fontSize: 'var(--text-sm)',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            {statusOptions.map(s => (
-              <option key={s} value={s}>{s === 'all' ? 'Todos' : s}</option>
-            ))}
-          </select>
+        </div>
+      </div>
+
+      <div className="filter-bar" style={{ display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estado:</span>
+          {statusOptions.map(s => (
+            <button
+              key={s}
+              onClick={() => toggleStatus(s)}
+              className={`badge badge-${s}`}
+              style={{ 
+                cursor: 'pointer', 
+                opacity: statusFilters.length === 0 || statusFilters.includes(s) ? 1 : 0.4,
+                border: statusFilters.includes(s) ? '1px solid var(--text-primary)' : '1px solid transparent',
+                transition: 'all 0.2s',
+                padding: '4px 10px'
+              }}
+            >
+              {s}
+            </button>
+          ))}
+          {statusFilters.length > 0 && (
+            <button className="btn btn-ghost btn-xs" onClick={() => setStatusFilters([])} style={{ fontSize: 10 }}>Limpiar</button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Producto:</span>
+          {productOptions.map(p => (
+            <button
+              key={p.id}
+              onClick={() => toggleProduct(p.id)}
+              className={`badge`}
+              style={{ 
+                cursor: 'pointer', 
+                color: 'var(--text-primary)',
+                background: productFilters.includes(p.id) ? 'var(--color-primary-light)' : 'var(--bg-elevated)',
+                opacity: productFilters.length === 0 || productFilters.includes(p.id) ? 1 : 0.4,
+                border: productFilters.includes(p.id) ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                transition: 'all 0.2s',
+                padding: '4px 10px'
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+          {productFilters.length > 0 && (
+            <button className="btn btn-ghost btn-xs" onClick={() => setProductFilters([])} style={{ fontSize: 10 }}>Limpiar</button>
+          )}
         </div>
       </div>
 
