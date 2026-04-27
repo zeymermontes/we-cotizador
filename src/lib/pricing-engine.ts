@@ -117,6 +117,15 @@ export function calculatePrice(data: QuotationFormData): PriceBreakdown {
       }
     }
 
+    // Personalized (Rotulado)
+    if (data.pdfPersonalized === true) {
+      items.push({
+        key: 'pdf_personalized',
+        label: { es: 'Rotulado (Boletos personalizados)', en: 'Ticket personalization' },
+        amount: 1000,
+      });
+    }
+
     // Sending ($18/guest)
     if (data.pdfSending === true && data.pdfGuestCountRange) {
       const maxGuests = getMaxGuests(data.pdfGuestCountRange);
