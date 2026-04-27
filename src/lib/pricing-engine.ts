@@ -121,7 +121,7 @@ export function calculatePrice(data: QuotationFormData): PriceBreakdown {
     if (data.pdfPersonalized === true) {
       items.push({
         key: 'pdf_personalized',
-        label: { es: 'Rotulado (Boletos personalizados)', en: 'Ticket personalization' },
+        label: { es: 'Rotulado (Invitaciones personalizadas)', en: 'Invitations personalization' },
         amount: 1000,
       });
     }
