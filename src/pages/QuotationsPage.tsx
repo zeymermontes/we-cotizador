@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Quotation, Client, QuotationStatus } from '../lib/quotation-types';
+import WhatsappButton from '../components/admin/WhatsappButton';
 
 export default function QuotationsPage() {
   const navigate = useNavigate();
@@ -143,7 +144,10 @@ export default function QuotationsPage() {
                           <span className={`status-indicator status-${q.status}`} title={`Estado: ${q.status}`}></span>
                           <div>
                             <div>{q.client?.name || '—'}</div>
-                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 400 }}>{q.client?.phone || '—'}</div>
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 400, display: 'flex', alignItems: 'center' }}>
+                              {q.client?.phone || '—'}
+                              <WhatsappButton phone={q.client?.phone} />
+                            </div>
                           </div>
                         </div>
                       </td>

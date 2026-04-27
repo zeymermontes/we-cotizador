@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { Quotation, Client, Payment, QuotationStatus, PaymentType, QuotationFormData } from '../lib/quotation-types';
 import { calculatePrice } from '../lib/pricing-engine';
 import ResponseEditor from '../components/admin/ResponseEditor';
+import WhatsappButton from '../components/admin/WhatsappButton';
 
 export default function QuotationDetailPage() {
   const { id } = useParams();
@@ -300,7 +301,7 @@ export default function QuotationDetailPage() {
             <h3 className="heading-sm" style={{ marginBottom: 16 }}>👤 Cliente</h3>
             <div className="detail-info-grid" style={{ fontSize: 'var(--text-sm)' }}>
               <div><span style={{ color: 'var(--text-muted)' }}>Nombre:</span> {quotation.client?.name}</div>
-              <div><span style={{ color: 'var(--text-muted)' }}>Teléfono:</span> {quotation.client?.phone}</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ color: 'var(--text-muted)', marginRight: 4 }}>Teléfono:</span> {quotation.client?.phone} <WhatsappButton phone={quotation.client?.phone} /></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Evento:</span> {quotation.client?.event_type}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Fecha:</span> {quotation.client?.event_date ? formatDate(quotation.client.event_date) : '—'}</div>
               <div><span style={{ color: 'var(--text-muted)' }}>Estado:</span> <span className={`badge badge-${quotation.client?.status}`}>{quotation.client?.status}</span></div>

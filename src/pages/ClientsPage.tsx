@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Client, ClientStatus } from '../lib/quotation-types';
+import WhatsappButton from '../components/admin/WhatsappButton';
 
 export default function ClientsPage() {
   const navigate = useNavigate();
@@ -115,7 +116,12 @@ export default function ClientsPage() {
                       {c.name}
                     </div>
                   </td>
-                  <td>{c.phone}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {c.phone}
+                      <WhatsappButton phone={c.phone} />
+                    </div>
+                  </td>
                   <td style={{ textTransform: 'capitalize' }}>{c.event_type?.replace(/_/g, ' ') || '—'}</td>
                   <td>{c.event_date ? formatDate(c.event_date) : '—'}</td>
                   <td style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>{c.referral_source?.replace(/_/g, ' ') || '—'}</td>
