@@ -192,7 +192,7 @@ export default function QuotationDetailPage() {
     pdfAdditionalInfo: 'Info adicional',
     pdfInfoCategories: 'Categorías info',
     pdfInfoOptionsCount: 'Opciones por cat.',
-    pdfPersonalized: 'Personalizada',
+    pdfPersonalized: 'Rotulado',
     pdfRsvp: 'RSVP',
     pdfSending: 'Envío',
     pdfConfirmation: 'Confirmación',
