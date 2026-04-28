@@ -312,10 +312,12 @@ serve(async (req) => {
 
       // SAVE THE DATE
       else if (productType === 'save_the_date') {
-        const stdBasePrice = bd?.basePrice || total;
+        const stdBasePrice = bd?.basePrice || totalVal;
         allReplacements['{{formato}}'] = res.stdFormat === 'basico' ? 'Básico' : res.stdFormat === 'extendido' ? 'Extendido' : '—';
         allReplacements['{{diseño}}'] = res.stdDesignStyle === 'photo' ? 'Fotográfico' : res.stdDesignStyle === 'graphic' ? 'Gráfico' : res.stdDesignStyle === 'mixed' ? 'Mixto' : '—';
         allReplacements['{{precio_std}}'] = formatMoney(stdBasePrice);
+        allReplacements['{{invitados}}'] = res.stdGuestCountRange || '0';
+        allReplacements['{{envio}}'] = formatMoney(envioPrice);
       }
 
       // ─── Retrieve presentation to find slide object IDs for deletion ───
