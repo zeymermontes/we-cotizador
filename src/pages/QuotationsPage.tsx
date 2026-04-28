@@ -8,7 +8,7 @@ export default function QuotationsPage() {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState<(Quotation & { client: Client })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilters, setStatusFilters] = useState<QuotationStatus[]>([]);
+  const [statusFilters, setStatusFilters] = useState<QuotationStatus[]>(['pendiente', 'enviada', 'aceptada']);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
