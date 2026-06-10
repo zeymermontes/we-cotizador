@@ -457,7 +457,8 @@ serve(async (req) => {
         drive_document_url: driveUrl,
         document_pdf_url: finalPdfUrl,
         document_status: 'completed',
-        document_error: null
+        document_error: null,
+        document_outdated: false
       }).eq('id', quotation_id);
       
       if (updateError) throw updateError;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { Quotation, Client, Payment, QuotationStatus, PaymentType, QuotationFormData } from '../lib/quotation-types';
+import type { Quotation, Client, Payment, QuotationStatus, PaymentType, QuotationFormData, PriceBreakdown } from '../lib/quotation-types';
 import { calculatePrice } from '../lib/pricing-engine';
 import ResponseEditor from '../components/admin/ResponseEditor';
 import WhatsappButton from '../components/admin/WhatsappButton';
@@ -23,6 +23,9 @@ export default function QuotationDetailPage() {
   const [editingDriveUrl, setEditingDriveUrl] = useState(false);
   const [driveUrlInput, setDriveUrlInput] = useState('');
   const [showResponseEditor, setShowResponseEditor] = useState(false);
+  const [editingPrices, setEditingPrices] = useState(false);
+  const [priceDraft, setPriceDraft] = useState<PriceBreakdown | null>(null);
+  const [savingPrices, setSavingPrices] = useState(false);
 
   useEffect(() => {
     if (id) loadDetails(id);
@@ -107,6 +110,9 @@ export default function QuotationDetailPage() {
       if (error) throw error;
       
       if (data?.success) {
+        // Clear the "needs regeneration" flag (edge function also does this,
+        // but reset here too so it works even before the function is redeployed)
+        await supabase.from('quotations').update({ document_outdated: false }).eq('id', id);
         // Refresh all details to get the newest status and links from DB
         await loadDetails(id);
         alert('Documentos generados y guardados en Google Drive exitosamente.');
@@ -163,6 +169,71 @@ export default function QuotationDetailPage() {
     } catch (err) {
       console.error('Update responses error:', err);
       alert('Error al actualizar las respuestas');
+    }
+  }
+
+  // ─── Manual price editing ──────────────────────────────────
+  // Recompute totals from a draft breakdown (subtotal = base + items,
+  // total = subtotal + per-guest items). Mirrors pricing-engine output.
+  function recalcDraft(draft: PriceBreakdown): PriceBreakdown {
+    const subtotal = (draft.basePrice || 0) + (draft.items || []).reduce((s, i) => s + (i.amount || 0), 0);
+    const perGuestTotal = (draft.perGuestItems || []).reduce((s, i) => s + (i.estimatedTotal || 0), 0);
+    return { ...draft, subtotal, perGuestTotal, estimatedTotal: subtotal + perGuestTotal };
+  }
+
+  function startEditPrices() {
+    if (!breakdown) return;
+    // Deep clone so edits don't mutate the live quotation until saved
+    setPriceDraft(JSON.parse(JSON.stringify(breakdown)) as PriceBreakdown);
+    setEditingPrices(true);
+  }
+
+  function cancelEditPrices() {
+    setEditingPrices(false);
+    setPriceDraft(null);
+  }
+
+  function updateDraftBase(value: number) {
+    setPriceDraft(prev => prev ? recalcDraft({ ...prev, basePrice: value }) : prev);
+  }
+
+  function updateDraftItem(index: number, value: number) {
+    setPriceDraft(prev => {
+      if (!prev) return prev;
+      const items = prev.items.map((it, i) => i === index ? { ...it, amount: value } : it);
+      return recalcDraft({ ...prev, items });
+    });
+  }
+
+  function updateDraftPerGuest(index: number, pricePerGuest: number) {
+    setPriceDraft(prev => {
+      if (!prev) return prev;
+      const perGuestItems = prev.perGuestItems.map((it, i) =>
+        i === index ? { ...it, pricePerGuest, estimatedTotal: pricePerGuest * (it.estimatedGuests || 0) } : it
+      );
+      return recalcDraft({ ...prev, perGuestItems });
+    });
+  }
+
+  async function savePrices() {
+    if (!id || !priceDraft) return;
+    try {
+      setSavingPrices(true);
+      const finalDraft = recalcDraft(priceDraft);
+      const newTotal = finalDraft.estimatedTotal;
+      const { error } = await supabase
+        .from('quotations')
+        .update({ price_breakdown: finalDraft, total_price: newTotal, document_outdated: true })
+        .eq('id', id);
+      if (error) throw error;
+      setQuotation(prev => prev ? { ...prev, price_breakdown: finalDraft, total_price: newTotal, document_outdated: true } : null);
+      setEditingPrices(false);
+      setPriceDraft(null);
+    } catch (err) {
+      console.error('Update prices error:', err);
+      alert('Error al actualizar los precios');
+    } finally {
+      setSavingPrices(false);
     }
   }
 
@@ -347,39 +418,112 @@ export default function QuotationDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
           {/* Price Breakdown */}
           <div className="glass-card">
-            <h3 className="heading-sm" style={{ marginBottom: 16 }}>💰 Desglose de precio</h3>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
-              <span>{breakdown?.baseLabel?.es || 'Base'}</span>
-              <span style={{ fontWeight: 600 }}>{formatCurrency(breakdown?.basePrice || 0)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 className="heading-sm" style={{ margin: 0 }}>💰 Desglose de precio</h3>
+              {!editingPrices && breakdown && (
+                <button
+                  className="btn btn-ghost btn-xs no-print"
+                  style={{ color: 'var(--color-primary-deep)', border: '1px solid currentColor' }}
+                  onClick={startEditPrices}
+                >
+                  Editar precios
+                </button>
+              )}
             </div>
 
-            {breakdown?.items?.map((item, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>{item.label.es}</span>
-                <span style={{ fontWeight: 500 }}>{formatCurrency(item.amount)}</span>
-              </div>
-            ))}
+            {editingPrices && priceDraft ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', gap: 8 }}>
+                  <span>{priceDraft.baseLabel?.es || 'Base'}</span>
+                  <input
+                    type="number"
+                    className="input-field"
+                    value={priceDraft.basePrice}
+                    onChange={(e) => updateDraftBase(Number(e.target.value) || 0)}
+                    style={{ width: 110, textAlign: 'right', fontSize: 'var(--text-sm)', padding: '4px 8px' }}
+                  />
+                </div>
 
-            {breakdown?.perGuestItems?.map((item, i) => (
-              <div key={`pg-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  {item.label.es} ({item.guestRange} — ${item.pricePerGuest}/invitado × {item.estimatedGuests})
-                </span>
-                <span style={{ fontWeight: 500 }}>{formatCurrency(item.estimatedTotal)}</span>
-              </div>
-            ))}
+                {priceDraft.items?.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', gap: 8 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{item.label.es}</span>
+                    <input
+                      type="number"
+                      className="input-field"
+                      value={item.amount}
+                      onChange={(e) => updateDraftItem(i, Number(e.target.value) || 0)}
+                      style={{ width: 110, textAlign: 'right', fontSize: 'var(--text-sm)', padding: '4px 8px' }}
+                    />
+                  </div>
+                ))}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', marginTop: 8, fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              <span>Total estimado</span>
-              <span style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-deep)' }}>
-                {formatCurrency(quotation.total_price)}
-              </span>
-            </div>
+                {priceDraft.perGuestItems?.map((item, i) => (
+                  <div key={`pg-${i}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', gap: 8 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      {item.label.es} <span style={{ color: 'var(--text-muted)' }}>($/invitado × {item.estimatedGuests} = {formatCurrency(item.estimatedTotal)})</span>
+                    </span>
+                    <input
+                      type="number"
+                      className="input-field"
+                      value={item.pricePerGuest}
+                      onChange={(e) => updateDraftPerGuest(i, Number(e.target.value) || 0)}
+                      style={{ width: 110, textAlign: 'right', fontSize: 'var(--text-sm)', padding: '4px 8px' }}
+                    />
+                  </div>
+                ))}
 
-            {breakdown?.notes?.map((note, i) => (
-              <div key={`note-${i}`} className="step-note" style={{ marginTop: 8 }}>{note.es}</div>
-            ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', marginTop: 8, fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+                  <span>Total estimado</span>
+                  <span style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-deep)' }}>
+                    {formatCurrency(priceDraft.estimatedTotal)}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button className="btn btn-primary btn-sm" onClick={savePrices} disabled={savingPrices}>
+                    {savingPrices ? 'Guardando...' : 'Guardar precios'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={cancelEditPrices} disabled={savingPrices}>Cancelar</button>
+                </div>
+                <div className="step-note" style={{ marginTop: 8 }}>
+                  Tras guardar, regenera el documento para reflejar los nuevos precios en el PDF. Editar las respuestas del formulario recalculará los precios y descartará estos ajustes.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
+                  <span>{breakdown?.baseLabel?.es || 'Base'}</span>
+                  <span style={{ fontWeight: 600 }}>{formatCurrency(breakdown?.basePrice || 0)}</span>
+                </div>
+
+                {breakdown?.items?.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{item.label.es}</span>
+                    <span style={{ fontWeight: 500 }}>{formatCurrency(item.amount)}</span>
+                  </div>
+                ))}
+
+                {breakdown?.perGuestItems?.map((item, i) => (
+                  <div key={`pg-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 'var(--text-sm)', flexWrap: 'wrap', gap: 8 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      {item.label.es} ({item.guestRange} — ${item.pricePerGuest}/invitado × {item.estimatedGuests})
+                    </span>
+                    <span style={{ fontWeight: 500 }}>{formatCurrency(item.estimatedTotal)}</span>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', marginTop: 8, fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+                  <span>Total estimado</span>
+                  <span style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-deep)' }}>
+                    {formatCurrency(quotation.total_price)}
+                  </span>
+                </div>
+
+                {breakdown?.notes?.map((note, i) => (
+                  <div key={`note-${i}`} className="step-note" style={{ marginTop: 8 }}>{note.es}</div>
+                ))}
+              </>
+            )}
           </div>
 
           {/* Drive link management */}
@@ -401,7 +545,17 @@ export default function QuotationDetailPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                
+
+                {/* 0. Outdated warning — prices changed since last generation */}
+                {quotation.document_outdated && (quotation.document_pdf_url || quotation.drive_document_url) && (
+                  <div style={{ background: '#FFFBE6', border: '1px solid #FFE58F', borderRadius: 8, padding: 12 }}>
+                    <p style={{ margin: 0, color: '#AD6800', fontSize: 'var(--text-sm)', fontWeight: 600 }}>⚠️ Falta regenerar</p>
+                    <p style={{ margin: '4px 0 0 0', color: '#AD6800', fontSize: 'var(--text-xs)' }}>
+                      Los precios cambiaron desde la última generación. El documento actual no refleja los nuevos precios.
+                    </p>
+                  </div>
+                )}
+
                 {/* 1. Status Messages */}
                 {quotation.document_status === 'generating' && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-primary-deep)', padding: '4px 0', justifyContent: 'center' }}>

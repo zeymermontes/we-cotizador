@@ -10,6 +10,8 @@ export default function QuotationsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilters, setStatusFilters] = useState<QuotationStatus[]>(['pendiente', 'enviada', 'aceptada']);
   const [search, setSearch] = useState('');
+  const [outdatedModal, setOutdatedModal] = useState<(Quotation & { client: Client }) | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadQuotations();
@@ -27,6 +29,27 @@ export default function QuotationsPage() {
       console.error('Load error:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function regenerateDoc(q: Quotation & { client: Client }) {
+    try {
+      setRegeneratingId(q.id);
+      const { data, error } = await supabase.functions.invoke('generate-quotation', {
+        body: { quotation_id: q.id }
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Error desconocido');
+      // Clear the flag client-side too in case the edge function isn't redeployed yet
+      await supabase.from('quotations').update({ document_outdated: false }).eq('id', q.id);
+      setOutdatedModal(null);
+      await loadQuotations();
+      alert('Documento regenerado con los nuevos precios.');
+    } catch (err: any) {
+      console.error('Error regenerating document:', err);
+      alert('Error al regenerar: ' + err.message);
+    } finally {
+      setRegeneratingId(null);
     }
   }
 
@@ -168,20 +191,28 @@ export default function QuotationsPage() {
                             href={q.document_pdf_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-primary-deep)', fontWeight: 600 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (q.document_outdated) { e.preventDefault(); setOutdatedModal(q); }
+                            }}
+                            style={{ fontSize: 'var(--text-xs)', color: q.document_outdated ? 'var(--color-warning)' : 'var(--color-primary-deep)', fontWeight: 600 }}
+                            title={q.document_outdated ? 'Falta regenerar — los precios cambiaron' : undefined}
                           >
-                            PDF
+                            PDF{q.document_outdated ? ' ⚠️' : ''}
                           </a>
                         ) : q.drive_document_url ? (
                           <a
                             href={q.drive_document_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ fontSize: 'var(--text-xs)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (q.document_outdated) { e.preventDefault(); setOutdatedModal(q); }
+                            }}
+                            style={{ fontSize: 'var(--text-xs)', color: q.document_outdated ? 'var(--color-warning)' : undefined }}
+                            title={q.document_outdated ? 'Falta regenerar — los precios cambiaron' : undefined}
                           >
-                            PPTX
+                            PPTX{q.document_outdated ? ' ⚠️' : ''}
                           </a>
                         ) : '—'}
                       </td>
@@ -200,6 +231,71 @@ export default function QuotationsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Outdated document modal */}
+      {outdatedModal && (
+        <div
+          onClick={() => regeneratingId ? null : setOutdatedModal(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="glass-card"
+            style={{ maxWidth: 420, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div>
+              <h3 className="heading-sm" style={{ margin: 0, color: '#AD6800' }}>⚠️ Falta regenerar</h3>
+              <p style={{ margin: '8px 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                Los precios de <strong>{outdatedModal.client?.name || 'esta cotización'}</strong> cambiaron desde la última generación. El documento actual no refleja los nuevos precios.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => regenerateDoc(outdatedModal)}
+                disabled={!!regeneratingId}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {regeneratingId ? 'Regenerando...' : '🔄 Regenerar'}
+              </button>
+
+              {outdatedModal.drive_document_url && (
+                <a
+                  href={outdatedModal.drive_document_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-sm"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                >
+                  Abrir presentación ↗
+                </a>
+              )}
+
+              {outdatedModal.document_pdf_url && (
+                <a
+                  href={outdatedModal.document_pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm"
+                  style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--border-default)' }}
+                >
+                  Descargar actual
+                </a>
+              )}
+
+              <button
+                className="btn btn-ghost btn-xs"
+                onClick={() => setOutdatedModal(null)}
+                disabled={!!regeneratingId}
+                style={{ width: '100%', justifyContent: 'center', opacity: 0.6 }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

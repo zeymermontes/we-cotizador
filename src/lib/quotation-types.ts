@@ -265,6 +265,7 @@ export interface Quotation {
   document_type?: string;
   document_status?: DocumentStatus;
   document_error?: string;
+  document_outdated?: boolean;
   status: QuotationStatus;
   created_at: string;
   // Joined
