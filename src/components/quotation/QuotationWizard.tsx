@@ -157,6 +157,9 @@ export default function QuotationWizard() {
         Object.keys(q.formData).filter(k => k.startsWith('std')).forEach(k => {
           responses[k] = (q.formData as any)[k];
         });
+      } else if (q.formData.productType === 'envio_y_confirmacion') {
+        responses.sendGuestCountRange = q.formData.sendGuestCountRange;
+        responses.confirmGuestCountRange = q.formData.confirmGuestCountRange;
       } else if (q.formData.productType === 'envio_invitaciones') {
         responses.sendGuestCountRange = q.formData.sendGuestCountRange;
       } else if (q.formData.productType === 'confirmaciones') {
