@@ -3,6 +3,9 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpApi from 'i18next-http-backend';
 
+// Injected by Vite at build time (see vite.config.ts) — changes every build
+declare const __BUILD_ID__: string;
+
 i18n
   .use(HttpApi)
   .use(LanguageDetector)
@@ -15,7 +18,7 @@ i18n
       escapeValue: false,
     },
     backend: {
-      loadPath: '/locales/{{lng}}/translation.json',
+      loadPath: `/locales/{{lng}}/translation.json?v=${__BUILD_ID__}`,
     },
     detection: {
       order: ['querystring', 'localStorage', 'navigator'],
