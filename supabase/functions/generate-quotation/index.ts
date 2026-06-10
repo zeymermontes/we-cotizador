@@ -74,7 +74,7 @@ serve(async (req) => {
       templateId = Deno.env.get('TEMPLATE_ID_PDF') || '';
     } else if (type === 'save_the_date') {
       templateId = Deno.env.get('TEMPLATE_ID_STD') || '';
-    } else if (type === 'envio_invitaciones') {
+    } else if (type === 'envio_y_confirmacion' || type === 'envio_invitaciones') {
       templateId = Deno.env.get('TEMPLATE_ID_ENVIO') || '';
     } else if (type === 'confirmaciones') {
       templateId = Deno.env.get('TEMPLATE_ID_CONFIRMACIONES') || Deno.env.get('TEMPLATE_ID_ENVIO') || '';
@@ -262,8 +262,8 @@ serve(async (req) => {
 
       // ─── Overwrite with actual data per product type ───
       
-      // ENVÍO / CONFIRMACIONES
-      if (productType === 'envio_invitaciones' || productType === 'confirmaciones') {
+      // ENVÍO / CONFIRMACIONES (incluye el combinado envío + confirmación)
+      if (productType === 'envio_invitaciones' || productType === 'confirmaciones' || productType === 'envio_y_confirmacion') {
         allReplacements['{{invitados}}'] = res.sendGuestCountRange || res.confirmGuestCountRange || '0';
         allReplacements['{{envio}}'] = formatMoney(envioPrice);
         allReplacements['{{confirmaciones}}'] = formatMoney(confirmPrice);
@@ -362,7 +362,7 @@ serve(async (req) => {
       const slidesToDelete: string[] = [];
 
       // Only delete if the product is a digital invitation or we're sure it's not a standalone product
-      if (productType !== 'envio_invitaciones' && productType !== 'confirmaciones') {
+      if (productType !== 'envio_invitaciones' && productType !== 'confirmaciones' && productType !== 'envio_y_confirmacion') {
         const pages = presentationObj?.slides || [];
         
         for (const page of pages) {

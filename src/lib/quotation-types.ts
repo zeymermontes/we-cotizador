@@ -2,6 +2,7 @@
 export type ProductType =
   | 'invitacion_digital'
   | 'save_the_date'
+  | 'envio_y_confirmacion'
   | 'envio_invitaciones'
   | 'confirmaciones';
 

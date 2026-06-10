@@ -57,6 +57,8 @@
     "invitacion_digital_desc": "Quote your complete invitation and you can add extras like Save the Date, sending or confirmations later.",
     "save_the_date": "Save the Date only",
     "save_the_date_desc": "Just the Save the Date, without a complete invitation.",
+    "envio_y_confirmacion": "WhatsApp invitation sending and attendance confirmation",
+    "envio_y_confirmacion_desc": "Invitation sending and attendance confirmation service via WhatsApp. Contact count will be requested.",
     "envio_invitaciones": "WhatsApp invitation sending only",
     "envio_invitaciones_desc": "Just the sending service. Guest count will be requested.",
     "confirmaciones": "Attendance confirmation only",
@@ -242,6 +244,10 @@
   "confirm": {
     "title": "Attendance Confirmation",
     "guest_count_title": "How many contacts (phone numbers) will we send the confirmation to?"
+  },
+  "send_confirm": {
+    "title": "Invitation Sending and Confirmation",
+    "guest_count_title": "How many contacts (phone numbers) will we send the invitation and confirmation to?"
   },
   "thank_you": {
     "title": "Thank you!",

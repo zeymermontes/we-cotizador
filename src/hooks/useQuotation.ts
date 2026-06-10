@@ -149,6 +149,10 @@ export function useQuotation() {
       }
     }
 
+    if (formData.productType === 'envio_y_confirmacion') {
+      steps.push('send_confirm_guest_count');
+    }
+
     if (formData.productType === 'envio_invitaciones') {
       steps.push('send_guest_count');
     }
@@ -265,6 +269,8 @@ export function useQuotation() {
         return formData.stdSending !== null;
       case 'std_guest_count':
         return formData.stdGuestCountRange !== null;
+      case 'send_confirm_guest_count':
+        return formData.sendGuestCountRange !== null;
       case 'send_guest_count':
         return formData.sendGuestCountRange !== null;
       case 'confirm_guest_count':

@@ -57,6 +57,8 @@
     "invitacion_digital_desc": "Cotiza tu invitación completa y podrás agregar extras como Save the Date, envío o confirmaciones más adelante.",
     "save_the_date": "Únicamente Save the Date",
     "save_the_date_desc": "Solo el Save the Date, sin invitación completa.",
+    "envio_y_confirmacion": "Envío de invitación y envío de confirmación de asistencia por WhatsApp",
+    "envio_y_confirmacion_desc": "Servicio de envío de invitaciones y de confirmaciones de asistencia por WhatsApp. Se pregunta cantidad de contactos.",
     "envio_invitaciones": "Únicamente Envío de invitaciones por WhatsApp",
     "envio_invitaciones_desc": "Solo el servicio de envío. Se pregunta cantidad de invitados.",
     "confirmaciones": "Únicamente Confirmación de asistencia",
@@ -243,6 +245,10 @@
   "confirm": {
     "title": "Confirmación de asistencia",
     "guest_count_title": "¿A cuántos contactos (números de teléfono) enviaremos la confirmación?"
+  },
+  "send_confirm": {
+    "title": "Envío de invitaciones y confirmación",
+    "guest_count_title": "¿A cuántos contactos (números de teléfono) enviaremos la invitación y la confirmación?"
   },
   "thank_you": {
     "title": "¡Muchas gracias!",

@@ -375,6 +375,34 @@ export function calculatePrice(data: QuotationFormData): PriceBreakdown {
     }
   }
 
+  // ─── BRANCH: Envío + Confirmación (combinado) ───────────
+  if (data.productType === 'envio_y_confirmacion') {
+    basePrice = 0;
+    baseLabel = { es: 'Envío de invitaciones y confirmación', en: 'Invitation sending and confirmation' };
+
+    // Single guest count drives both items (kept in sync by the form)
+    const range = data.sendGuestCountRange || data.confirmGuestCountRange;
+    if (range) {
+      const maxGuests = getMaxGuests(range);
+      perGuestItems.push({
+        key: 'send_only',
+        label: { es: 'Envío de invitaciones', en: 'Invitation sending' },
+        pricePerGuest: 18,
+        guestRange: range,
+        estimatedGuests: maxGuests,
+        estimatedTotal: 18 * maxGuests,
+      });
+      perGuestItems.push({
+        key: 'confirm_only',
+        label: { es: 'Confirmación de asistencia', en: 'Attendance confirmation' },
+        pricePerGuest: 22,
+        guestRange: range,
+        estimatedGuests: maxGuests,
+        estimatedTotal: 22 * maxGuests,
+      });
+    }
+  }
+
   // ─── BRANCH: Envío only ─────────────────────────────────
   if (data.productType === 'envio_invitaciones') {
     basePrice = 0;

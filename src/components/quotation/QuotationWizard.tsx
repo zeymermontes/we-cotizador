@@ -737,6 +737,16 @@ export default function QuotationWizard() {
         />;
       }
 
+      // ─── Send + Confirm (combined) ───
+      case 'send_confirm_guest_count':
+        return <GuestCountStep
+          title={t('send_confirm.guest_count_title')}
+          subtitle="Las invitaciones no se envían de forma individual, sino por grupo (parejas o familias). Por eso, el número de invitaciones suele ser aproximadamente la mitad del total de invitados."
+          note={t('pdf.guest_count_tip')}
+          selected={q.formData.sendGuestCountRange}
+          onSelect={(v) => q.updateFields({ sendGuestCountRange: v as GuestCountRange, confirmGuestCountRange: v as GuestCountRange })}
+        />;
+
       // ─── Send / Confirm only ───
       case 'send_guest_count':
         return <GuestCountStep

@@ -9,6 +9,7 @@ interface Props {
 const PRODUCTS: { value: ProductType; key: string }[] = [
   { value: 'invitacion_digital', key: 'invitacion_digital' },
   { value: 'save_the_date', key: 'save_the_date' },
+  { value: 'envio_y_confirmacion', key: 'envio_y_confirmacion' },
   { value: 'envio_invitaciones', key: 'envio_invitaciones' },
   { value: 'confirmaciones', key: 'confirmaciones' },
 ];
