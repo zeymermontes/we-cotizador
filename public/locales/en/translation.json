@@ -53,15 +53,15 @@
   "step5": {
     "title": "What would you like to quote?",
     "subtitle": "You can select one option",
-    "invitacion_digital": "Digital invitation (save the date + PDF or web page)",
+    "invitacion_digital": "Only digital invitation (save the date + PDF or web page)",
     "invitacion_digital_desc": "Quote your complete invitation and you can add extras like Save the Date, sending or confirmations later.",
     "save_the_date": "Save the Date only",
     "save_the_date_desc": "Just the Save the Date, without a complete invitation.",
-    "envio_y_confirmacion": "WhatsApp invitation sending and attendance confirmation",
+    "envio_y_confirmacion": "Only WhatsApp invitation sending and attendance confirmation",
     "envio_y_confirmacion_desc": "Invitation sending and attendance confirmation service via WhatsApp. Contact count will be requested.",
-    "envio_invitaciones": "WhatsApp invitation sending only",
+    "envio_invitaciones": "Only WhatsApp invitation sending",
     "envio_invitaciones_desc": "Just the sending service. Guest count will be requested.",
-    "confirmaciones": "Attendance confirmation only",
+    "confirmaciones": "Only attendance confirmation",
     "confirmaciones_desc": "Just the confirmation service. Guest count will be requested."
   },
   "step6_format": {

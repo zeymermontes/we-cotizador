@@ -208,6 +208,31 @@ serve(async (req) => {
         return arr.map((v: string) => labelMap[v] || v).join(', ');
       };
 
+      // Helper: readable labels for web extras + additional products
+      const extraLabelMap: Record<string, string> = {
+        // Web extras (paso "extras")
+        'bilingue': 'Página bilingüe',
+        'password': 'Página con contraseña',
+        'clima': 'Clima en tiempo real',
+        // Additional products (paso "¿Te gustaría agregar algo más?")
+        'save_the_date': 'Save the Date',
+        'pdf_adicional': 'PDF Interactivo adicional',
+        'pagina_web_adicional': 'Página web adicional',
+        'our_moments': 'Our moments',
+        'layout_mesas': 'Acomodo mesa de invitados (Layout)',
+      };
+      const labelExtra = (v: string): string =>
+        extraLabelMap[v] || v.replace(/_/g, ' ');
+
+      // Helper: readable label for "opciones por categoría" (info_options_count)
+      const infoOptionsMap: Record<string, string> = {
+        '1_3': '1–3',
+        '4_6': '4–6',
+        '6_plus': '6+',
+      };
+      const labelInfoOptions = (v: string | null | undefined): string =>
+        v ? (infoOptionsMap[v] || v.replace(/_/g, ' ')) : '0';
+
       const bd = quotation.price_breakdown;
       const res = quotation.responses || {};
       const productType = quotation.product_type;
@@ -276,7 +301,7 @@ serve(async (req) => {
         allReplacements['{{elementos}}'] = res.pdfIllustrations ? 'Sí' : 'No';
         allReplacements['{{mesa}}'] = formatGiftTable(res.pdfGiftTable);
         allReplacements['{{info_adicional}}'] = res.pdfInfoCategories?.length > 0 ? res.pdfInfoCategories.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'No';
-        allReplacements['{{cantidad_de_info}}'] = String(res.pdfInfoCategories?.length || 0);
+        allReplacements['{{cantidad_de_info}}'] = labelInfoOptions(res.pdfInfoOptionsCount);
         const extractMax = (range: string | null) => {
           if (!range) return '0';
           if (range.includes('+')) return range.replace('+', '');
@@ -287,7 +312,7 @@ serve(async (req) => {
         allReplacements['{{Rotulado}}'] = res.pdfPersonalized ? 'Sí' : 'No';
         allReplacements['{{num_rotulados}}'] = res.pdfPersonalized ? extractMax(res.pdfGuestCountRange) : '0';
         allReplacements['{{número}}'] = res.pdfGuestCountRange || '0';
-        allReplacements['{{extras}}'] = res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').map((p: string) => p.replace(/_/g, ' ')).join(', ') || 'Ninguno';
+        allReplacements['{{extras}}'] = res.pdfAdditionalProducts?.filter((p: string) => p !== 'none').map(labelExtra).join(', ') || 'Ninguno';
         allReplacements['{{invitados}}'] = res.pdfGuestCountRange || '0';
         allReplacements['{{envio}}'] = formatMoney(envioPrice);
         allReplacements['{{confirmaciones}}'] = formatMoney(confirmPrice);
@@ -303,8 +328,12 @@ serve(async (req) => {
         allReplacements['{{elementos}}'] = res.webIllustrations ? 'Sí' : 'No';
         allReplacements['{{mesa}}'] = formatGiftTable(res.webGiftTable);
         allReplacements['{{info_adicional}}'] = res.webInfoCategories?.length > 0 ? res.webInfoCategories.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'No';
-        allReplacements['{{cantidad_de_info}}'] = String(res.webInfoCategories?.length || 0);
-        allReplacements['{{extras}}'] = res.webExtras?.length > 0 ? res.webExtras.map((p: string) => p.replace(/_/g, ' ')).join(', ') : 'Ninguno';
+        allReplacements['{{cantidad_de_info}}'] = labelInfoOptions(res.webInfoOptionsCount);
+        const webAllExtras = [
+          ...(res.webExtras || []),
+          ...((res.webAdditionalProducts || []).filter((p: string) => p !== 'none')),
+        ];
+        allReplacements['{{extras}}'] = webAllExtras.length > 0 ? webAllExtras.map(labelExtra).join(', ') : 'Ninguno';
         allReplacements['{{invitados}}'] = res.webGuestCountRange || '0';
         allReplacements['{{envio}}'] = formatMoney(envioPrice);
         allReplacements['{{confirmaciones}}'] = formatMoney(confirmPrice);
