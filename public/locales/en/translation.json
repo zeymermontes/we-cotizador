@@ -53,16 +53,16 @@
   "step5": {
     "title": "What would you like to quote?",
     "subtitle": "You can select one option",
-    "invitacion_digital": "Only digital invitation (save the date + PDF or web page)",
-    "invitacion_digital_desc": "Quote your complete invitation and you can add extras like Save the Date, sending or confirmations later.",
+    "invitacion_digital": "Digital invitation + additional services",
+    "invitacion_digital_desc": "Quote your digital invitation and, if you wish, add a Save the Date, WhatsApp sending and attendance confirmations.",
     "save_the_date": "Save the Date only",
-    "save_the_date_desc": "Just the Save the Date, without a complete invitation.",
-    "envio_y_confirmacion": "Only WhatsApp invitation sending and attendance confirmation",
-    "envio_y_confirmacion_desc": "Invitation sending and attendance confirmation service via WhatsApp. Contact count will be requested.",
-    "envio_invitaciones": "Only WhatsApp invitation sending",
-    "envio_invitaciones_desc": "Just the sending service. Guest count will be requested.",
-    "confirmaciones": "Only attendance confirmation",
-    "confirmaciones_desc": "Just the confirmation service. Guest count will be requested."
+    "save_the_date_desc": "For those who only need a Save the Date and not a complete digital invitation.",
+    "envio_y_confirmacion": "I already have my invitation — I want sending + confirmations",
+    "envio_y_confirmacion_desc": "Select this option only if you already have your invitation and want We.Page to handle the sending and the attendance confirmation follow-up via WhatsApp.",
+    "envio_invitaciones": "I already have my invitation — I only want the sending",
+    "envio_invitaciones_desc": "Select this option only if you already have your invitation and want to hire the WhatsApp sending service.",
+    "confirmaciones": "I already have my invitation — I only want confirmations",
+    "confirmaciones_desc": "Select this option only if you already sent your invitation and want We.Page to handle the attendance confirmation follow-up via WhatsApp."
   },
   "step6_format": {
     "title": "What format of digital invitation would you like?",

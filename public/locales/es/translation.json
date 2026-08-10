@@ -53,16 +53,16 @@
   "step5": {
     "title": "¿Qué te gustaría cotizar?",
     "subtitle": "Puedes seleccionar una opción",
-    "invitacion_digital": "Creación de invitación digital (save the date + PDF o página web)",
-    "invitacion_digital_desc": "Cotiza tu invitación completa y podrás agregar extras como Save the Date, envío o confirmaciones más adelante.",
-    "save_the_date": "Únicamente Save the Date",
-    "save_the_date_desc": "Solo el Save the Date, sin invitación completa.",
-    "envio_y_confirmacion": "Únicamente envío de invitación y envío de confirmación de asistencia por WhatsApp",
-    "envio_y_confirmacion_desc": "Servicio de envío de invitaciones y de confirmaciones de asistencia por WhatsApp. Se pregunta cantidad de contactos.",
-    "envio_invitaciones": "Únicamente Envío de invitaciones por WhatsApp",
-    "envio_invitaciones_desc": "Solo el servicio de envío. Se pregunta cantidad de invitados.",
-    "confirmaciones": "Únicamente Confirmación de asistencia",
-    "confirmaciones_desc": "Solo el servicio de confirmaciones. Se pregunta cantidad de invitados."
+    "invitacion_digital": "Invitación digital + servicios adicionales",
+    "invitacion_digital_desc": "Cotiza tu invitación digital y, si lo deseas, agrega Save the Date, envío por WhatsApp y confirmaciones de asistencia.",
+    "save_the_date": "Solo Save the Date",
+    "save_the_date_desc": "Para quienes únicamente necesitan un Save the Date y no una invitación digital completa.",
+    "envio_y_confirmacion": "Ya tengo mi invitación — Quiero envío + confirmaciones",
+    "envio_y_confirmacion_desc": "Selecciona esta opción únicamente si ya cuentas con tu invitación y quieres que We.Page realice el envío y seguimiento de confirmaciones por WhatsApp.",
+    "envio_invitaciones": "Ya tengo mi invitación — Solo quiero el envío",
+    "envio_invitaciones_desc": "Selecciona esta opción únicamente si ya cuentas con tu invitación y quieres contratar el servicio de envío por WhatsApp.",
+    "confirmaciones": "Ya tengo mi invitación — Solo quiero confirmaciones",
+    "confirmaciones_desc": "Selecciona esta opción únicamente si ya enviaste tu invitación y quieres que We.Page realice el seguimiento de confirmaciones de asistencia por WhatsApp."
   },
   "step6_format": {
     "title": "¿Qué formato de invitación digital te gustaría?",
