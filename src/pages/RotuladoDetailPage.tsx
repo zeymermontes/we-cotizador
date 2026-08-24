@@ -456,12 +456,38 @@ export default function RotuladoDetailPage() {
 
           <PlaceholderMapper inspect={result} map={map} onChange={setMap} />
 
-          {result.template.link_domains.length > 0 && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 12 }}>
-              Enlaces que ya trae la plantilla:{' '}
-              {result.template.link_domains.map((l) => `${l.domain} (${l.kind})`).join(' · ')}. Si creas una variable
-              con una URL de alguno de esos dominios, ese enlace se reapunta a tu valor.
-            </p>
+          {result.template.links.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <h4 style={{ fontSize: 'var(--text-sm)', marginBottom: 4 }}>
+                Enlaces de la plantilla ({result.template.links.length})
+              </h4>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 8 }}>
+                Se les quita el redirector <code>google.com/url</code> para que abran directo. El destino no cambia,
+                salvo que crees una variable con una URL del mismo dominio.
+              </p>
+              <div className="data-table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Dónde está</th>
+                      <th>A dónde va</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.template.links.map((l) => (
+                      <tr key={`${l.kind}|${l.url}`}>
+                        <td style={{ fontSize: 'var(--text-xs)', textTransform: 'capitalize', width: 110 }}>
+                          {l.kind === 'forma' ? 'Botón' : l.kind}
+                        </td>
+                        <td style={{ fontSize: 'var(--text-xs)' }}>
+                          <a href={l.url} target="_blank" rel="noopener noreferrer">{l.url}</a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 20 }}>

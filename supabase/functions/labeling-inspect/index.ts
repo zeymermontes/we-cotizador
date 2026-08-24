@@ -156,15 +156,18 @@ serve(async (req) => {
 
     // ── 4. Enlaces que ya trae la plantilla ──────────────────
     // Si alguna variable es una URL del mismo dominio, ese enlace se reapunta.
-    const links = collectLinks(presentation.data);
-
-    // Un enlace por dominio, quedándose con dónde vive (texto, forma o imagen)
-    const byDomain = new Map<string, { domain: string; kind: string; url: string }>();
-    for (const l of links) {
-      const domain = registrableDomain(l.url);
-      if (domain && !byDomain.has(domain)) byDomain.set(domain, { domain, kind: l.kind, url: l.url });
-    }
-    const linkDomains = [...byDomain.values()];
+    // Ya vienen sin el redirector google.com/url. Se deduplican por destino,
+    // conservando dónde vive cada uno (texto, forma o imagen).
+    const seenLinks = new Set<string>();
+    const links = collectLinks(presentation.data)
+      .filter((l) => {
+        const key = `${l.kind}|${l.url}`;
+        if (seenLinks.has(key)) return false;
+        seenLinks.add(key);
+        return true;
+      })
+      .map((l) => ({ ...l, domain: registrableDomain(l.url) }))
+      .slice(0, 30);
 
     return json({
       ok: true,
@@ -185,7 +188,7 @@ serve(async (req) => {
         placeholders,
         slide_count: slideCount,
         link_count: links.length,
-        link_domains: linkDomains,
+        links,
       },
       output_folder_name: OUTPUT_FOLDER_NAME,
       suggested_map: suggestMapping(placeholders, headers),

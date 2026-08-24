@@ -89,7 +89,7 @@ export interface InspectResult {
     placeholders: string[];
     slide_count: number;
     link_count: number;
-    link_domains: { domain: string; kind: string; url: string }[];
+    links: { url: string; kind: string; domain: string | null }[];
   };
   suggested_map: Record<string, PlaceholderMapping>;
   warnings: string[];
