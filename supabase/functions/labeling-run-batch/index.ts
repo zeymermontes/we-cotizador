@@ -24,7 +24,7 @@ import {
   MIME_SHEET,
   MIME_SLIDES,
   isRetryable,
-  linkifyUrls,
+  fixHyperlinks,
   norm,
   OUTPUT_FOLDER_NAME,
   sanitizeFileName,
@@ -417,9 +417,10 @@ serve(async (req) => {
             slides.presentations.batchUpdate({ presentationId: copyId as string, requestBody: { requests } }));
         }
 
-        // El texto ya dice la URL correcta, pero el hipervínculo sigue siendo el
-        // de la plantilla (normalmente el redirector google.com/url). Se reescribe.
-        await linkifyUrls(slides, copyId as string, Object.values(values));
+        // Los enlaces de la plantilla los guarda Slides como google.com/url?q=…
+        // (el redirector). Se reescriben al destino real y se enlaza cualquier
+        // URL que haya quedado como texto plano tras el reemplazo.
+        await fixHyperlinks(slides, copyId as string, Object.values(values));
 
         // Drive puede exportar una revisión anterior si no se le da un respiro
         await sleep(EXPORT_DELAY_MS);

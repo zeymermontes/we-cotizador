@@ -216,34 +216,66 @@ export async function findFolderByName(
 export const sanitizeFolderName = (s: string) =>
   (s ?? '').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);
 
+/** `https://www.google.com/url?q=<destino>` → `<destino>`. */
+export function unwrapGoogleRedirect(url: string): string | null {
+  if (!/^https?:\/\/(www\.)?google\.com\/url\?/i.test(url ?? '')) return null;
+  try {
+    return new URL(url).searchParams.get('q');
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Fija el hipervínculo real sobre cada URL que quedó como texto.
+ * Deja los hipervínculos de la copia apuntando al destino real.
  *
- * Hace falta porque `replaceAllText` sustituye el texto pero hereda el enlace
- * que el marcador tenía en la plantilla, y los enlaces autodetectados de Slides
- * apuntan al redirector `google.com/url?q=...` en vez de al destino directo.
+ * Dos casos:
+ *  - Texto que contiene una URL de los reemplazos y no está enlazado.
+ *  - Cualquier enlace (en texto, forma o imagen) que Slides guardó como
+ *    `google.com/url?q=...`; ese redirector es lo que hace que la invitación
+ *    pase por Google antes de llegar a Typeform.
  */
 // deno-lint-ignore no-explicit-any
-export async function linkifyUrls(slides: any, presentationId: string, urls: string[]) {
+export async function fixHyperlinks(slides: any, presentationId: string, urls: string[]) {
   const targets = urls.filter((u) => /^https?:\/\//i.test(u));
-  if (!targets.length) return;
 
   const doc = await withRetry('leer la copia', () =>
     slides.presentations.get({ presentationId }));
 
   // deno-lint-ignore no-explicit-any
-  const requests: any[] = [];
+  const textRequests: any[] = [];
+  // deno-lint-ignore no-explicit-any
+  const objectRequests: any[] = [];
 
   // deno-lint-ignore no-explicit-any
   const scanText = (text: any, objectId: string, cellLocation?: any) => {
     for (const el of text?.textElements ?? []) {
-      const content: string | undefined = el?.textRun?.content;
+      const run = el?.textRun;
+      const content: string | undefined = run?.content;
       if (!content) continue;
       const base = el.startIndex ?? 0;
+
+      // 1. Enlace existente que pasa por el redirector de Google
+      const current: string | undefined = run?.style?.link?.url;
+      const direct = current ? unwrapGoogleRedirect(current) : null;
+      if (direct) {
+        textRequests.push({
+          updateTextStyle: {
+            objectId,
+            ...(cellLocation ? { cellLocation } : {}),
+            textRange: { type: 'FIXED_RANGE', startIndex: base, endIndex: base + content.length },
+            style: { link: { url: direct } },
+            fields: 'link',
+          },
+        });
+        continue;
+      }
+
+      // 2. La URL quedó como texto plano tras el reemplazo
       for (const url of targets) {
         let at = content.indexOf(url);
         while (at !== -1) {
-          requests.push({
+          textRequests.push({
             updateTextStyle: {
               objectId,
               ...(cellLocation ? { cellLocation } : {}),
@@ -262,22 +294,57 @@ export async function linkifyUrls(slides: any, presentationId: string, urls: str
   const walk = (els: any[] = []) => {
     for (const el of els) {
       if (el.shape?.text) scanText(el.shape.text, el.objectId);
+
+      // Botones: el enlace vive en la forma, no en el texto
+      const shapeLink = el.shape?.shapeProperties?.link?.url;
+      const shapeDirect = shapeLink ? unwrapGoogleRedirect(shapeLink) : null;
+      if (shapeDirect) {
+        objectRequests.push({
+          updateShapeProperties: {
+            objectId: el.objectId,
+            shapeProperties: { link: { url: shapeDirect } },
+            fields: 'link',
+          },
+        });
+      }
+
+      const imageLink = el.image?.imageProperties?.link?.url;
+      const imageDirect = imageLink ? unwrapGoogleRedirect(imageLink) : null;
+      if (imageDirect) {
+        objectRequests.push({
+          updateImageProperties: {
+            objectId: el.objectId,
+            imageProperties: { link: { url: imageDirect } },
+            fields: 'link',
+          },
+        });
+      }
+
       if (el.table?.tableRows) {
+        // deno-lint-ignore no-explicit-any
         el.table.tableRows.forEach((row: any, rowIndex: number) => {
+          // deno-lint-ignore no-explicit-any
           (row.tableCells ?? []).forEach((cell: any, columnIndex: number) => {
             scanText(cell.text, el.objectId, { rowIndex, columnIndex });
           });
         });
       }
+
       if (el.elementGroup?.children) walk(el.elementGroup.children);
     }
   };
 
   for (const page of doc.data.slides ?? []) walk(page.pageElements);
 
-  if (requests.length) {
+  if (textRequests.length) {
     await withRetry('fijar los enlaces', () =>
-      slides.presentations.batchUpdate({ presentationId, requestBody: { requests } }));
+      slides.presentations.batchUpdate({ presentationId, requestBody: { requests: textRequests } }));
+  }
+  // Aparte y tolerante a fallo: si la API rechaza alguno, el PDF igual sale
+  if (objectRequests.length) {
+    await slides.presentations
+      .batchUpdate({ presentationId, requestBody: { requests: objectRequests } })
+      .catch(() => {});
   }
 }
 
