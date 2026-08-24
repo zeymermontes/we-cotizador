@@ -456,6 +456,14 @@ export default function RotuladoDetailPage() {
 
           <PlaceholderMapper inspect={result} map={map} onChange={setMap} />
 
+          {result.template.link_domains.length > 0 && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 12 }}>
+              Enlaces que ya trae la plantilla:{' '}
+              {result.template.link_domains.map((l) => `${l.domain} (${l.kind})`).join(' · ')}. Si creas una variable
+              con una URL de alguno de esos dominios, ese enlace se reapunta a tu valor.
+            </p>
+          )}
+
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 20 }}>
             <div>
               <label className="input-label">Columna que identifica al invitado</label>
@@ -504,7 +512,9 @@ export default function RotuladoDetailPage() {
           {preview && (
             <div style={{ marginTop: 24 }}>
               <h4 style={{ fontSize: 'var(--text-sm)', marginBottom: 8 }}>
-                Prueba — {preview.remaining} pendientes de {preview.total}
+                {preview.all_done
+                  ? `Prueba — los ${preview.total} invitados ya tienen PDF; así quedarían al regenerar`
+                  : `Prueba — ${preview.remaining} pendientes de ${preview.total}`}
               </h4>
               <div className="data-table-wrapper">
                 <table className="data-table">

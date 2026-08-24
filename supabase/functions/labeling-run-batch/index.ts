@@ -315,12 +315,23 @@ serve(async (req) => {
 
     // ── Dry run: solo calcula, no toca Drive ──────────────────
     if (dry_run) {
-      const preview = pending.slice(0, dry_run_limit).map((r) => ({
+      // Si ya no queda nada pendiente (todas las filas tienen URL), la vista
+      // previa muestra igual las primeras filas: es lo que saldría al regenerar.
+      const source = pending.length ? pending : all;
+      const preview = source.slice(0, dry_run_limit).map((r) => ({
         row: r.rowNumber,
         file_name: r.fileName,
         values: r.values,
       }));
-      return json({ ok: true, dry_run: true, total, done: alreadyDone, remaining: pending.length, preview });
+      return json({
+        ok: true,
+        dry_run: true,
+        total,
+        done: alreadyDone,
+        remaining: pending.length,
+        all_done: pending.length === 0,
+        preview,
+      });
     }
 
     if (!pending.length) {

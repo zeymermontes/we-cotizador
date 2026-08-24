@@ -157,7 +157,14 @@ serve(async (req) => {
     // ── 4. Enlaces que ya trae la plantilla ──────────────────
     // Si alguna variable es una URL del mismo dominio, ese enlace se reapunta.
     const links = collectLinks(presentation.data);
-    const linkDomains = [...new Set(links.map(registrableDomain).filter(Boolean))] as string[];
+
+    // Un enlace por dominio, quedándose con dónde vive (texto, forma o imagen)
+    const byDomain = new Map<string, { domain: string; kind: string; url: string }>();
+    for (const l of links) {
+      const domain = registrableDomain(l.url);
+      if (domain && !byDomain.has(domain)) byDomain.set(domain, { domain, kind: l.kind, url: l.url });
+    }
+    const linkDomains = [...byDomain.values()];
 
     return json({
       ok: true,

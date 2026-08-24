@@ -227,26 +227,37 @@ export function registrableDomain(url: string): string | null {
   }
 }
 
-/** Todos los hipervínculos de la presentación, ya sin el redirector de Google. */
+/** De dónde cuelga un enlace dentro de la diapositiva. */
+export type LinkKind = 'texto' | 'forma' | 'imagen';
+
+export interface TemplateLink {
+  url: string;
+  kind: LinkKind;
+}
+
+/**
+ * Todos los hipervínculos de la presentación, ya sin el redirector de Google.
+ * Recorre texto, formas (botones), imágenes, celdas de tabla y grupos.
+ */
 // deno-lint-ignore no-explicit-any
-export function collectLinks(presentation: any): string[] {
-  const links: string[] = [];
-  const push = (u?: string) => {
+export function collectLinks(presentation: any): TemplateLink[] {
+  const links: TemplateLink[] = [];
+  const push = (u: string | undefined, kind: LinkKind) => {
     if (!u) return;
-    links.push(unwrapGoogleRedirect(u) ?? u);
+    links.push({ url: unwrapGoogleRedirect(u) ?? u, kind });
   };
 
   // deno-lint-ignore no-explicit-any
   const scanText = (text: any) => {
-    for (const el of text?.textElements ?? []) push(el?.textRun?.style?.link?.url);
+    for (const el of text?.textElements ?? []) push(el?.textRun?.style?.link?.url, 'texto');
   };
 
   // deno-lint-ignore no-explicit-any
   const walk = (els: any[] = []) => {
     for (const el of els) {
       if (el.shape?.text) scanText(el.shape.text);
-      push(el.shape?.shapeProperties?.link?.url);
-      push(el.image?.imageProperties?.link?.url);
+      push(el.shape?.shapeProperties?.link?.url, 'forma');
+      push(el.image?.imageProperties?.link?.url, 'imagen');
       if (el.table?.tableRows) {
         for (const row of el.table.tableRows) for (const cell of row.tableCells ?? []) scanText(cell.text);
       }

@@ -89,7 +89,7 @@ export interface InspectResult {
     placeholders: string[];
     slide_count: number;
     link_count: number;
-    link_domains: string[];
+    link_domains: { domain: string; kind: string; url: string }[];
   };
   suggested_map: Record<string, PlaceholderMapping>;
   warnings: string[];
@@ -111,6 +111,7 @@ export interface DryRunResult {
   total: number;
   done: number;
   remaining: number;
+  all_done?: boolean;
   preview: { row: number; file_name: string; values: Record<string, string> }[];
 }
 
