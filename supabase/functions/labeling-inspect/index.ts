@@ -46,6 +46,21 @@ const ALIASES: Record<string, string[]> = {
  * quedan como "valor fijo" vacío: son las variables que el admin tiene que
  * llenar en el formulario.
  */
+/**
+ * Dónde escribir la URL del PDF. Se prefiere una columna que ya exista en la
+ * hoja antes que crear otra: si el admin ya tiene una llamada "url", esa es.
+ */
+function suggestUrlColumn(headers: string[]): string {
+  const present = headers.filter(Boolean);
+  const exact = present.find((h) => norm(h) === 'url');
+  if (exact) return exact;
+  const pdfish = present.find((h) => norm(h).includes('pdf'));
+  if (pdfish) return pdfish;
+  const linkish = present.find((h) => norm(h).includes('link'));
+  if (linkish) return linkish;
+  return 'PDF URL';
+}
+
 function suggestMapping(placeholders: string[], headers: string[]) {
   const normHeaders = headers.map((h) => ({ raw: h, n: norm(h) }));
   const map: Record<string, { source: string; column?: string; value?: string }> = {};
@@ -266,6 +281,7 @@ serve(async (req) => {
       },
       output_folder_name: OUTPUT_FOLDER_NAME,
       suggested_map: suggestMapping(placeholders, headers),
+      suggested_url_column: suggestUrlColumn(headers),
       warnings,
     });
   } catch (e) {

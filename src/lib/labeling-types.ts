@@ -92,6 +92,7 @@ export interface InspectResult {
     links: { url: string; kind: string; domain: string | null }[];
   };
   suggested_map: Record<string, PlaceholderMapping>;
+  suggested_url_column: string;
   warnings: string[];
 }
 

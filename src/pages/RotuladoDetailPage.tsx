@@ -165,6 +165,10 @@ export default function RotuladoDetailPage() {
         setFileNameTemplate(chosen ? chosen[0] : (res.template.placeholders[0] ?? ''));
       }
 
+      // Solo en rotulados nuevos: en uno guardado se respeta lo que ya eligió
+      // el admin, aunque no coincida con la sugerencia.
+      if (isNew) setPdfUrlColumn(res.suggested_url_column);
+
       if (!nameColumn) {
         const byPlaceholder = chosen?.[1]?.source === 'column' ? chosen[1].column : undefined;
         const byHeader = res.spreadsheet.headers.find((h) => NAME_HINT.test(normalize(h)));
@@ -499,7 +503,22 @@ export default function RotuladoDetailPage() {
             </div>
             <div>
               <label className="input-label">Columna donde escribo la URL</label>
-              <input className="input-field" value={pdfUrlColumn} onChange={(e) => setPdfUrlColumn(e.target.value)} />
+              <input
+                className="input-field"
+                list="url-columns"
+                value={pdfUrlColumn}
+                onChange={(e) => setPdfUrlColumn(e.target.value)}
+              />
+              <datalist id="url-columns">
+                {result.spreadsheet.headers.filter(Boolean).map((h) => (
+                  <option key={h} value={h} />
+                ))}
+              </datalist>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
+                {result.spreadsheet.headers.some((h) => h === pdfUrlColumn)
+                  ? 'Usa una columna que ya existe en la hoja.'
+                  : 'Esa columna no existe todavía: la creo al final de la hoja.'}
+              </p>
             </div>
           </div>
 
