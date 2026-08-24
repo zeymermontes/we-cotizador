@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, json, fail } from "../_shared/cors.ts";
+import { unwrapPdfLinks } from "../_shared/pdf.ts";
 import {
   a1,
   AppError,
@@ -18,6 +19,7 @@ import {
   describeGoogleError,
   extractPlaceholders,
   findSingleFileByMime,
+  fixHyperlinks,
   getGoogleClients,
   MIME_FOLDER,
   MIME_SHEET,
@@ -77,7 +79,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { event_folder_url, sheet_title = null, header_row = 1 } = body ?? {};
+    const { event_folder_url, sheet_title = null, header_row = 1, probe_links = false } = body ?? {};
 
     const g = getGoogleClients();
     serviceAccountEmail = g.serviceAccountEmail;
@@ -103,6 +105,30 @@ serve(async (req) => {
       );
     }
     if (!folder.data.driveId) warnings.push(MY_DRIVE_WARNING);
+
+    // Restos de un diagnóstico anterior: se limpian antes de nada, si no
+    // el descubrimiento vería dos presentaciones en la carpeta.
+    const strays = await drive.files.list({
+      q: `'${folderRef.id}' in parents and trashed=false and name='PROBE enlaces'`,
+      fields: 'files(id,capabilities(canDelete,canTrash))',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    const strayReport: string[] = [];
+    for (const f of strays.data.files ?? []) {
+      strayReport.push(`canDelete=${f.capabilities?.canDelete} canTrash=${f.capabilities?.canTrash}`);
+      try {
+        await drive.files.delete({ fileId: f.id, supportsAllDrives: true });
+      } catch (e) {
+        strayReport.push(`delete falló: ${(e as Error).message}`);
+        try {
+          await drive.files.update({ fileId: f.id, requestBody: { trashed: true }, supportsAllDrives: true });
+        } catch (e2) {
+          strayReport.push(`trash falló: ${(e2 as Error).message}`);
+        }
+      }
+    }
+    if (strayReport.length) warnings.push(`Limpieza de PROBE: ${strayReport.join(' | ')}`);
 
     // ── 2. La hoja de invitados ──────────────────────────────
     step = 'sheet';
@@ -169,8 +195,56 @@ serve(async (req) => {
       .map((l) => ({ ...l, domain: registrableDomain(l.url) }))
       .slice(0, 30);
 
+    // Diagnóstico opcional: copia la plantilla, le aplica el arreglo de
+    // enlaces y devuelve el antes/después. La copia se borra al terminar.
+    let probe = null;
+    if (probe_links) {
+      const copy = await drive.files.copy({
+        fileId: tplFile.id,
+        requestBody: { name: 'PROBE enlaces', parents: [folderRef.id] },
+        fields: 'id',
+        supportsAllDrives: true,
+      });
+      const copyId = copy.data.id as string;
+      try {
+        const failures = await fixHyperlinks(slides, copyId, []);
+        const after = await slides.presentations.get({ presentationId: copyId });
+
+        // ¿El redirector lo mete el export a PDF, y no el archivo?
+        await new Promise((r) => setTimeout(r, 1500));
+        const pdf = await drive.files.export(
+          { fileId: copyId, mimeType: 'application/pdf', supportsAllDrives: true },
+          { responseType: 'arraybuffer' },
+        );
+        const bytes = new Uint8Array(pdf.data as ArrayBuffer);
+        const sizeBefore = bytes.length;
+        const readUris = () => {
+          let t = '';
+          for (let i = 0; i < bytes.length; i++) t += String.fromCharCode(bytes[i]);
+          return [...t.matchAll(/\/URI\s*\(([^)]*)\)/g)].map((m) => m[1]);
+        };
+        const urisBefore = readUris();
+        const rewritten = unwrapPdfLinks(bytes);
+        const urisAfter = readUris();
+
+        probe = {
+          failures,
+          before: links.map((l) => l.raw),
+          after: collectLinks(after.data).map((l) => l.raw),
+          pdf_size_stable: sizeBefore === bytes.length,
+          pdf_rewritten: rewritten,
+          pdf_wrapped_before: urisBefore.filter((u) => u.includes('google.com/url')).length,
+          pdf_wrapped_after: urisAfter.filter((u) => u.includes('google.com/url')).length,
+          pdf_uris_after: urisAfter.slice(0, 4),
+        };
+      } finally {
+        await drive.files.delete({ fileId: copyId, supportsAllDrives: true }).catch(() => {});
+      }
+    }
+
     return json({
       ok: true,
+      probe,
       service_account_email: serviceAccountEmail,
       event_folder: { id: folderRef.id, name: folder.data.name, url: folder.data.webViewLink },
       spreadsheet: {

@@ -231,7 +231,10 @@ export function registrableDomain(url: string): string | null {
 export type LinkKind = 'texto' | 'forma' | 'imagen';
 
 export interface TemplateLink {
+  /** Destino real, ya sin el redirector de Google. */
   url: string;
+  /** Tal cual está guardado en la presentación. */
+  raw: string;
   kind: LinkKind;
 }
 
@@ -244,7 +247,7 @@ export function collectLinks(presentation: any): TemplateLink[] {
   const links: TemplateLink[] = [];
   const push = (u: string | undefined, kind: LinkKind) => {
     if (!u) return;
-    links.push({ url: unwrapGoogleRedirect(u) ?? u, kind });
+    links.push({ url: unwrapGoogleRedirect(u) ?? u, raw: u, kind });
   };
 
   // deno-lint-ignore no-explicit-any
@@ -415,16 +418,19 @@ export async function fixHyperlinks(
 
   for (const page of doc.data.slides ?? []) walk(page.pageElements);
 
-  if (textRequests.length) {
-    await withRetry('fijar los enlaces', () =>
-      slides.presentations.batchUpdate({ presentationId, requestBody: { requests: textRequests } }));
+  // Una petición por llamada: si la API rechaza una, las demás igual se
+  // aplican. Antes iban todas en un solo batchUpdate y un rechazo tiraba el
+  // lote entero, dejando los enlaces con el redirector puesto.
+  const failures: string[] = [];
+  for (const req of [...textRequests, ...objectRequests]) {
+    try {
+      await slides.presentations.batchUpdate({ presentationId, requestBody: { requests: [req] } });
+    } catch (e) {
+      const label = Object.keys(req)[0];
+      failures.push(`${label}: ${(e as Error)?.message ?? e}`);
+    }
   }
-  // Aparte y tolerante a fallo: si la API rechaza alguno, el PDF igual sale
-  if (objectRequests.length) {
-    await slides.presentations
-      .batchUpdate({ presentationId, requestBody: { requests: objectRequests } })
-      .catch(() => {});
-  }
+  return failures;
 }
 
 export const MIME_SHEET = 'application/vnd.google-apps.spreadsheet';

@@ -11,6 +11,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Readable } from "node:stream";
 import { corsHeaders, json, fail } from "../_shared/cors.ts";
+import { unwrapPdfLinks } from "../_shared/pdf.ts";
 import {
   a1,
   AppError,
@@ -436,10 +437,11 @@ serve(async (req) => {
             slides.presentations.batchUpdate({ presentationId: copyId as string, requestBody: { requests } }));
         }
 
-        // Los enlaces de la plantilla los guarda Slides como google.com/url?q=…
-        // (el redirector). Se reescriben al destino real y se enlaza cualquier
-        // URL que haya quedado como texto plano tras el reemplazo.
-        await fixHyperlinks(slides, copyId as string, Object.values(values));
+        // Solo hace falta tocar los enlaces de la copia cuando alguna variable
+        // trae una URL (para reapuntar por dominio). El redirector que mete
+        // Google no vive aquí, sino en el PDF exportado: se quita más abajo.
+        const urlValues = Object.values(values).filter((v) => /^https?:\/\//i.test(String(v ?? '')));
+        if (urlValues.length) await fixHyperlinks(slides, copyId as string, urlValues);
 
         // Drive puede exportar una revisión anterior si no se le da un respiro
         await sleep(EXPORT_DELAY_MS);
@@ -450,10 +452,14 @@ serve(async (req) => {
             { responseType: 'arraybuffer' },
           ));
 
+        // El export de Google envuelve cada enlace en google.com/url?q=…
+        const pdfBytes = new Uint8Array(pdf.data as ArrayBuffer);
+        unwrapPdfLinks(pdfBytes);
+
         const uploaded = await withRetry('subir el PDF', () =>
           drive.files.create({
             requestBody: { name: fileName, mimeType: 'application/pdf', parents: [outputFolderId as string] },
-            media: { mimeType: 'application/pdf', body: Readable.from([new Uint8Array(pdf.data as ArrayBuffer)]) },
+            media: { mimeType: 'application/pdf', body: Readable.from([pdfBytes]) },
             fields: 'id, webViewLink',
             supportsAllDrives: true,
           }));
@@ -466,7 +472,14 @@ serve(async (req) => {
           }));
 
         if (!job.keep_slide_copies) {
-          await drive.files.delete({ fileId: copyId, supportsAllDrives: true }).catch(() => {});
+          // En una unidad compartida la cuenta de servicio suele tener
+          // canDelete=false; ahí el borrado falla y hay que mandar a papelera.
+          await drive.files
+            .delete({ fileId: copyId, supportsAllDrives: true })
+            .catch(() =>
+              drive.files
+                .update({ fileId: copyId, requestBody: { trashed: true }, supportsAllDrives: true })
+                .catch(() => {}));
         }
 
         const url = uploaded.data.webViewLink as string;
