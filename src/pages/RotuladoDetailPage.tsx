@@ -9,8 +9,8 @@ import type {
   LabelingJob,
   PlaceholderMapping,
 } from '../lib/labeling-types';
-import { STATUS_BADGE, STATUS_LABEL } from '../lib/labeling-types';
-import PlaceholderMapper, { isMissing } from '../components/admin/rotulado/PlaceholderMapper';
+import { isMissing, STATUS_BADGE, STATUS_LABEL } from '../lib/labeling-types';
+import PlaceholderMapper from '../components/admin/rotulado/PlaceholderMapper';
 import JobProgress from '../components/admin/rotulado/JobProgress';
 
 // Un poco por encima del TTL del lock del servidor (2 min): antes de eso el

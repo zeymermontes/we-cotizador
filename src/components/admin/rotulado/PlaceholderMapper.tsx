@@ -1,14 +1,10 @@
+import { isMissing } from '../../../lib/labeling-types';
 import type { InspectResult, PlaceholderMapping } from '../../../lib/labeling-types';
 
 interface Props {
   inspect: InspectResult;
   map: Record<string, PlaceholderMapping>;
   onChange: (map: Record<string, PlaceholderMapping>) => void;
-}
-
-/** Un marcador "falta" cuando no sale de una columna y no tiene valor escrito. */
-export function isMissing(cfg?: PlaceholderMapping) {
-  return cfg?.source === 'literal' && !(cfg.value ?? '').trim();
 }
 
 /** Valor que tomaría el marcador en la primera fila con datos. */

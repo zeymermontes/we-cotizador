@@ -11,6 +11,11 @@ export interface PlaceholderMapping {
   value?: string;
 }
 
+/** Un marcador "falta" cuando no sale de una columna y no tiene valor escrito. */
+export function isMissing(cfg?: PlaceholderMapping) {
+  return cfg?.source === 'literal' && !(cfg.value ?? '').trim();
+}
+
 export interface RowError {
   row: number;
   name: string;
