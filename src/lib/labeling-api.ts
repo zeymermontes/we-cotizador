@@ -10,7 +10,8 @@ async function readInvokeError(error: unknown): Promise<string> {
   const err = error as { context?: { json?: () => Promise<{ message?: string; error?: string }> }; message?: string };
   try {
     const body = await err?.context?.json?.();
-    if (body?.message || body?.error) return body.message ?? body.error;
+    const detail = body?.message ?? body?.error;
+    if (detail) return detail;
   } catch {
     /* el body no era JSON */
   }
