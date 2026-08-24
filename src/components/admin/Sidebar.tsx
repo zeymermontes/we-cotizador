@@ -56,6 +56,14 @@ export default function Sidebar({ isOpen, onClose, onLogout }: SidebarProps) {
           <span>💰</span> Pagos
         </NavLink>
 
+        <NavLink
+          to="/admin/rotulado"
+          className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+          onClick={onClose}
+        >
+          <span>🏷️</span> Rotulado
+        </NavLink>
+
         <div style={{ margin: 'var(--space-md) var(--space-sm)', height: 1, background: 'var(--border-subtle)' }}></div>
         
         <p style={{ padding: '0 var(--space-md)', fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 8 }}>OTROS SERVICIOS</p>

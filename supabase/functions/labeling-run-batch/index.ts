@@ -1,0 +1,411 @@
+// ─────────────────────────────────────────────────────────────
+// labeling-run-batch — motor del rotulado.
+//
+// Procesa un LOTE de invitados (acotado por tiempo, no por número) y,
+// si quedan pendientes, se vuelve a invocar a sí misma. Así el trabajo
+// sigue aunque el admin cierre la pestaña.
+//
+// El Sheet es la fuente de verdad: "celda de URL vacía" = pendiente.
+// ─────────────────────────────────────────────────────────────
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { Buffer } from "node:buffer";
+import { Readable } from "node:stream";
+import { corsHeaders, json, fail } from "../_shared/cors.ts";
+import {
+  a1,
+  AppError,
+  colLetter,
+  describeGoogleError,
+  escapeQ,
+  getGoogleClients,
+  isRetryable,
+  norm,
+  sanitizeFileName,
+  sleep,
+  withRetry,
+} from "../_shared/google.ts";
+
+const DEFAULT_MAX_MS = 90_000;   // presupuesto de wall clock por lote
+const HARD_MAX_MS = 110_000;
+const TAIL_MARGIN_MS = 15_000;   // margen para write-back + update + respuesta
+const LOCK_TTL_MS = 5 * 60_000;
+const MAX_CHAIN_DEPTH = 200;     // tope de seguridad del auto-encadenado
+const EXPORT_DELAY_MS = Number(Deno.env.get('EXPORT_DELAY_MS') ?? 1200);
+
+interface RowJob {
+  rowNumber: number;
+  cells: string[];
+}
+
+function admin() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    { auth: { persistSession: false } },
+  );
+}
+
+/** Resuelve los {{marcadores}} de una fila según placeholder_map. */
+function resolveValues(job: any, headers: string[], cells: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [ph, cfg] of Object.entries<any>(job.placeholder_map ?? {})) {
+    if (cfg?.source === 'column') {
+      const i = headers.findIndex((h) => norm(h) === norm(cfg.column ?? ''));
+      out[ph] = i === -1 ? '' : String(cells[i] ?? '').trim();
+    } else if (cfg?.source === 'typeform') {
+      out[ph] = job.typeform_url ?? '';
+    } else if (cfg?.source === 'literal') {
+      out[ph] = String(cfg.value ?? '');
+    } else {
+      out[ph] = '';
+    }
+  }
+  return out;
+}
+
+function renderTemplate(tpl: string, values: Record<string, string>): string {
+  return (tpl || '{{nombre}}').replace(/\{\{[^{}]{1,80}\}\}/g, (m) => values[m] ?? '');
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const t0 = Date.now();
+  const supabase = admin();
+  let jobId: string | null = null;
+  let serviceAccountEmail = '';
+
+  try {
+    const {
+      job_id,
+      run_token,
+      max_ms = DEFAULT_MAX_MS,
+      dry_run = false,
+      dry_run_limit = 3,
+      chain_depth = 0,
+    } = await req.json();
+
+    jobId = job_id;
+    if (!job_id || !run_token) throw new AppError('BAD_INPUT', 'Faltan job_id o run_token.');
+    const budget = Math.min(Number(max_ms) || DEFAULT_MAX_MS, HARD_MAX_MS);
+
+    // ── Lock cooperativo ───────────────────────────────────────
+    if (!dry_run) {
+      const staleBefore = new Date(Date.now() - LOCK_TTL_MS).toISOString();
+      const { data: locked } = await supabase
+        .from('labeling_jobs')
+        .update({
+          status: 'running',
+          lock_token: run_token,
+          locked_at: new Date().toISOString(),
+        })
+        .eq('id', job_id)
+        .neq('status', 'paused')
+        .or(`locked_at.is.null,locked_at.lt.${staleBefore},lock_token.eq.${run_token}`)
+        .select()
+        .maybeSingle();
+
+      if (!locked) {
+        const { data: cur } = await supabase.from('labeling_jobs').select('status').eq('id', job_id).maybeSingle();
+        if (cur?.status === 'paused') {
+          return json({ ok: true, status: 'paused', has_more: true, message: 'Pausado por el admin.' });
+        }
+        return fail('JOB_LOCKED', 'Este rotulado ya se está ejecutando. Espera a que termine el lote en curso.');
+      }
+    }
+
+    const { data: job, error: jobErr } = await supabase
+      .from('labeling_jobs')
+      .select('*')
+      .eq('id', job_id)
+      .single();
+    if (jobErr || !job) throw new AppError('JOB_NOT_FOUND', 'No encontré el rotulado.');
+
+    if (!dry_run && job.status === 'paused') {
+      return json({ ok: true, status: 'paused', has_more: true, message: 'Pausado por el admin.' });
+    }
+    if (!job.started_at && !dry_run) {
+      await supabase.from('labeling_jobs').update({ started_at: new Date().toISOString() }).eq('id', job_id);
+    }
+
+    const g = getGoogleClients();
+    serviceAccountEmail = g.serviceAccountEmail;
+    const { drive, slides, sheets } = g;
+
+    // ── Leer la hoja completa ─────────────────────────────────
+    const sheetTitle = job.sheet_title || 'Hoja 1';
+    const valuesRes = await withRetry('leer la hoja', () =>
+      sheets.spreadsheets.values.get({
+        spreadsheetId: job.spreadsheet_id,
+        range: a1(sheetTitle, 'A1:ZZ'),
+        majorDimension: 'ROWS',
+      }));
+    const rows: string[][] = (valuesRes.data.values ?? []) as string[][];
+    const headers = (rows[job.header_row - 1] ?? []).map((h: string) => String(h ?? '').trim());
+
+    // ── Asegurar la columna de write-back ─────────────────────
+    let urlIdx = headers.findIndex((h) => norm(h) === norm(job.pdf_url_column));
+    if (urlIdx === -1) {
+      urlIdx = headers.length;
+      await withRetry('crear la columna de URL', () =>
+        sheets.spreadsheets.values.update({
+          spreadsheetId: job.spreadsheet_id,
+          range: a1(sheetTitle, `${colLetter(urlIdx)}${job.header_row}`),
+          valueInputOption: 'RAW',
+          requestBody: { values: [[job.pdf_url_column]] },
+        }));
+      headers[urlIdx] = job.pdf_url_column;
+    }
+
+    // ── Calcular pendientes ───────────────────────────────────
+    const nameIdx = job.name_column
+      ? headers.findIndex((h) => norm(h) === norm(job.name_column))
+      : 0;
+    const hasData = (cells: string[]) =>
+      String(cells[nameIdx === -1 ? 0 : nameIdx] ?? '').trim() !== '';
+
+    const all: RowJob[] = [];
+    const pending: RowJob[] = [];
+    for (let i = job.header_row; i < rows.length; i++) {
+      const cells = rows[i] ?? [];
+      if (!hasData(cells)) continue;
+      const entry = { rowNumber: i + 1, cells };
+      all.push(entry);
+      if (String(cells[urlIdx] ?? '').trim() === '') pending.push(entry);
+    }
+    const total = all.length;
+    const alreadyDone = total - pending.length;
+
+    // ── Dry run: solo calcula, no toca Drive ──────────────────
+    if (dry_run) {
+      const preview = pending.slice(0, dry_run_limit).map((r) => {
+        const values = resolveValues(job, headers, r.cells);
+        return {
+          row: r.rowNumber,
+          file_name: `${String(r.rowNumber).padStart(4, '0')} - ${sanitizeFileName(renderTemplate(job.file_name_template, values))}.pdf`,
+          values,
+        };
+      });
+      return json({ ok: true, dry_run: true, total, done: alreadyDone, remaining: pending.length, preview });
+    }
+
+    if (!pending.length) {
+      await supabase.from('labeling_jobs').update({
+        status: 'completed',
+        total_rows: total,
+        processed_rows: total,
+        completed_at: new Date().toISOString(),
+        locked_at: null,
+      }).eq('id', job_id);
+      return json({ ok: true, status: 'completed', total, done: total, remaining: 0, has_more: false });
+    }
+
+    // ── Mapa de idempotencia: PDFs que ya existen en la carpeta ──
+    const existing = new Map<string, string>();
+    let pageToken: string | undefined = undefined;
+    do {
+      const res: any = await withRetry('listar la carpeta de salida', () =>
+        drive.files.list({
+          q: `'${escapeQ(job.output_folder_id)}' in parents and trashed=false and mimeType='application/pdf'`,
+          fields: 'nextPageToken, files(id,name,webViewLink)',
+          pageSize: 1000,
+          pageToken,
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        }));
+      for (const f of res.data.files ?? []) existing.set(f.name, f.webViewLink);
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+
+    // ── Subcarpeta _tmp para las copias de Slides ─────────────
+    let tmpFolderId = job.tmp_folder_id as string | null;
+    if (!tmpFolderId) {
+      const found = await withRetry('buscar la carpeta _tmp', () =>
+        drive.files.list({
+          q: `'${escapeQ(job.output_folder_id)}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder' and name='_tmp'`,
+          fields: 'files(id)',
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        }));
+      tmpFolderId = found.data.files?.[0]?.id ?? null;
+      if (!tmpFolderId) {
+        const created = await withRetry('crear la carpeta _tmp', () =>
+          drive.files.create({
+            requestBody: { name: '_tmp', mimeType: 'application/vnd.google-apps.folder', parents: [job.output_folder_id] },
+            fields: 'id',
+            supportsAllDrives: true,
+          }));
+        tmpFolderId = created.data.id as string;
+      }
+      await supabase.from('labeling_jobs').update({ tmp_folder_id: tmpFolderId }).eq('id', job_id);
+    }
+
+    // ── Procesar una fila ─────────────────────────────────────
+    async function processRow(r: RowJob) {
+      const values = resolveValues(job, headers, r.cells);
+      const guestName = renderTemplate(job.file_name_template, values) || `Fila ${r.rowNumber}`;
+      const fileName = `${String(r.rowNumber).padStart(4, '0')} - ${sanitizeFileName(guestName)}.pdf`;
+
+      // El PDF ya existe (el lote anterior murió antes del write-back)
+      const already = existing.get(fileName);
+      if (already) return { row: r.rowNumber, name: guestName, pdf_url: already, skipped: true };
+
+      let copyId: string | null = null;
+      try {
+        const copy = await withRetry('copiar la plantilla', () =>
+          drive.files.copy({
+            fileId: job.template_id,
+            requestBody: { name: `TMP ${fileName}`, parents: [tmpFolderId as string] },
+            fields: 'id',
+            supportsAllDrives: true,
+          }));
+        copyId = copy.data.id as string;
+
+        const requests = Object.entries(values).map(([ph, v]) => ({
+          replaceAllText: { containsText: { text: ph, matchCase: true }, replaceText: String(v ?? '') },
+        }));
+        if (requests.length) {
+          await withRetry('personalizar la copia', () =>
+            slides.presentations.batchUpdate({ presentationId: copyId as string, requestBody: { requests } }));
+        }
+
+        // Drive puede exportar una revisión anterior si no se le da un respiro
+        await sleep(EXPORT_DELAY_MS);
+
+        const pdf = await withRetry('exportar el PDF', () =>
+          drive.files.export(
+            { fileId: copyId as string, mimeType: 'application/pdf', supportsAllDrives: true },
+            { responseType: 'arraybuffer' },
+          ));
+
+        const uploaded = await withRetry('subir el PDF', () =>
+          drive.files.create({
+            requestBody: { name: fileName, mimeType: 'application/pdf', parents: [job.output_folder_id] },
+            media: { mimeType: 'application/pdf', body: Readable.from(Buffer.from(pdf.data as ArrayBuffer)) },
+            fields: 'id, webViewLink',
+            supportsAllDrives: true,
+          }));
+
+        await withRetry('hacer público el PDF', () =>
+          drive.permissions.create({
+            fileId: uploaded.data.id as string,
+            requestBody: { role: 'reader', type: 'anyone' },
+            supportsAllDrives: true,
+          }));
+
+        if (!job.keep_slide_copies) {
+          await drive.files.delete({ fileId: copyId, supportsAllDrives: true }).catch(() => {});
+        }
+
+        const url = uploaded.data.webViewLink as string;
+        existing.set(fileName, url);
+        return { row: r.rowNumber, name: guestName, pdf_url: url };
+      } catch (e: any) {
+        // La copia se conserva a propósito cuando falla: sirve de evidencia
+        const link = copyId ? ` (copia: https://docs.google.com/presentation/d/${copyId}/edit)` : '';
+        const { message } = describeGoogleError(e, 'la plantilla o la carpeta', serviceAccountEmail);
+        throw Object.assign(new Error(`${message}${link}`), { row: r.rowNumber, guest: guestName, retryable: isRetryable(e) });
+      }
+    }
+
+    // ── Bucle del lote ────────────────────────────────────────
+    const concurrency = Math.max(1, Math.min(6, job.concurrency ?? 3));
+    const done: any[] = [];
+    const errors: any[] = [];
+
+    while (pending.length && Date.now() - t0 < budget - TAIL_MARGIN_MS) {
+      const chunk = pending.splice(0, concurrency);
+      const settled = await Promise.allSettled(chunk.map(processRow));
+
+      const ok: any[] = [];
+      settled.forEach((s, i) => {
+        if (s.status === 'fulfilled') {
+          ok.push(s.value);
+          done.push(s.value);
+        } else {
+          const err: any = s.reason;
+          errors.push({
+            row: err?.row ?? chunk[i].rowNumber,
+            name: err?.guest ?? '',
+            message: String(err?.message ?? err).slice(0, 500),
+            retryable: err?.retryable ?? false,
+          });
+        }
+      });
+
+      // Write-back por chunk: acota el daño si la función muere a medio lote
+      if (ok.length) {
+        await withRetry('escribir las URLs en la hoja', () =>
+          sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: job.spreadsheet_id,
+            requestBody: {
+              valueInputOption: 'RAW',
+              data: ok.map((r) => ({
+                range: a1(sheetTitle, `${colLetter(urlIdx)}${r.row}`),
+                values: [[r.pdf_url]],
+              })),
+            },
+          }));
+      }
+    }
+
+    const remaining = pending.length + errors.length;
+    // Si el lote no logró NI UNA fila, encadenar solo repetiría el mismo error
+    const stalled = done.length === 0 && errors.length > 0;
+    const hasMore = remaining > 0 && !stalled && chain_depth < MAX_CHAIN_DEPTH;
+
+    // ── Persistir progreso ────────────────────────────────────
+    const { data: fresh } = await supabase.from('labeling_jobs').select('status').eq('id', job_id).single();
+    const paused = fresh?.status === 'paused';
+
+    await supabase.from('labeling_jobs').update({
+      status: paused ? 'paused' : remaining === 0 ? 'completed' : stalled ? 'failed' : 'running',
+      total_rows: total,
+      processed_rows: alreadyDone + done.length,
+      failed_rows: errors.length,
+      row_errors: errors.slice(0, 200),
+      last_error: stalled ? errors[0]?.message ?? null : null,
+      completed_at: remaining === 0 ? new Date().toISOString() : null,
+      locked_at: null,
+    }).eq('id', job_id);
+
+    // ── Auto-encadenado: el siguiente lote no depende del navegador ──
+    if (hasMore && !paused) {
+      const chain = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/labeling-run-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ job_id, run_token, max_ms: budget, chain_depth: chain_depth + 1 }),
+      }).catch(() => {});
+
+      // @ts-expect-error EdgeRuntime solo existe en el runtime de Supabase Edge Functions
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(chain);
+      else await sleep(400);
+    }
+
+    return json({
+      ok: true,
+      job_id,
+      status: paused ? 'paused' : remaining === 0 ? 'completed' : stalled ? 'failed' : 'running',
+      total,
+      done: alreadyDone + done.length,
+      failed: errors.length,
+      remaining,
+      has_more: hasMore && !paused,
+      batch: { succeeded: done.length, elapsed_ms: Date.now() - t0, results: done.slice(0, 50), errors: errors.slice(0, 50) },
+    });
+  } catch (e: any) {
+    const { code, message } = describeGoogleError(e, 'los archivos de Google', serviceAccountEmail);
+    if (jobId) {
+      await supabase.from('labeling_jobs').update({
+        status: 'failed',
+        last_error: message,
+        locked_at: null,
+      }).eq('id', jobId).then(() => {}, () => {});
+    }
+    return fail(code, message);
+  }
+});

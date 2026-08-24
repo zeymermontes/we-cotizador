@@ -8,6 +8,8 @@ import QuotationsPage from './pages/QuotationsPage';
 import QuotationDetailPage from './pages/QuotationDetailPage';
 import ClientsPage from './pages/ClientsPage';
 import PaymentsPage from './pages/PaymentsPage';
+import RotuladoPage from './pages/RotuladoPage';
+import RotuladoDetailPage from './pages/RotuladoDetailPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -59,6 +61,8 @@ function App() {
           <Route path="cotizaciones/:id" element={<QuotationDetailPage />} />
           <Route path="clientes" element={<ClientsPage />} />
           <Route path="pagos" element={<PaymentsPage />} />
+          <Route path="rotulado" element={<RotuladoPage />} />
+          <Route path="rotulado/:id" element={<RotuladoDetailPage />} />
         </Route>
 
         {/* Redirects */}
