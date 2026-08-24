@@ -16,6 +16,11 @@ import JobProgress from '../components/admin/rotulado/JobProgress';
 // Un poco por encima del TTL del lock del servidor (2 min): antes de eso el
 // reintento chocaría con el lote que todavía figura como vivo.
 const STALLED_MS = 135_000;
+
+const normalize = (v: string) =>
+  (v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const NAME_HINT = /^(nombre|name|invitado|guest|nombrecompleto)$/;
 const AUTO_RESUME_COOLDOWN_MS = 150_000;
 
 interface QuotationOption {
@@ -154,7 +159,23 @@ export default function RotuladoDetailPage() {
           PlaceholderMapping
         >,
       );
-      if (!nameColumn) setNameColumn(res.spreadsheet.headers.find(Boolean) ?? '');
+      // El nombre del archivo tiene que usar un marcador que la plantilla
+      // realmente tenga: si no, renderTemplate devuelve vacío y todos los PDFs
+      // acaban llamándose "Fila N".
+      const mapped = Object.entries(merged).filter(([ph]) => res.template.placeholders.includes(ph));
+      const nameish = mapped.find(([ph]) => NAME_HINT.test(normalize(ph.replace(/[{}]/g, ''))));
+      const firstColumnPh = mapped.find(([, cfg]) => cfg?.source === 'column');
+      const chosen = nameish ?? firstColumnPh ?? mapped[0];
+
+      if (!fileNameTemplate || !res.template.placeholders.some((ph) => fileNameTemplate.includes(ph))) {
+        setFileNameTemplate(chosen ? chosen[0] : (res.template.placeholders[0] ?? ''));
+      }
+
+      if (!nameColumn) {
+        const byPlaceholder = chosen?.[1]?.source === 'column' ? chosen[1].column : undefined;
+        const byHeader = res.spreadsheet.headers.find((h) => NAME_HINT.test(normalize(h)));
+        setNameColumn(byPlaceholder ?? byHeader ?? res.spreadsheet.headers.find(Boolean) ?? '');
+      }
       if (!form.sheet_title) setForm((f) => ({ ...f, sheet_title: res.spreadsheet.selected_tab }));
       if (!form.name) setForm((f) => ({ ...f, name: res.event_folder.name }));
     } finally {
@@ -187,6 +208,8 @@ export default function RotuladoDetailPage() {
       if (isNew) {
         const { data, error: insErr } = await supabase.from('labeling_jobs').insert(payload).select().single();
         if (insErr) throw insErr;
+        setEditing(false);
+        setResult(null);
         navigate(`/admin/rotulado/${(data as LabelingJob).id}`, { replace: true });
       } else {
         const { error: updErr } = await supabase.from('labeling_jobs').update(payload).eq('id', id);
@@ -451,6 +474,12 @@ export default function RotuladoDetailPage() {
             <div>
               <label className="input-label">Nombre del archivo</label>
               <input className="input-field" value={fileNameTemplate} onChange={(e) => setFileNameTemplate(e.target.value)} />
+              {!result.template.placeholders.some((ph) => fileNameTemplate.includes(ph)) && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-warning)', marginTop: 6 }}>
+                  ⚠️ No usa ningún marcador de la plantilla ({result.template.placeholders.join(', ')}), así que todos
+                  los PDFs se llamarían igual.
+                </p>
+              )}
             </div>
             <div>
               <label className="input-label">Columna donde escribo la URL</label>
