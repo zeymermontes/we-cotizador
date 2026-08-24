@@ -39,7 +39,9 @@ const DEFAULT_MAX_MS = 45_000;   // presupuesto de wall clock por lote
 const HARD_MAX_MS = 60_000;
 const TAIL_MARGIN_MS = 10_000;   // margen para write-back + update + respuesta
 const MAX_ROWS_PER_BATCH = 6;    // tope duro de PDFs por invocación
-const LOCK_TTL_MS = 2 * 60_000;  // un worker muerto se recupera en 2 min
+// Por debajo del umbral del watchdog (2 min) para que su reintento pueda
+// tomar el lock de un worker que murió sin soltarlo. Ver 007_labeling_watchdog.
+const LOCK_TTL_MS = 90_000;
 const MAX_CHAIN_DEPTH = 400;     // tope de seguridad del auto-encadenado
 const EXPORT_DELAY_MS = Number(Deno.env.get('EXPORT_DELAY_MS') ?? 1200);
 

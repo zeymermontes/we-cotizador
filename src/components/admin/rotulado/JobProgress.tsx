@@ -1,4 +1,5 @@
 import type { LabelingJob } from '../../../lib/labeling-types';
+import { STATUS_LABEL } from '../../../lib/labeling-types';
 
 interface Props {
   job: LabelingJob;
@@ -18,6 +19,38 @@ export default function JobProgress({ job, stalled, busy, onResume, onRegenerate
   const canResume =
     job.processed_rows > 0 && job.processed_rows < total && (job.status !== 'running' || stalled);
 
+  // El estado nunca se deduce: se dice. Antes había situaciones (pausado,
+  // fallido) en las que la pantalla no cambiaba y parecía que seguía corriendo.
+  const state = (() => {
+    if (busy && !running) {
+      return { title: 'Iniciando…', detail: 'Preparando la carpeta en Drive y validando la plantilla.', color: 'var(--text-muted)' };
+    }
+    if (job.status === 'running' && stalled) {
+      return {
+        title: 'Interrumpido',
+        detail: 'Lleva un par de minutos sin avanzar. El servidor lo retoma solo; también puedes pulsar Reanudar.',
+        color: 'var(--color-warning)',
+      };
+    }
+    if (job.status === 'running') {
+      return {
+        title: 'Generando',
+        detail: 'Puedes cerrar esta pestaña: el proceso vive en el servidor.',
+        color: 'var(--color-warning)',
+      };
+    }
+    if (job.status === 'paused') {
+      return { title: 'Pausado', detail: 'No se está generando nada. Pulsa Reanudar para continuar.', color: 'var(--color-warning)' };
+    }
+    if (job.status === 'failed') {
+      return { title: 'Con error', detail: 'La corrida se detuvo. Revisa el mensaje de abajo.', color: 'var(--color-error)' };
+    }
+    if (job.status === 'completed') {
+      return { title: 'Completado', detail: `Los ${total} invitados tienen su PDF.`, color: 'var(--color-success)' };
+    }
+    return { title: STATUS_LABEL[job.status], detail: 'Sin ejecutar todavía.', color: 'var(--text-muted)' };
+  })();
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
@@ -34,35 +67,19 @@ export default function JobProgress({ job, stalled, busy, onResume, onRegenerate
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
 
-      {busy && !running && (
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 16 }}>
-          Preparando la carpeta en Drive y validando la plantilla… el primer lote tarda unos segundos.
-        </p>
-      )}
-
-      {running && !stalled && (
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 16 }}>
-          Generando… puedes cerrar esta pestaña: el servidor sigue solo. Si se interrumpiera, vuelve a abrir esta
-          página y se reanuda.
-        </p>
-      )}
-
-      {stalled && (
-        <div
-          style={{
-            background: 'rgba(251, 191, 36, 0.1)',
-            border: '1px solid var(--color-warning)',
-            borderRadius: 'var(--radius-md)',
-            padding: 12,
-            marginBottom: 16,
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-warning)',
-          }}
-        >
-          ⚠️ El proceso lleva varios minutos sin avanzar; lo estoy relanzando solo. También puedes pulsar{' '}
-          <strong>Reanudar</strong>: las filas que ya tienen PDF se saltan.
-        </div>
-      )}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+          fontSize: 'var(--text-xs)',
+          color: state.color,
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>{state.title}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{state.detail}</span>
+      </div>
 
       {job.last_error && (
         <div

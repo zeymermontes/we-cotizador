@@ -21,7 +21,6 @@ const normalize = (v: string) =>
   (v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const NAME_HINT = /^(nombre|name|invitado|guest|nombrecompleto)$/;
-const AUTO_RESUME_COOLDOWN_MS = 150_000;
 
 interface QuotationOption {
   id: string;
@@ -67,7 +66,6 @@ export default function RotuladoDetailPage() {
   const [preview, setPreview] = useState<DryRunResult | null>(null);
   const [stalled, setStalled] = useState(false);
   const pollRef = useRef<number | null>(null);
-  const lastAutoResume = useRef(0);
 
   const loadJob = useCallback(async () => {
     if (isNew || !id) return;
@@ -260,16 +258,6 @@ export default function RotuladoDetailPage() {
     }
     void runBatch(false, true);
   }
-
-  // Si el worker de Supabase muere a media corrida la cadena se corta. En vez
-  // de dejarlo esperando a que alguien pulse Reanudar, se relanza solo.
-  useEffect(() => {
-    if (!stalled || job?.status !== 'running') return;
-    if (Date.now() - lastAutoResume.current < AUTO_RESUME_COOLDOWN_MS) return;
-    lastAutoResume.current = Date.now();
-    void runBatch(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stalled, job?.status]);
 
   async function handlePause() {
     if (!job) return;
