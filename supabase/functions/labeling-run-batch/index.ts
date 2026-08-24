@@ -18,10 +18,13 @@ import {
   colLetter,
   describeGoogleError,
   escapeQ,
+  findFolderByName,
   getGoogleClients,
+  getRotuladoRootFolderId,
   isRetryable,
   norm,
   sanitizeFileName,
+  sanitizeFolderName,
   sleep,
   withRetry,
 } from "../_shared/google.ts";
@@ -201,13 +204,42 @@ serve(async (req) => {
       return json({ ok: true, status: 'completed', total, done: total, remaining: 0, has_more: false });
     }
 
+    // ── Carpeta de salida: se crea en la primera generación ───
+    let outputFolderId = job.output_folder_id as string | null;
+    if (!outputFolderId) {
+      const cleanName = sanitizeFolderName(job.output_folder_name ?? '');
+      if (!cleanName) throw new AppError('BAD_INPUT', 'El rotulado no tiene nombre de carpeta de salida.');
+
+      const rootId = getRotuladoRootFolderId();
+      // Se revalida aquí: entre el preflight y esta corrida alguien pudo crearla
+      const duplicate = await findFolderByName(drive, rootId, cleanName);
+      if (duplicate) {
+        throw new AppError(
+          'FOLDER_EXISTS',
+          `Ya existe una carpeta llamada "${cleanName}". Cambia el nombre de la carpeta de salida.`,
+        );
+      }
+
+      const created = await withRetry('crear la carpeta de salida', () =>
+        drive.files.create({
+          requestBody: { name: cleanName, mimeType: 'application/vnd.google-apps.folder', parents: [rootId] },
+          fields: 'id, webViewLink',
+          supportsAllDrives: true,
+        }));
+      outputFolderId = created.data.id as string;
+      await supabase.from('labeling_jobs').update({
+        output_folder_id: outputFolderId,
+        output_folder_url: created.data.webViewLink,
+      }).eq('id', job_id);
+    }
+
     // ── Mapa de idempotencia: PDFs que ya existen en la carpeta ──
     const existing = new Map<string, string>();
     let pageToken: string | undefined = undefined;
     do {
       const res: any = await withRetry('listar la carpeta de salida', () =>
         drive.files.list({
-          q: `'${escapeQ(job.output_folder_id)}' in parents and trashed=false and mimeType='application/pdf'`,
+          q: `'${escapeQ(outputFolderId as string)}' in parents and trashed=false and mimeType='application/pdf'`,
           fields: 'nextPageToken, files(id,name,webViewLink)',
           pageSize: 1000,
           pageToken,
@@ -223,7 +255,7 @@ serve(async (req) => {
     if (!tmpFolderId) {
       const found = await withRetry('buscar la carpeta _tmp', () =>
         drive.files.list({
-          q: `'${escapeQ(job.output_folder_id)}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder' and name='_tmp'`,
+          q: `'${escapeQ(outputFolderId as string)}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder' and name='_tmp'`,
           fields: 'files(id)',
           supportsAllDrives: true,
           includeItemsFromAllDrives: true,
@@ -232,7 +264,7 @@ serve(async (req) => {
       if (!tmpFolderId) {
         const created = await withRetry('crear la carpeta _tmp', () =>
           drive.files.create({
-            requestBody: { name: '_tmp', mimeType: 'application/vnd.google-apps.folder', parents: [job.output_folder_id] },
+            requestBody: { name: '_tmp', mimeType: 'application/vnd.google-apps.folder', parents: [outputFolderId as string] },
             fields: 'id',
             supportsAllDrives: true,
           }));
@@ -281,7 +313,7 @@ serve(async (req) => {
 
         const uploaded = await withRetry('subir el PDF', () =>
           drive.files.create({
-            requestBody: { name: fileName, mimeType: 'application/pdf', parents: [job.output_folder_id] },
+            requestBody: { name: fileName, mimeType: 'application/pdf', parents: [outputFolderId as string] },
             media: { mimeType: 'application/pdf', body: Readable.from(Buffer.from(pdf.data as ArrayBuffer)) },
             fields: 'id, webViewLink',
             supportsAllDrives: true,

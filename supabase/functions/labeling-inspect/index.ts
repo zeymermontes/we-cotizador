@@ -12,9 +12,12 @@ import {
   AppError,
   describeGoogleError,
   extractPlaceholders,
+  findFolderByName,
   getGoogleClients,
+  getRotuladoRootFolderId,
   norm,
   parseGoogleId,
+  sanitizeFolderName,
 } from "../_shared/google.ts";
 
 const MIME_SHEET = 'application/vnd.google-apps.spreadsheet';
@@ -22,6 +25,9 @@ const MIME_SLIDES = 'application/vnd.google-apps.presentation';
 const MIME_FOLDER = 'application/vnd.google-apps.folder';
 
 const LINK_HINT = /(link|typeform|rsvp|formulario|confirmac|url)/;
+
+const MY_DRIVE_WARNING =
+  'La carpeta raíz está en "Mi unidad". Los PDFs quedarán a nombre de la cuenta de servicio y consumirán su cuota, que es casi nula. Se recomienda una Unidad compartida.';
 
 /** Alias por si el encabezado no se llama igual que el marcador. */
 const ALIASES: Record<string, string[]> = {
@@ -75,7 +81,8 @@ serve(async (req) => {
       sheet_title = null,
       header_row = 1,
       template_url,
-      output_folder_url,
+      output_folder_name = '',
+      output_folder_id = null,
       typeform_url = '',
     } = body ?? {};
 
@@ -156,26 +163,65 @@ serve(async (req) => {
     if (slideCount > 1) warnings.push(`La plantilla tiene ${slideCount} diapositivas: cada PDF tendrá ${slideCount} páginas.`);
 
     // ── 3. Carpeta de salida ─────────────────────────────────
+    // No se crea aquí: solo se valida. La carpeta nace en la primera
+    // generación, para que un borrador abandonado no deje basura en Drive.
     step = 'folder';
-    const folderRef = parseGoogleId(output_folder_url, 'la carpeta de salida');
-    const folder = await drive.files.get({
-      fileId: folderRef.id,
-      fields: 'id,name,mimeType,driveId,capabilities(canAddChildren)',
-      supportsAllDrives: true,
-    });
-    if (folder.data.mimeType !== MIME_FOLDER) {
-      throw new AppError('BAD_INPUT', 'Ese enlace no es una carpeta de Drive.');
-    }
-    if (!folder.data.capabilities?.canAddChildren) {
-      throw new AppError(
-        'PERMISSION_DENIED',
-        `Tengo acceso a la carpeta "${folder.data.name}" pero no puedo crear archivos dentro. Sube a ${serviceAccountEmail} a Editor.`,
-      );
-    }
-    if (!folder.data.driveId) {
-      warnings.push(
-        'La carpeta de salida está en "Mi unidad". Los PDFs quedarán a nombre de la cuenta de servicio y consumirán su cuota (que es casi nula). Se recomienda una Unidad compartida.',
-      );
+    let folderInfo: Record<string, unknown>;
+
+    if (output_folder_id) {
+      // Job ya ejecutado: la carpeta existe, solo confirmamos que sigue accesible
+      const folder = await drive.files.get({
+        fileId: output_folder_id,
+        fields: 'id,name,mimeType,driveId,webViewLink,capabilities(canAddChildren)',
+        supportsAllDrives: true,
+      });
+      if (folder.data.mimeType !== MIME_FOLDER) throw new AppError('BAD_INPUT', 'La carpeta de salida guardada ya no es una carpeta.');
+      if (!folder.data.capabilities?.canAddChildren) {
+        throw new AppError('PERMISSION_DENIED', `Ya no puedo crear archivos en la carpeta "${folder.data.name}".`);
+      }
+      folderInfo = {
+        id: folder.data.id,
+        name: folder.data.name,
+        url: folder.data.webViewLink,
+        exists: true,
+        is_shared_drive: !!folder.data.driveId,
+      };
+      if (!folder.data.driveId) warnings.push(MY_DRIVE_WARNING);
+    } else {
+      const cleanName = sanitizeFolderName(output_folder_name);
+      if (!cleanName) throw new AppError('BAD_INPUT', 'Escribe un nombre para la carpeta de salida.');
+
+      const rootId = getRotuladoRootFolderId();
+      const root = await drive.files.get({
+        fileId: rootId,
+        fields: 'id,name,driveId,capabilities(canAddChildren)',
+        supportsAllDrives: true,
+      });
+      if (!root.data.capabilities?.canAddChildren) {
+        throw new AppError(
+          'PERMISSION_DENIED',
+          `${serviceAccountEmail} no puede crear carpetas dentro de la carpeta raíz de Drive.`,
+        );
+      }
+
+      const duplicate = await findFolderByName(drive, rootId, cleanName);
+      if (duplicate) {
+        return fail(
+          'FOLDER_EXISTS',
+          `Ya existe una carpeta llamada "${cleanName}" en ${root.data.name}. Usa otro nombre para no mezclar los PDFs de dos eventos.`,
+          { step: 'folder', service_account_email: serviceAccountEmail, existing_folder_url: duplicate.webViewLink },
+        );
+      }
+
+      folderInfo = {
+        id: null,
+        name: cleanName,
+        url: null,
+        exists: false,
+        parent_name: root.data.name,
+        is_shared_drive: !!root.data.driveId,
+      };
+      if (!root.data.driveId) warnings.push(MY_DRIVE_WARNING);
     }
 
     return json({
@@ -192,7 +238,7 @@ serve(async (req) => {
         pdf_url_column_index: pdfUrlColIndex === -1 ? null : pdfUrlColIndex,
       },
       template: { id: tplRef.id, title: tplFile.data.name, placeholders, slide_count: slideCount },
-      folder: { id: folderRef.id, name: folder.data.name, is_shared_drive: !!folder.data.driveId },
+      folder: folderInfo,
       suggested_map: suggestMapping(placeholders, headers, !!typeform_url),
       warnings,
     });

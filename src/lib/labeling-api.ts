@@ -29,7 +29,8 @@ export function inspect(input: {
   sheet_title?: string | null;
   header_row?: number;
   template_url: string;
-  output_folder_url: string;
+  output_folder_name?: string;
+  output_folder_id?: string | null;
   typeform_url?: string;
 }) {
   return call<InspectResult>('labeling-inspect', input);

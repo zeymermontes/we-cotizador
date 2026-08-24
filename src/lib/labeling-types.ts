@@ -26,8 +26,9 @@ export interface LabelingJob {
   spreadsheet_url: string | null;
   sheet_title: string | null;
   header_row: number;
-  output_folder_id: string;
+  output_folder_id: string | null;
   output_folder_url: string | null;
+  output_folder_name: string | null;
   template_id: string;
   template_url: string | null;
   typeform_url: string | null;
@@ -74,7 +75,14 @@ export interface InspectResult {
     pdf_url_column_index: number | null;
   };
   template: { id: string; title: string; placeholders: string[]; slide_count: number };
-  folder: { id: string; name: string; is_shared_drive: boolean };
+  folder: {
+    id: string | null;
+    name: string;
+    url: string | null;
+    exists: boolean;
+    parent_name?: string;
+    is_shared_drive: boolean;
+  };
   suggested_map: Record<string, PlaceholderMapping>;
   warnings: string[];
 }
@@ -85,6 +93,8 @@ export interface FunctionError {
   message: string;
   step?: string;
   service_account_email?: string;
+  /** Presente cuando el nombre de carpeta ya está tomado */
+  existing_folder_url?: string;
 }
 
 export interface DryRunResult {

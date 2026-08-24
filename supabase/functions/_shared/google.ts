@@ -181,3 +181,37 @@ export function describeGoogleError(e: any, what: string, serviceAccountEmail: s
   }
   return { code: 'GOOGLE_ERROR', message: `Error de Google al leer ${what}: ${e?.message ?? e}` };
 }
+
+/**
+ * Carpeta raíz donde se crean las carpetas de salida del rotulado.
+ * Si no hay una dedicada, se usa la misma raíz que las cotizaciones.
+ */
+export function getRotuladoRootFolderId(): string {
+  const id = Deno.env.get('ROTULADO_ROOT_FOLDER_ID') || Deno.env.get('DRIVE_ROOT_FOLDER_ID');
+  if (!id) {
+    throw new AppError('CONFIG', 'Falta DRIVE_ROOT_FOLDER_ID en las variables de entorno del proyecto.');
+  }
+  return id;
+}
+
+/** Busca una carpeta por nombre exacto dentro de un padre. Devuelve null si no existe. */
+export async function findFolderByName(
+  // deno-lint-ignore no-explicit-any
+  drive: any,
+  parentId: string,
+  name: string,
+): Promise<{ id: string; webViewLink: string } | null> {
+  const res = await withRetry('buscar la carpeta', () =>
+    drive.files.list({
+      q: `'${escapeQ(parentId)}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder' and name='${escapeQ(name)}'`,
+      fields: 'files(id,webViewLink)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    }));
+  const hit = res.data.files?.[0];
+  return hit ? { id: hit.id, webViewLink: hit.webViewLink } : null;
+}
+
+/** Nombre de carpeta válido para Drive: sin barras ni espacios de sobra. */
+export const sanitizeFolderName = (s: string) =>
+  (s ?? '').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);

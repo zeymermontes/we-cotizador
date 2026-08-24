@@ -23,7 +23,7 @@ interface QuotationOption {
 interface FormState {
   name: string;
   spreadsheet_url: string;
-  output_folder_url: string;
+  output_folder_name: string;
   template_url: string;
   typeform_url: string;
   sheet_title: string;
@@ -34,7 +34,7 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: '',
   spreadsheet_url: '',
-  output_folder_url: '',
+  output_folder_name: '',
   template_url: '',
   typeform_url: '',
   sheet_title: '',
@@ -60,7 +60,7 @@ export default function RotuladoDetailPage() {
   const [fileNameTemplate, setFileNameTemplate] = useState('{{nombre}}');
   const [pdfUrlColumn, setPdfUrlColumn] = useState('PDF URL');
 
-  const [error, setError] = useState<{ message: string; email?: string } | null>(null);
+  const [error, setError] = useState<{ message: string; email?: string; link?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<DryRunResult | null>(null);
   const [stalled, setStalled] = useState(false);
@@ -75,7 +75,7 @@ export default function RotuladoDetailPage() {
       setForm({
         name: j.name,
         spreadsheet_url: j.spreadsheet_url ?? '',
-        output_folder_url: j.output_folder_url ?? '',
+        output_folder_name: j.output_folder_name ?? '',
         template_url: j.template_url ?? '',
         typeform_url: j.typeform_url ?? '',
         sheet_title: j.sheet_title ?? '',
@@ -135,13 +135,14 @@ export default function RotuladoDetailPage() {
         sheet_title: form.sheet_title || null,
         header_row: form.header_row,
         template_url: form.template_url,
-        output_folder_url: form.output_folder_url,
+        output_folder_name: form.output_folder_name,
+        output_folder_id: job?.output_folder_id ?? null,
         typeform_url: form.typeform_url,
       });
 
       if (!('ok' in res) || res.ok === false) {
         const err = res as FunctionError;
-        setError({ message: err.message, email: err.service_account_email });
+        setError({ message: err.message, email: err.service_account_email, link: err.existing_folder_url });
         return;
       }
 
@@ -175,7 +176,8 @@ export default function RotuladoDetailPage() {
         sheet_title: form.sheet_title || result.spreadsheet.selected_tab,
         header_row: form.header_row,
         output_folder_id: result.folder.id,
-        output_folder_url: form.output_folder_url,
+        output_folder_url: result.folder.url,
+        output_folder_name: result.folder.name,
         template_id: result.template.id,
         template_url: form.template_url,
         typeform_url: form.typeform_url || null,
@@ -265,6 +267,13 @@ export default function RotuladoDetailPage() {
         >
           <strong style={{ color: 'var(--color-error)' }}>No pude continuar.</strong>
           <p style={{ marginTop: 8 }}>{error.message}</p>
+          {error.link && (
+            <p style={{ marginTop: 8 }}>
+              <a href={error.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 'var(--text-xs)' }}>
+                Ver la carpeta que ya existe ↗
+              </a>
+            </p>
+          )}
           {error.email && (
             <button
               className="btn btn-secondary btn-xs"
@@ -302,13 +311,19 @@ export default function RotuladoDetailPage() {
               />
             </div>
             <div>
-              <label className="input-label">Carpeta de salida en Drive</label>
+              <label className="input-label">Nombre de la carpeta de salida</label>
               <input
                 className="input-field"
-                placeholder="https://drive.google.com/drive/folders/..."
-                value={form.output_folder_url}
-                onChange={(e) => setForm({ ...form, output_folder_url: e.target.value })}
+                placeholder="Boda Ana & Luis"
+                value={form.output_folder_name}
+                onChange={(e) => setForm({ ...form, output_folder_name: e.target.value })}
+                disabled={!!job?.output_folder_id}
               />
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
+                {job?.output_folder_id
+                  ? 'La carpeta ya está creada; el nombre no se puede cambiar desde aquí.'
+                  : 'La creo yo en Drive al generar los PDFs. Verifico que no exista otra con el mismo nombre.'}
+              </p>
             </div>
             <div>
               <label className="input-label">Link de Typeform (uno por evento)</label>
@@ -384,6 +399,10 @@ export default function RotuladoDetailPage() {
               <div>Hoja: <strong>{job.sheet_title}</strong> · encabezados en la fila {job.header_row}</div>
               <div>Columna de nombre: <strong>{job.name_column || '(primera)'}</strong> · URL en <strong>{job.pdf_url_column}</strong></div>
               <div>Archivo: <strong>{job.file_name_template}</strong></div>
+              <div>
+                Carpeta de salida: <strong>{job.output_folder_name || '—'}</strong>
+                {!job.output_folder_id && ' (se crea al generar)'}
+              </div>
               {job.typeform_url && <div>Typeform: {job.typeform_url}</div>}
             </div>
           </div>
