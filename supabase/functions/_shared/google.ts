@@ -216,12 +216,14 @@ export async function findFolderByName(
 export const sanitizeFolderName = (s: string) =>
   (s ?? '').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);
 
-/** ¿El enlace apunta a un formulario de Typeform? */
-export function isTypeformUrl(url: string): boolean {
+/** "smarterforms.typeform.com" → "typeform.com". Sirve para emparejar el
+ *  enlace que ya trae la plantilla con el valor que dio el admin. */
+export function registrableDomain(url: string): string | null {
   try {
-    return /(^|\.)typeform\.com$/i.test(new URL(url).hostname);
+    const parts = new URL(url).hostname.toLowerCase().split('.');
+    return parts.length < 2 ? null : parts.slice(-2).join('.');
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -281,21 +283,30 @@ export async function fixHyperlinks(
   slides: any,
   presentationId: string,
   urls: string[],
-  typeformUrl = '',
 ) {
   const targets = urls.filter((u) => /^https?:\/\//i.test(u));
+
+  // Un enlace de la plantilla se reapunta al valor que dio el admin cuando los
+  // dos son del mismo dominio: el botón que va a typeform.com pasa a apuntar al
+  // typeform de este evento, y el de instagram.com se queda como está.
+  const byDomain = new Map<string, string>();
+  for (const u of targets) {
+    const d = registrableDomain(u);
+    if (d && !byDomain.has(d)) byDomain.set(d, u);
+  }
 
   /**
    * Destino final de un enlace que ya existía en la plantilla:
    *  - se le quita el redirector google.com/url
-   *  - si apuntaba a Typeform, se sustituye por el del evento
-   * Devuelve null cuando no hay nada que cambiar (Instagram, mapas, etc.).
+   *  - si hay una variable con una URL del mismo dominio, se usa esa
+   * Devuelve null cuando no hay nada que cambiar.
    */
   const retarget = (current?: string): string | null => {
     if (!current) return null;
     const direct = unwrapGoogleRedirect(current) ?? current;
-    if (typeformUrl && isTypeformUrl(direct)) return typeformUrl === current ? null : typeformUrl;
-    return direct === current ? null : direct;
+    const domain = registrableDomain(direct);
+    const final = (domain ? byDomain.get(domain) : undefined) ?? direct;
+    return final === current ? null : final;
   };
 
   const doc = await withRetry('leer la copia', () =>

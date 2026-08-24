@@ -4,13 +4,16 @@ interface Props {
   inspect: InspectResult;
   map: Record<string, PlaceholderMapping>;
   onChange: (map: Record<string, PlaceholderMapping>) => void;
-  typeformUrl: string;
+}
+
+/** Un marcador "falta" cuando no sale de una columna y no tiene valor escrito. */
+export function isMissing(cfg?: PlaceholderMapping) {
+  return cfg?.source === 'literal' && !(cfg.value ?? '').trim();
 }
 
 /** Valor que tomaría el marcador en la primera fila con datos. */
-function preview(cfg: PlaceholderMapping, headers: string[], row: string[] | undefined, typeformUrl: string) {
-  if (cfg.source === 'typeform') return typeformUrl || '(sin link)';
-  if (cfg.source === 'literal') return cfg.value || '(vacío)';
+function preview(cfg: PlaceholderMapping, headers: string[], row: string[] | undefined) {
+  if (cfg.source === 'literal') return cfg.value || '—';
   if (cfg.source === 'column') {
     const i = headers.indexOf(cfg.column ?? '');
     return i === -1 ? '(columna no encontrada)' : (row?.[i] ?? '').toString() || '(vacío)';
@@ -18,7 +21,7 @@ function preview(cfg: PlaceholderMapping, headers: string[], row: string[] | und
   return '(vacío)';
 }
 
-export default function PlaceholderMapper({ inspect, map, onChange, typeformUrl }: Props) {
+export default function PlaceholderMapper({ inspect, map, onChange }: Props) {
   const { headers, sample_rows } = inspect.spreadsheet;
   const firstRow = sample_rows[0];
   const placeholders = inspect.template.placeholders;
@@ -40,7 +43,7 @@ export default function PlaceholderMapper({ inspect, map, onChange, typeformUrl 
       <table className="data-table">
         <thead>
           <tr>
-            <th>Marcador en la plantilla</th>
+            <th>Variable de la plantilla</th>
             <th>De dónde sale</th>
             <th>Valor</th>
             <th>Vista previa (1ª fila)</th>
@@ -48,8 +51,8 @@ export default function PlaceholderMapper({ inspect, map, onChange, typeformUrl 
         </thead>
         <tbody>
           {placeholders.map((ph) => {
-            const cfg = map[ph] ?? { source: 'empty' };
-            const unmapped = cfg.source === 'empty';
+            const cfg = map[ph] ?? { source: 'literal', value: '' };
+            const missing = isMissing(cfg);
             return (
               <tr key={ph}>
                 <td style={{ fontFamily: 'monospace', fontSize: 'var(--text-xs)' }}>{ph}</td>
@@ -57,12 +60,11 @@ export default function PlaceholderMapper({ inspect, map, onChange, typeformUrl 
                   <select
                     className="input-field"
                     style={{ padding: '6px 10px', fontSize: 'var(--text-xs)' }}
-                    value={cfg.source}
+                    value={cfg.source === 'column' ? 'column' : cfg.source === 'empty' ? 'empty' : 'literal'}
                     onChange={(e) => update(ph, { source: e.target.value as PlaceholderMapping['source'] })}
                   >
                     <option value="column">Columna del Sheet</option>
-                    <option value="typeform">Link de Typeform</option>
-                    <option value="literal">Valor fijo</option>
+                    <option value="literal">Igual para todos</option>
                     <option value="empty">Dejar vacío</option>
                   </select>
                 </td>
@@ -80,30 +82,32 @@ export default function PlaceholderMapper({ inspect, map, onChange, typeformUrl 
                       ))}
                     </select>
                   )}
-                  {cfg.source === 'literal' && (
+                  {(cfg.source === 'literal' || cfg.source === 'typeform') && (
                     <input
                       className="input-field"
-                      style={{ padding: '6px 10px', fontSize: 'var(--text-xs)' }}
+                      style={{
+                        padding: '6px 10px',
+                        fontSize: 'var(--text-xs)',
+                        borderColor: missing ? 'var(--color-warning)' : undefined,
+                      }}
+                      placeholder="Escribe el valor para todos los invitados"
                       value={cfg.value ?? ''}
-                      onChange={(e) => update(ph, { value: e.target.value })}
+                      onChange={(e) => update(ph, { source: 'literal', value: e.target.value })}
                     />
-                  )}
-                  {cfg.source === 'typeform' && (
-                    <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>igual para todos</span>
                   )}
                   {cfg.source === 'empty' && <span style={{ color: 'var(--text-muted)' }}>—</span>}
                 </td>
                 <td
                   style={{
                     fontSize: 'var(--text-xs)',
-                    color: unmapped ? 'var(--color-warning)' : 'var(--text-muted)',
+                    color: missing ? 'var(--color-warning)' : 'var(--text-muted)',
                     maxWidth: 260,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {preview(cfg, headers, firstRow, typeformUrl)}
+                  {missing ? 'Falta el valor' : preview(cfg, headers, firstRow)}
                 </td>
               </tr>
             );

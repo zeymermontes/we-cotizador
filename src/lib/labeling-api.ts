@@ -28,7 +28,6 @@ export function inspect(input: {
   event_folder_url: string;
   sheet_title?: string | null;
   header_row?: number;
-  typeform_url?: string;
 }) {
   return call<InspectResult>('labeling-inspect', input);
 }

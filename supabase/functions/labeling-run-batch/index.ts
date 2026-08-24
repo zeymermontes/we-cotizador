@@ -428,7 +428,7 @@ serve(async (req) => {
         // Los enlaces de la plantilla los guarda Slides como google.com/url?q=…
         // (el redirector). Se reescriben al destino real y se enlaza cualquier
         // URL que haya quedado como texto plano tras el reemplazo.
-        await fixHyperlinks(slides, copyId as string, Object.values(values), job.typeform_url ?? '');
+        await fixHyperlinks(slides, copyId as string, Object.values(values));
 
         // Drive puede exportar una revisión anterior si no se le da un respiro
         await sleep(EXPORT_DELAY_MS);

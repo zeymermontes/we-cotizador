@@ -2,7 +2,8 @@
 
 export type LabelingStatus = 'draft' | 'ready' | 'running' | 'paused' | 'completed' | 'failed';
 
-export type MappingSource = 'column' | 'typeform' | 'literal' | 'empty';
+/** 'typeform' quedó solo por compatibilidad con rotulados ya guardados. */
+export type MappingSource = 'column' | 'literal' | 'empty' | 'typeform';
 
 export interface PlaceholderMapping {
   source: MappingSource;
@@ -83,7 +84,7 @@ export interface InspectResult {
     placeholders: string[];
     slide_count: number;
     link_count: number;
-    typeform_link_count: number;
+    link_domains: string[];
   };
   suggested_map: Record<string, PlaceholderMapping>;
   warnings: string[];

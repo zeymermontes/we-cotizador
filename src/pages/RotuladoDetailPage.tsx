@@ -10,7 +10,7 @@ import type {
   PlaceholderMapping,
 } from '../lib/labeling-types';
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/labeling-types';
-import PlaceholderMapper from '../components/admin/rotulado/PlaceholderMapper';
+import PlaceholderMapper, { isMissing } from '../components/admin/rotulado/PlaceholderMapper';
 import JobProgress from '../components/admin/rotulado/JobProgress';
 
 // Un poco por encima del TTL del lock del servidor (2 min): antes de eso el
@@ -31,7 +31,6 @@ interface QuotationOption {
 interface FormState {
   name: string;
   event_folder_url: string;
-  typeform_url: string;
   sheet_title: string;
   header_row: number;
   quotation_id: string;
@@ -40,7 +39,6 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: '',
   event_folder_url: '',
-  typeform_url: '',
   sheet_title: '',
   header_row: 1,
   quotation_id: '',
@@ -80,7 +78,6 @@ export default function RotuladoDetailPage() {
       setForm({
         name: j.name,
         event_folder_url: j.event_folder_url ?? '',
-        typeform_url: j.typeform_url ?? '',
         sheet_title: j.sheet_title ?? '',
         header_row: j.header_row,
         quotation_id: j.quotation_id ?? '',
@@ -141,7 +138,6 @@ export default function RotuladoDetailPage() {
         event_folder_url: form.event_folder_url,
         sheet_title: form.sheet_title || null,
         header_row: form.header_row,
-        typeform_url: form.typeform_url,
       });
 
       if (!('ok' in res) || res.ok === false) {
@@ -197,7 +193,6 @@ export default function RotuladoDetailPage() {
         sheet_title: form.sheet_title || result.spreadsheet.selected_tab,
         header_row: form.header_row,
         template_id: result.template.id,
-        typeform_url: form.typeform_url || null,
         placeholder_map: map,
         file_name_template: fileNameTemplate,
         name_column: nameColumn || null,
@@ -302,6 +297,9 @@ export default function RotuladoDetailPage() {
     return <div style={{ textAlign: 'center', padding: 64, color: 'var(--text-muted)' }}>Cargando...</div>;
   }
 
+  // Variables de la plantilla que todavía no tienen de dónde sacar su valor
+  const missingVars = result ? result.template.placeholders.filter((ph) => isMissing(map[ph])) : [];
+
   return (
     <div className="animate-fade-in">
       <div className="admin-topbar" style={{ marginBottom: 24 }}>
@@ -361,19 +359,7 @@ export default function RotuladoDetailPage() {
                 plantilla). El nombre de cada una da igual. Ahí mismo creo la carpeta «Invitaciones rotuladas».
               </p>
             </div>
-            <div>
-              <label className="input-label">Link de Typeform del evento (opcional)</label>
-              <input
-                className="input-field"
-                placeholder="https://form.typeform.com/to/..."
-                value={form.typeform_url}
-                onChange={(e) => setForm({ ...form, typeform_url: e.target.value })}
-              />
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
-                Si lo dejas vacío, el botón de la plantilla conserva el enlace que ya trae. Si lo llenas, se
-                reapunta al de este evento, y también llena cualquier marcador tipo <code>{'{{link}}'}</code>.
-              </p>
-            </div>
+
 
             <details>
               <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
@@ -443,7 +429,6 @@ export default function RotuladoDetailPage() {
                 Salida: <strong>Invitaciones rotuladas</strong>
                 {!job.output_folder_id && ' (se crea al generar)'}
               </div>
-              {job.typeform_url && <div>Typeform: {job.typeform_url}</div>}
             </div>
           </div>
         )
@@ -460,11 +445,16 @@ export default function RotuladoDetailPage() {
             Plantilla <strong>{result.template.title}</strong> · {result.template.placeholders.length} marcadores
           </p>
 
+          {missingVars.length > 0 && (
+            <p style={{ color: 'var(--color-warning)', fontSize: 'var(--text-xs)', marginBottom: 12 }}>
+              ⚠️ Faltan valores para {missingVars.join(', ')}. Llénalos abajo o cámbialos a «Dejar vacío».
+            </p>
+          )}
           {result.warnings.map((w) => (
             <p key={w} style={{ color: 'var(--color-warning)', fontSize: 'var(--text-xs)', marginBottom: 8 }}>⚠️ {w}</p>
           ))}
 
-          <PlaceholderMapper inspect={result} map={map} onChange={setMap} typeformUrl={form.typeform_url} />
+          <PlaceholderMapper inspect={result} map={map} onChange={setMap} />
 
           <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 20 }}>
             <div>

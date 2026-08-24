@@ -14,11 +14,11 @@ import {
   a1,
   AppError,
   collectLinks,
+  registrableDomain,
   describeGoogleError,
   extractPlaceholders,
   findSingleFileByMime,
   getGoogleClients,
-  isTypeformUrl,
   MIME_FOLDER,
   MIME_SHEET,
   MIME_SLIDES,
@@ -26,8 +26,6 @@ import {
   OUTPUT_FOLDER_NAME,
   parseGoogleId,
 } from "../_shared/google.ts";
-
-const LINK_HINT = /(link|typeform|rsvp|formulario|confirmac|url)/;
 
 const MY_DRIVE_WARNING =
   'La carpeta del evento está en "Mi unidad". Los PDFs quedarán a nombre de la cuenta de servicio y consumirán su cuota, que es casi nula. Se recomienda una Unidad compartida.';
@@ -41,17 +39,17 @@ const ALIASES: Record<string, string[]> = {
   telefono: ['telefono', 'celular', 'whatsapp', 'phone', 'tel'],
 };
 
-function suggestMapping(placeholders: string[], headers: string[], hasTypeform: boolean) {
+/**
+ * Cada marcador se ata a una columna si el nombre cuadra. Los que no cuadran
+ * quedan como "valor fijo" vacío: son las variables que el admin tiene que
+ * llenar en el formulario.
+ */
+function suggestMapping(placeholders: string[], headers: string[]) {
   const normHeaders = headers.map((h) => ({ raw: h, n: norm(h) }));
   const map: Record<string, { source: string; column?: string; value?: string }> = {};
 
   for (const ph of placeholders) {
     const inner = norm(ph.replace(/[{}]/g, ''));
-
-    if (hasTypeform && LINK_HINT.test(inner)) {
-      map[ph] = { source: 'typeform' };
-      continue;
-    }
 
     let hit = normHeaders.find((h) => h.n === inner);
     if (!hit) hit = normHeaders.find((h) => h.n && (h.n.startsWith(inner) || inner.startsWith(h.n)));
@@ -66,7 +64,7 @@ function suggestMapping(placeholders: string[], headers: string[], hasTypeform: 
       }
     }
 
-    map[ph] = hit ? { source: 'column', column: hit.raw } : { source: 'empty' };
+    map[ph] = hit ? { source: 'column', column: hit.raw } : { source: 'literal', value: '' };
   }
   return map;
 }
@@ -79,7 +77,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { event_folder_url, sheet_title = null, header_row = 1, typeform_url = '' } = body ?? {};
+    const { event_folder_url, sheet_title = null, header_row = 1 } = body ?? {};
 
     const g = getGoogleClients();
     serviceAccountEmail = g.serviceAccountEmail;
@@ -156,21 +154,10 @@ serve(async (req) => {
     const slideCount = (presentation.data.slides ?? []).length;
     if (slideCount > 1) warnings.push(`La plantilla tiene ${slideCount} diapositivas: cada PDF tendrá ${slideCount} páginas.`);
 
-    // ── 4. ¿Dónde va a caer el link de Typeform? ─────────────
+    // ── 4. Enlaces que ya trae la plantilla ──────────────────
+    // Si alguna variable es una URL del mismo dominio, ese enlace se reapunta.
     const links = collectLinks(presentation.data);
-    const typeformLinks = links.filter(isTypeformUrl);
-    const hasLinkPlaceholder = placeholders.some((ph) => LINK_HINT.test(norm(ph.replace(/[{}]/g, ''))));
-
-    if (typeform_url && !typeformLinks.length && !hasLinkPlaceholder) {
-      warnings.push(
-        'La plantilla no tiene ningún enlace a Typeform ni un marcador tipo {{link}}, así que el link que escribiste no se va a usar. Pon el enlace en el botón de la plantilla o agrégale un marcador.',
-      );
-    }
-    if (typeformLinks.length) {
-      warnings.push(
-        `Se reapuntarán ${typeformLinks.length} enlace(s) de la plantilla al Typeform del evento.`,
-      );
-    }
+    const linkDomains = [...new Set(links.map(registrableDomain).filter(Boolean))] as string[];
 
     return json({
       ok: true,
@@ -191,10 +178,10 @@ serve(async (req) => {
         placeholders,
         slide_count: slideCount,
         link_count: links.length,
-        typeform_link_count: typeformLinks.length,
+        link_domains: linkDomains,
       },
       output_folder_name: OUTPUT_FOLDER_NAME,
-      suggested_map: suggestMapping(placeholders, headers, !!typeform_url),
+      suggested_map: suggestMapping(placeholders, headers),
       warnings,
     });
   } catch (e) {
