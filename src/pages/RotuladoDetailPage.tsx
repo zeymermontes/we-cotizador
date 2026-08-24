@@ -124,6 +124,10 @@ export default function RotuladoDetailPage() {
   }, [job?.status, loadJob]);
 
   async function handleInspect() {
+    if (!form.event_folder_url.trim()) {
+      setError({ message: 'Falta el enlace de la carpeta del evento.' });
+      return;
+    }
     setBusy(true);
     setError(null);
     setResult(null);
@@ -331,13 +335,17 @@ export default function RotuladoDetailPage() {
               </p>
             </div>
             <div>
-              <label className="input-label">Link de Typeform (uno por evento)</label>
+              <label className="input-label">Link de Typeform del evento (opcional)</label>
               <input
                 className="input-field"
                 placeholder="https://form.typeform.com/to/..."
                 value={form.typeform_url}
                 onChange={(e) => setForm({ ...form, typeform_url: e.target.value })}
               />
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
+                Si lo dejas vacío, el botón de la plantilla conserva el enlace que ya trae. Si lo llenas, se
+                reapunta al de este evento, y también llena cualquier marcador tipo <code>{'{{link}}'}</code>.
+              </p>
             </div>
 
             <details>

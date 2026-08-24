@@ -13,10 +13,12 @@ import { corsHeaders, json, fail } from "../_shared/cors.ts";
 import {
   a1,
   AppError,
+  collectLinks,
   describeGoogleError,
   extractPlaceholders,
   findSingleFileByMime,
   getGoogleClients,
+  isTypeformUrl,
   MIME_FOLDER,
   MIME_SHEET,
   MIME_SLIDES,
@@ -154,6 +156,22 @@ serve(async (req) => {
     const slideCount = (presentation.data.slides ?? []).length;
     if (slideCount > 1) warnings.push(`La plantilla tiene ${slideCount} diapositivas: cada PDF tendrá ${slideCount} páginas.`);
 
+    // ── 4. ¿Dónde va a caer el link de Typeform? ─────────────
+    const links = collectLinks(presentation.data);
+    const typeformLinks = links.filter(isTypeformUrl);
+    const hasLinkPlaceholder = placeholders.some((ph) => LINK_HINT.test(norm(ph.replace(/[{}]/g, ''))));
+
+    if (typeform_url && !typeformLinks.length && !hasLinkPlaceholder) {
+      warnings.push(
+        'La plantilla no tiene ningún enlace a Typeform ni un marcador tipo {{link}}, así que el link que escribiste no se va a usar. Pon el enlace en el botón de la plantilla o agrégale un marcador.',
+      );
+    }
+    if (typeformLinks.length) {
+      warnings.push(
+        `Se reapuntarán ${typeformLinks.length} enlace(s) de la plantilla al Typeform del evento.`,
+      );
+    }
+
     return json({
       ok: true,
       service_account_email: serviceAccountEmail,
@@ -167,7 +185,14 @@ serve(async (req) => {
         sample_rows: nonEmpty.slice(0, 5),
         data_row_count: nonEmpty.length,
       },
-      template: { id: tplFile.id, title: tplFile.name, placeholders, slide_count: slideCount },
+      template: {
+        id: tplFile.id,
+        title: tplFile.name,
+        placeholders,
+        slide_count: slideCount,
+        link_count: links.length,
+        typeform_link_count: typeformLinks.length,
+      },
       output_folder_name: OUTPUT_FOLDER_NAME,
       suggested_map: suggestMapping(placeholders, headers, !!typeform_url),
       warnings,

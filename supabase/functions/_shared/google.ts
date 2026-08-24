@@ -216,6 +216,46 @@ export async function findFolderByName(
 export const sanitizeFolderName = (s: string) =>
   (s ?? '').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);
 
+/** ¿El enlace apunta a un formulario de Typeform? */
+export function isTypeformUrl(url: string): boolean {
+  try {
+    return /(^|\.)typeform\.com$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Todos los hipervínculos de la presentación, ya sin el redirector de Google. */
+// deno-lint-ignore no-explicit-any
+export function collectLinks(presentation: any): string[] {
+  const links: string[] = [];
+  const push = (u?: string) => {
+    if (!u) return;
+    links.push(unwrapGoogleRedirect(u) ?? u);
+  };
+
+  // deno-lint-ignore no-explicit-any
+  const scanText = (text: any) => {
+    for (const el of text?.textElements ?? []) push(el?.textRun?.style?.link?.url);
+  };
+
+  // deno-lint-ignore no-explicit-any
+  const walk = (els: any[] = []) => {
+    for (const el of els) {
+      if (el.shape?.text) scanText(el.shape.text);
+      push(el.shape?.shapeProperties?.link?.url);
+      push(el.image?.imageProperties?.link?.url);
+      if (el.table?.tableRows) {
+        for (const row of el.table.tableRows) for (const cell of row.tableCells ?? []) scanText(cell.text);
+      }
+      if (el.elementGroup?.children) walk(el.elementGroup.children);
+    }
+  };
+
+  for (const page of presentation?.slides ?? []) walk(page.pageElements);
+  return links;
+}
+
 /** `https://www.google.com/url?q=<destino>` → `<destino>`. */
 export function unwrapGoogleRedirect(url: string): string | null {
   if (!/^https?:\/\/(www\.)?google\.com\/url\?/i.test(url ?? '')) return null;
@@ -236,8 +276,27 @@ export function unwrapGoogleRedirect(url: string): string | null {
  *    pase por Google antes de llegar a Typeform.
  */
 // deno-lint-ignore no-explicit-any
-export async function fixHyperlinks(slides: any, presentationId: string, urls: string[]) {
+export async function fixHyperlinks(
+  // deno-lint-ignore no-explicit-any
+  slides: any,
+  presentationId: string,
+  urls: string[],
+  typeformUrl = '',
+) {
   const targets = urls.filter((u) => /^https?:\/\//i.test(u));
+
+  /**
+   * Destino final de un enlace que ya existía en la plantilla:
+   *  - se le quita el redirector google.com/url
+   *  - si apuntaba a Typeform, se sustituye por el del evento
+   * Devuelve null cuando no hay nada que cambiar (Instagram, mapas, etc.).
+   */
+  const retarget = (current?: string): string | null => {
+    if (!current) return null;
+    const direct = unwrapGoogleRedirect(current) ?? current;
+    if (typeformUrl && isTypeformUrl(direct)) return typeformUrl === current ? null : typeformUrl;
+    return direct === current ? null : direct;
+  };
 
   const doc = await withRetry('leer la copia', () =>
     slides.presentations.get({ presentationId }));
@@ -255,9 +314,9 @@ export async function fixHyperlinks(slides: any, presentationId: string, urls: s
       if (!content) continue;
       const base = el.startIndex ?? 0;
 
-      // 1. Enlace existente que pasa por el redirector de Google
-      const current: string | undefined = run?.style?.link?.url;
-      const direct = current ? unwrapGoogleRedirect(current) : null;
+      // 1. Enlace ya existente: se desenvuelve y, si es de Typeform, se
+      //    reapunta al del evento
+      const direct = retarget(run?.style?.link?.url);
       if (direct) {
         textRequests.push({
           updateTextStyle: {
@@ -296,8 +355,7 @@ export async function fixHyperlinks(slides: any, presentationId: string, urls: s
       if (el.shape?.text) scanText(el.shape.text, el.objectId);
 
       // Botones: el enlace vive en la forma, no en el texto
-      const shapeLink = el.shape?.shapeProperties?.link?.url;
-      const shapeDirect = shapeLink ? unwrapGoogleRedirect(shapeLink) : null;
+      const shapeDirect = retarget(el.shape?.shapeProperties?.link?.url);
       if (shapeDirect) {
         objectRequests.push({
           updateShapeProperties: {
@@ -308,8 +366,7 @@ export async function fixHyperlinks(slides: any, presentationId: string, urls: s
         });
       }
 
-      const imageLink = el.image?.imageProperties?.link?.url;
-      const imageDirect = imageLink ? unwrapGoogleRedirect(imageLink) : null;
+      const imageDirect = retarget(el.image?.imageProperties?.link?.url);
       if (imageDirect) {
         objectRequests.push({
           updateImageProperties: {

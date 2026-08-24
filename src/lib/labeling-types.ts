@@ -77,7 +77,14 @@ export interface InspectResult {
     sample_rows: string[][];
     data_row_count: number;
   };
-  template: { id: string; title: string; placeholders: string[]; slide_count: number };
+  template: {
+    id: string;
+    title: string;
+    placeholders: string[];
+    slide_count: number;
+    link_count: number;
+    typeform_link_count: number;
+  };
   suggested_map: Record<string, PlaceholderMapping>;
   warnings: string[];
 }
