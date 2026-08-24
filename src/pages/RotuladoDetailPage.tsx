@@ -233,6 +233,10 @@ export default function RotuladoDetailPage() {
     }
     try {
       await supabase.from('labeling_jobs').update({ status: 'running', last_error: null }).eq('id', job.id);
+      // Se refresca antes de esperar al primer lote: así la UI pasa de
+      // inmediato a "Generando" y el polling arranca, en vez de dejar el botón
+      // apagado ~45 s sin decir nada.
+      await loadJob();
       const res = await startBatch(job.id, crypto.randomUUID(), reset);
       if (res && 'ok' in res && res.ok === false) {
         const err = res as FunctionError;

@@ -34,9 +34,16 @@ export default function JobProgress({ job, stalled, busy, onResume, onRegenerate
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
 
+      {busy && !running && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 16 }}>
+          Preparando la carpeta en Drive y validando la plantilla… el primer lote tarda unos segundos.
+        </p>
+      )}
+
       {running && !stalled && (
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 16 }}>
-          Generando… puedes cerrar esta pestaña: el proceso sigue en el servidor.
+          Generando… puedes cerrar esta pestaña: el servidor sigue solo. Si se interrumpiera, vuelve a abrir esta
+          página y se reanuda.
         </p>
       )}
 
@@ -81,7 +88,7 @@ export default function JobProgress({ job, stalled, busy, onResume, onRegenerate
         )}
         {canResume && (
           <button className="btn btn-primary btn-sm" onClick={onResume} disabled={busy}>
-            Reanudar
+            {busy ? 'Reanudando…' : 'Reanudar'}
           </button>
         )}
         {!running && (
@@ -90,7 +97,7 @@ export default function JobProgress({ job, stalled, busy, onResume, onRegenerate
             onClick={onRegenerate}
             disabled={busy}
           >
-            {job.output_folder_id ? 'Regenerar todo' : 'Generar PDFs'}
+            {busy ? 'Iniciando…' : job.output_folder_id ? 'Regenerar todo' : 'Generar PDFs'}
           </button>
         )}
         <button className="btn btn-secondary btn-sm" onClick={onDryRun} disabled={busy || running}>
