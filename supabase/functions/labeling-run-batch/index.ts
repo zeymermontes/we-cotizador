@@ -287,7 +287,15 @@ serve(async (req) => {
       const cells = rows[i] ?? [];
       if (!hasData(cells)) continue;
       const values = resolveValues(job, headers, cells);
-      const base = sanitizeFileName(renderTemplate(job.file_name_template, values)) || `Fila ${i + 1}`;
+      // El PDF se llama como el invitado. Si el patrón guardado no usa ningún
+      // marcador que la plantilla tenga, renderTemplate sale vacío: se cae al
+      // primer valor con contenido (normalmente el nombre) y luego a la columna
+      // que identifica la fila.
+      const base =
+        sanitizeFileName(renderTemplate(job.file_name_template, values)) ||
+        sanitizeFileName(Object.values(values).map((v) => String(v ?? '').trim()).find(Boolean) ?? '') ||
+        sanitizeFileName(String(cells[nameIdx === -1 ? 0 : nameIdx] ?? '')) ||
+        `Fila ${i + 1}`;
       draft.push({ rowNumber: i + 1, cells, values, base });
     }
 

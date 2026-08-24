@@ -142,7 +142,7 @@ export const norm = (s: string) =>
 
 /** Nombre de archivo seguro para Drive. */
 export const sanitizeFileName = (s: string) =>
-  (s || 'invitado')
+  (s ?? '')
     .replace(/[\\/:*?"<>|]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
