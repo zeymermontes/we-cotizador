@@ -25,9 +25,7 @@ interface QuotationOption {
 
 interface FormState {
   name: string;
-  spreadsheet_url: string;
-  output_folder_name: string;
-  template_url: string;
+  event_folder_url: string;
   typeform_url: string;
   sheet_title: string;
   header_row: number;
@@ -36,9 +34,7 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   name: '',
-  spreadsheet_url: '',
-  output_folder_name: '',
-  template_url: '',
+  event_folder_url: '',
   typeform_url: '',
   sheet_title: '',
   header_row: 1,
@@ -78,9 +74,7 @@ export default function RotuladoDetailPage() {
       setJob(j);
       setForm({
         name: j.name,
-        spreadsheet_url: j.spreadsheet_url ?? '',
-        output_folder_name: j.output_folder_name ?? '',
-        template_url: j.template_url ?? '',
+        event_folder_url: j.event_folder_url ?? '',
         typeform_url: j.typeform_url ?? '',
         sheet_title: j.sheet_title ?? '',
         header_row: j.header_row,
@@ -135,12 +129,9 @@ export default function RotuladoDetailPage() {
     setResult(null);
     try {
       const res = await inspectSources({
-        spreadsheet_url: form.spreadsheet_url,
+        event_folder_url: form.event_folder_url,
         sheet_title: form.sheet_title || null,
         header_row: form.header_row,
-        template_url: form.template_url,
-        output_folder_name: form.output_folder_name,
-        output_folder_id: job?.output_folder_id ?? null,
         typeform_url: form.typeform_url,
       });
 
@@ -161,7 +152,7 @@ export default function RotuladoDetailPage() {
       );
       if (!nameColumn) setNameColumn(res.spreadsheet.headers.find(Boolean) ?? '');
       if (!form.sheet_title) setForm((f) => ({ ...f, sheet_title: res.spreadsheet.selected_tab }));
-      if (!form.name) setForm((f) => ({ ...f, name: res.spreadsheet.title }));
+      if (!form.name) setForm((f) => ({ ...f, name: res.event_folder.name }));
     } finally {
       setBusy(false);
     }
@@ -174,16 +165,13 @@ export default function RotuladoDetailPage() {
     try {
       const payload = {
         quotation_id: form.quotation_id || null,
-        name: form.name || result.spreadsheet.title,
+        name: form.name || result.event_folder.name,
+        event_folder_id: result.event_folder.id,
+        event_folder_url: form.event_folder_url,
         spreadsheet_id: result.spreadsheet.id,
-        spreadsheet_url: form.spreadsheet_url,
         sheet_title: form.sheet_title || result.spreadsheet.selected_tab,
         header_row: form.header_row,
-        output_folder_id: result.folder.id,
-        output_folder_url: result.folder.url,
-        output_folder_name: result.folder.name,
         template_id: result.template.id,
-        template_url: form.template_url,
         typeform_url: form.typeform_url || null,
         placeholder_map: map,
         file_name_template: fileNameTemplate,
@@ -210,7 +198,7 @@ export default function RotuladoDetailPage() {
     }
   }
 
-  async function runBatch(silent = false) {
+  async function runBatch(silent = false, reset = false) {
     if (!job) return;
     if (!silent) {
       setBusy(true);
@@ -218,7 +206,7 @@ export default function RotuladoDetailPage() {
     }
     try {
       await supabase.from('labeling_jobs').update({ status: 'running', last_error: null }).eq('id', job.id);
-      const res = await startBatch(job.id, crypto.randomUUID());
+      const res = await startBatch(job.id, crypto.randomUUID(), reset);
       if (res && 'ok' in res && res.ok === false) {
         const err = res as FunctionError;
         // En el reintento automático, "ya se está ejecutando" no es un error:
@@ -231,7 +219,21 @@ export default function RotuladoDetailPage() {
     }
   }
 
-  const handleStart = () => runBatch(false);
+  /** Continúa donde se quedó: no borra nada. */
+  const handleResume = () => runBatch(false);
+
+  /** Generación desde cero: carpeta nueva y columna de URLs en blanco. */
+  function handleRegenerate() {
+    if (
+      job?.output_folder_id &&
+      !confirm(
+        'Se manda la carpeta "Invitaciones rotuladas" actual a la papelera, se borran las URLs de la hoja y se generan todos los PDFs de nuevo. ¿Continuar?',
+      )
+    ) {
+      return;
+    }
+    void runBatch(false, true);
+  }
 
   // Si el worker de Supabase muere a media corrida la cadena se corta. En vez
   // de dejarlo esperando a que alguien pulse Reanudar, se relanza solo.
@@ -316,36 +318,16 @@ export default function RotuladoDetailPage() {
 
           <div style={{ display: 'grid', gap: 16 }}>
             <div>
-              <label className="input-label">Hoja de cálculo con los invitados</label>
+              <label className="input-label">Carpeta del evento en Drive</label>
               <input
                 className="input-field"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                value={form.spreadsheet_url}
-                onChange={(e) => setForm({ ...form, spreadsheet_url: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="input-label">Plantilla de la invitación (Google Slides)</label>
-              <input
-                className="input-field"
-                placeholder="https://docs.google.com/presentation/d/..."
-                value={form.template_url}
-                onChange={(e) => setForm({ ...form, template_url: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="input-label">Nombre de la carpeta de salida</label>
-              <input
-                className="input-field"
-                placeholder="Boda Ana & Luis"
-                value={form.output_folder_name}
-                onChange={(e) => setForm({ ...form, output_folder_name: e.target.value })}
-                disabled={!!job?.output_folder_id}
+                placeholder="https://drive.google.com/drive/folders/..."
+                value={form.event_folder_url}
+                onChange={(e) => setForm({ ...form, event_folder_url: e.target.value })}
               />
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 }}>
-                {job?.output_folder_id
-                  ? 'La carpeta ya está creada; el nombre no se puede cambiar desde aquí.'
-                  : 'La creo yo en Drive al generar los PDFs. Verifico que no exista otra con el mismo nombre.'}
+                Dentro tiene que haber una sola hoja de cálculo (los invitados) y una sola presentación (la
+                plantilla). El nombre de cada una da igual. Ahí mismo creo la carpeta «Invitaciones rotuladas».
               </p>
             </div>
             <div>
@@ -423,7 +405,7 @@ export default function RotuladoDetailPage() {
               <div>Columna de nombre: <strong>{job.name_column || '(primera)'}</strong> · URL en <strong>{job.pdf_url_column}</strong></div>
               <div>Archivo: <strong>{job.file_name_template}</strong></div>
               <div>
-                Carpeta de salida: <strong>{job.output_folder_name || '—'}</strong>
+                Salida: <strong>Invitaciones rotuladas</strong>
                 {!job.output_folder_id && ' (se crea al generar)'}
               </div>
               {job.typeform_url && <div>Typeform: {job.typeform_url}</div>}
@@ -437,8 +419,10 @@ export default function RotuladoDetailPage() {
         <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
           <h3 style={{ marginBottom: 4 }}>2. Qué va en cada marcador</h3>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 16 }}>
-            {result.spreadsheet.data_row_count} invitados en «{result.spreadsheet.selected_tab}» ·{' '}
-            {result.template.placeholders.length} marcadores en la plantilla
+            Hoja <strong>{result.spreadsheet.title}</strong> · pestaña «{result.spreadsheet.selected_tab}» ·{' '}
+            {result.spreadsheet.data_row_count} invitados
+            <br />
+            Plantilla <strong>{result.template.title}</strong> · {result.template.placeholders.length} marcadores
           </p>
 
           {result.warnings.map((w) => (
@@ -480,7 +464,8 @@ export default function RotuladoDetailPage() {
             job={job}
             stalled={stalled}
             busy={busy}
-            onStart={handleStart}
+            onResume={handleResume}
+            onRegenerate={handleRegenerate}
             onPause={handlePause}
             onDryRun={handleDryRun}
           />

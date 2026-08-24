@@ -280,3 +280,44 @@ export async function linkifyUrls(slides: any, presentationId: string, urls: str
       slides.presentations.batchUpdate({ presentationId, requestBody: { requests } }));
   }
 }
+
+export const MIME_SHEET = 'application/vnd.google-apps.spreadsheet';
+export const MIME_SLIDES = 'application/vnd.google-apps.presentation';
+export const MIME_FOLDER = 'application/vnd.google-apps.folder';
+
+/** Nombre de la subcarpeta que se crea dentro de la carpeta del evento. */
+export const OUTPUT_FOLDER_NAME = 'Invitaciones rotuladas';
+
+/**
+ * Busca el único archivo de un tipo dentro de una carpeta.
+ * El nombre da igual: lo que importa es que haya exactamente uno.
+ */
+export async function findSingleFileByMime(
+  // deno-lint-ignore no-explicit-any
+  drive: any,
+  folderId: string,
+  mimeType: string,
+  label: string,
+): Promise<{ id: string; name: string }> {
+  const res = await withRetry(`buscar ${label}`, () =>
+    drive.files.list({
+      q: `'${escapeQ(folderId)}' in parents and trashed=false and mimeType='${mimeType}'`,
+      fields: 'files(id,name)',
+      pageSize: 10,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    }));
+
+  const files = res.data.files ?? [];
+  if (files.length === 0) {
+    throw new AppError('MISSING_SOURCE', `No encontré ${label} en la carpeta del evento. Súbelo antes de generar.`);
+  }
+  if (files.length > 1) {
+    const names = files.map((f: { name: string }) => `"${f.name}"`).join(', ');
+    throw new AppError(
+      'AMBIGUOUS_SOURCE',
+      `Hay ${files.length} archivos que podrían ser ${label} (${names}). Deja solo uno en la carpeta del evento.`,
+    );
+  }
+  return { id: files[0].id, name: files[0].name };
+}

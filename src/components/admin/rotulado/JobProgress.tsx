@@ -4,15 +4,19 @@ interface Props {
   job: LabelingJob;
   stalled: boolean;
   busy: boolean;
-  onStart: () => void;
+  onResume: () => void;
+  onRegenerate: () => void;
   onPause: () => void;
   onDryRun: () => void;
 }
 
-export default function JobProgress({ job, stalled, busy, onStart, onPause, onDryRun }: Props) {
+export default function JobProgress({ job, stalled, busy, onResume, onRegenerate, onPause, onDryRun }: Props) {
   const total = job.total_rows || 0;
   const pct = total ? Math.round((job.processed_rows / total) * 100) : 0;
   const running = job.status === 'running';
+  // Se puede continuar si quedó trabajo a medias (pausado, colgado o con error)
+  const canResume =
+    job.processed_rows > 0 && job.processed_rows < total && (job.status !== 'running' || stalled);
 
   return (
     <div>
@@ -48,8 +52,8 @@ export default function JobProgress({ job, stalled, busy, onStart, onPause, onDr
             color: 'var(--color-warning)',
           }}
         >
-          ⚠️ El proceso lleva varios minutos sin avanzar. Pulsa <strong>Reanudar</strong>: las filas que ya tienen PDF
-          se saltan solas.
+          ⚠️ El proceso lleva varios minutos sin avanzar; lo estoy relanzando solo. También puedes pulsar{' '}
+          <strong>Reanudar</strong>: las filas que ya tienen PDF se saltan.
         </div>
       )}
 
@@ -70,13 +74,23 @@ export default function JobProgress({ job, stalled, busy, onStart, onPause, onDr
       )}
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {running && !stalled ? (
+        {running && !stalled && (
           <button className="btn btn-secondary btn-sm" onClick={onPause} disabled={busy}>
             Pausar
           </button>
-        ) : (
-          <button className="btn btn-primary btn-sm" onClick={onStart} disabled={busy || job.status === 'completed'}>
-            {job.processed_rows > 0 ? 'Reanudar' : 'Generar PDFs'}
+        )}
+        {canResume && (
+          <button className="btn btn-primary btn-sm" onClick={onResume} disabled={busy}>
+            Reanudar
+          </button>
+        )}
+        {!running && (
+          <button
+            className={canResume ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'}
+            onClick={onRegenerate}
+            disabled={busy}
+          >
+            {job.output_folder_id ? 'Regenerar todo' : 'Generar PDFs'}
           </button>
         )}
         <button className="btn btn-secondary btn-sm" onClick={onDryRun} disabled={busy || running}>

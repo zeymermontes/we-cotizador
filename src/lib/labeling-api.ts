@@ -25,12 +25,9 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T | F
 }
 
 export function inspect(input: {
-  spreadsheet_url: string;
+  event_folder_url: string;
   sheet_title?: string | null;
   header_row?: number;
-  template_url: string;
-  output_folder_name?: string;
-  output_folder_id?: string | null;
   typeform_url?: string;
 }) {
   return call<InspectResult>('labeling-inspect', input);
@@ -45,9 +42,11 @@ export function dryRun(jobId: string, limit = 3) {
   });
 }
 
-export function startBatch(jobId: string, runToken: string) {
+/** `reset: true` arranca una generación desde cero: carpeta nueva y URLs en blanco. */
+export function startBatch(jobId: string, runToken: string, reset = false) {
   return call<{ ok: true; status: string; has_more: boolean }>('labeling-run-batch', {
     job_id: jobId,
     run_token: runToken,
+    reset,
   });
 }

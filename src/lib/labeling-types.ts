@@ -22,14 +22,16 @@ export interface LabelingJob {
   quotation_id: string | null;
   name: string;
 
-  spreadsheet_id: string;
+  event_folder_id: string | null;
+  event_folder_url: string | null;
+  spreadsheet_id: string | null;
   spreadsheet_url: string | null;
   sheet_title: string | null;
   header_row: number;
   output_folder_id: string | null;
   output_folder_url: string | null;
   output_folder_name: string | null;
-  template_id: string;
+  template_id: string | null;
   template_url: string | null;
   typeform_url: string | null;
 
@@ -64,6 +66,8 @@ export interface SheetTab {
 export interface InspectResult {
   ok: true;
   service_account_email: string;
+  event_folder: { id: string; name: string; url: string };
+  output_folder_name: string;
   spreadsheet: {
     id: string;
     title: string;
@@ -72,17 +76,8 @@ export interface InspectResult {
     headers: string[];
     sample_rows: string[][];
     data_row_count: number;
-    pdf_url_column_index: number | null;
   };
   template: { id: string; title: string; placeholders: string[]; slide_count: number };
-  folder: {
-    id: string | null;
-    name: string;
-    url: string | null;
-    exists: boolean;
-    parent_name?: string;
-    is_shared_drive: boolean;
-  };
   suggested_map: Record<string, PlaceholderMapping>;
   warnings: string[];
 }

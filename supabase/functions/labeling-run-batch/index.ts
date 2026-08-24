@@ -17,14 +17,17 @@ import {
   colLetter,
   describeGoogleError,
   escapeQ,
+  extractPlaceholders,
   findFolderByName,
+  findSingleFileByMime,
   getGoogleClients,
-  getRotuladoRootFolderId,
+  MIME_SHEET,
+  MIME_SLIDES,
   isRetryable,
   linkifyUrls,
   norm,
+  OUTPUT_FOLDER_NAME,
   sanitizeFileName,
-  sanitizeFolderName,
   sleep,
   withRetry,
 } from "../_shared/google.ts";
@@ -92,6 +95,7 @@ serve(async (req) => {
       dry_run = false,
       dry_run_limit = 3,
       chain_depth = 0,
+      reset = false,
     } = await req.json();
 
     jobId = job_id;
@@ -141,11 +145,53 @@ serve(async (req) => {
     serviceAccountEmail = g.serviceAccountEmail;
     const { drive, slides, sheets } = g;
 
+    // ── Validar las fuentes antes de generar nada ─────────────
+    // Se redescubren en la carpeta del evento: el admin pudo haber
+    // reemplazado la hoja o la plantilla desde el último preflight.
+    let spreadsheetId = job.spreadsheet_id as string | null;
+    let templateId = job.template_id as string | null;
+
+    if (reset || !spreadsheetId || !templateId) {
+      if (!job.event_folder_id) {
+        throw new AppError('BAD_INPUT', 'Este rotulado no tiene carpeta de evento. Vuelve a configurarlo.');
+      }
+
+      const sheetFile = await findSingleFileByMime(drive, job.event_folder_id, MIME_SHEET, 'la hoja de invitados');
+      const tplFile = await findSingleFileByMime(drive, job.event_folder_id, MIME_SLIDES, 'la plantilla de la invitación');
+      spreadsheetId = sheetFile.id;
+      templateId = tplFile.id;
+
+      const presentation = await withRetry('leer la plantilla', () =>
+        slides.presentations.get({ presentationId: templateId as string }));
+      const found = extractPlaceholders(presentation.data);
+
+      if (!found.length) {
+        throw new AppError(
+          'NO_PLACEHOLDERS',
+          `La plantilla "${tplFile.name}" no tiene ningún marcador {{...}}: todos los PDFs saldrían idénticos.`,
+        );
+      }
+
+      const mapped = Object.keys(job.placeholder_map ?? {});
+      const missing = mapped.filter((ph) => !found.includes(ph));
+      if (missing.length) {
+        throw new AppError(
+          'PLACEHOLDER_MISMATCH',
+          `La plantilla "${tplFile.name}" ya no tiene ${missing.join(', ')}. Abre Editar, dale a Validar y leer y revisa el mapeo.`,
+        );
+      }
+
+      await supabase.from('labeling_jobs').update({
+        spreadsheet_id: spreadsheetId,
+        template_id: templateId,
+      }).eq('id', job_id);
+    }
+
     // ── Leer la hoja completa ─────────────────────────────────
     const sheetTitle = job.sheet_title || 'Hoja 1';
     const valuesRes = await withRetry('leer la hoja', () =>
       sheets.spreadsheets.values.get({
-        spreadsheetId: job.spreadsheet_id,
+        spreadsheetId: spreadsheetId as string,
         range: a1(sheetTitle, 'A1:ZZ'),
         majorDimension: 'ROWS',
       }));
@@ -158,12 +204,72 @@ serve(async (req) => {
       urlIdx = headers.length;
       await withRetry('crear la columna de URL', () =>
         sheets.spreadsheets.values.update({
-          spreadsheetId: job.spreadsheet_id,
+          spreadsheetId: spreadsheetId as string,
           range: a1(sheetTitle, `${colLetter(urlIdx)}${job.header_row}`),
           valueInputOption: 'RAW',
           requestBody: { values: [[job.pdf_url_column]] },
         }));
       headers[urlIdx] = job.pdf_url_column;
+    }
+
+    // ── Las columnas mapeadas tienen que seguir existiendo ────
+    const missingCols = Object.entries<{ source?: string; column?: string }>(job.placeholder_map ?? {})
+      .filter(([, cfg]) => cfg?.source === 'column')
+      .filter(([, cfg]) => !headers.some((h) => norm(h) === norm(cfg.column ?? '')))
+      .map(([ph, cfg]) => `${ph} → "${cfg.column}"`);
+    if (missingCols.length) {
+      throw new AppError(
+        'COLUMN_MISSING',
+        `La hoja ya no tiene las columnas del mapeo: ${missingCols.join(', ')}. Abre Editar, dale a Validar y leer y revisa el mapeo.`,
+      );
+    }
+
+    // ── Regeneración: carpeta nueva y columna de URLs en blanco ──
+    let outputFolderId = job.output_folder_id as string | null;
+
+    if (reset) {
+      // La carpeta anterior va a la papelera (recuperable 30 días), no se borra
+      for (let i = 0; i < 5; i++) {
+        const old = await findFolderByName(drive, job.event_folder_id, OUTPUT_FOLDER_NAME);
+        if (!old) break;
+        await drive.files.update({
+          fileId: old.id,
+          requestBody: { trashed: true },
+          supportsAllDrives: true,
+        }).catch(() => {});
+      }
+
+      await withRetry('vaciar la columna de URLs', () =>
+        sheets.spreadsheets.values.clear({
+          spreadsheetId: spreadsheetId as string,
+          range: a1(sheetTitle, `${colLetter(urlIdx)}${job.header_row + 1}:${colLetter(urlIdx)}`),
+        }));
+      for (let i = job.header_row; i < rows.length; i++) {
+        if (rows[i]) rows[i][urlIdx] = '';
+      }
+
+      const fresh = await withRetry('crear la carpeta de salida', () =>
+        drive.files.create({
+          requestBody: {
+            name: OUTPUT_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [job.event_folder_id],
+          },
+          fields: 'id, webViewLink',
+          supportsAllDrives: true,
+        }));
+      outputFolderId = fresh.data.id as string;
+
+      await supabase.from('labeling_jobs').update({
+        output_folder_id: outputFolderId,
+        output_folder_url: fresh.data.webViewLink,
+        tmp_folder_id: null,
+        processed_rows: 0,
+        failed_rows: 0,
+        row_errors: [],
+        completed_at: null,
+      }).eq('id', job_id);
+      job.tmp_folder_id = null;
     }
 
     // ── Calcular pendientes ───────────────────────────────────
@@ -220,32 +326,26 @@ serve(async (req) => {
       return json({ ok: true, status: 'completed', total, done: total, remaining: 0, has_more: false });
     }
 
-    // ── Carpeta de salida: se crea en la primera generación ───
-    let outputFolderId = job.output_folder_id as string | null;
+    // ── Carpeta de salida (lotes encadenados: ya existe) ──────
     if (!outputFolderId) {
-      const cleanName = sanitizeFolderName(job.output_folder_name ?? '');
-      if (!cleanName) throw new AppError('BAD_INPUT', 'El rotulado no tiene nombre de carpeta de salida.');
-
-      const rootId = getRotuladoRootFolderId();
-      // Se revalida aquí: entre el preflight y esta corrida alguien pudo crearla
-      const duplicate = await findFolderByName(drive, rootId, cleanName);
-      if (duplicate) {
-        throw new AppError(
-          'FOLDER_EXISTS',
-          `Ya existe una carpeta llamada "${cleanName}". Cambia el nombre de la carpeta de salida.`,
-        );
+      let folder = await findFolderByName(drive, job.event_folder_id, OUTPUT_FOLDER_NAME);
+      if (!folder) {
+        const created = await withRetry('crear la carpeta de salida', () =>
+          drive.files.create({
+            requestBody: {
+              name: OUTPUT_FOLDER_NAME,
+              mimeType: 'application/vnd.google-apps.folder',
+              parents: [job.event_folder_id],
+            },
+            fields: 'id, webViewLink',
+            supportsAllDrives: true,
+          }));
+        folder = { id: created.data.id as string, webViewLink: created.data.webViewLink as string };
       }
-
-      const created = await withRetry('crear la carpeta de salida', () =>
-        drive.files.create({
-          requestBody: { name: cleanName, mimeType: 'application/vnd.google-apps.folder', parents: [rootId] },
-          fields: 'id, webViewLink',
-          supportsAllDrives: true,
-        }));
-      outputFolderId = created.data.id as string;
+      outputFolderId = folder.id;
       await supabase.from('labeling_jobs').update({
         output_folder_id: outputFolderId,
-        output_folder_url: created.data.webViewLink,
+        output_folder_url: folder.webViewLink,
       }).eq('id', job_id);
     }
 
@@ -302,7 +402,7 @@ serve(async (req) => {
       try {
         const copy = await withRetry('copiar la plantilla', () =>
           drive.files.copy({
-            fileId: job.template_id,
+            fileId: templateId as string,
             requestBody: { name: `TMP ${fileName}`, parents: [tmpFolderId as string] },
             fields: 'id',
             supportsAllDrives: true,
@@ -400,7 +500,7 @@ serve(async (req) => {
       if (ok.length) {
         await withRetry('escribir las URLs en la hoja', () =>
           sheets.spreadsheets.values.batchUpdate({
-            spreadsheetId: job.spreadsheet_id,
+            spreadsheetId: spreadsheetId as string,
             requestBody: {
               valueInputOption: 'RAW',
               data: ok.map((r) => ({
