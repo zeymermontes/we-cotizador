@@ -9,7 +9,6 @@
 // ─────────────────────────────────────────────────────────────
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 import { corsHeaders, json, fail } from "../_shared/cors.ts";
 import {
@@ -22,6 +21,7 @@ import {
   getGoogleClients,
   getRotuladoRootFolderId,
   isRetryable,
+  linkifyUrls,
   norm,
   sanitizeFileName,
   sanitizeFolderName,
@@ -29,16 +29,21 @@ import {
   withRetry,
 } from "../_shared/google.ts";
 
-const DEFAULT_MAX_MS = 90_000;   // presupuesto de wall clock por lote
-const HARD_MAX_MS = 110_000;
-const TAIL_MARGIN_MS = 15_000;   // margen para write-back + update + respuesta
-const LOCK_TTL_MS = 5 * 60_000;
-const MAX_CHAIN_DEPTH = 200;     // tope de seguridad del auto-encadenado
+// Supabase mata al worker por CPU/memoria (WORKER_RESOURCE_LIMIT) mucho antes
+// del límite de wall clock, así que cada invocación hace poco y encadena.
+const DEFAULT_MAX_MS = 45_000;   // presupuesto de wall clock por lote
+const HARD_MAX_MS = 60_000;
+const TAIL_MARGIN_MS = 10_000;   // margen para write-back + update + respuesta
+const MAX_ROWS_PER_BATCH = 6;    // tope duro de PDFs por invocación
+const LOCK_TTL_MS = 2 * 60_000;  // un worker muerto se recupera en 2 min
+const MAX_CHAIN_DEPTH = 400;     // tope de seguridad del auto-encadenado
 const EXPORT_DELAY_MS = Number(Deno.env.get('EXPORT_DELAY_MS') ?? 1200);
 
 interface RowJob {
   rowNumber: number;
   cells: string[];
+  values: Record<string, string>;
+  fileName: string;
 }
 
 function admin() {
@@ -168,28 +173,39 @@ serve(async (req) => {
     const hasData = (cells: string[]) =>
       String(cells[nameIdx === -1 ? 0 : nameIdx] ?? '').trim() !== '';
 
-    const all: RowJob[] = [];
-    const pending: RowJob[] = [];
+    // Primero se resuelven todas las filas para poder detectar nombres repetidos:
+    // el archivo se llama como el invitado (con acentos y símbolos), y solo si
+    // hay dos iguales se desempata con el número de fila.
+    const draft = [];
     for (let i = job.header_row; i < rows.length; i++) {
       const cells = rows[i] ?? [];
       if (!hasData(cells)) continue;
-      const entry = { rowNumber: i + 1, cells };
+      const values = resolveValues(job, headers, cells);
+      const base = sanitizeFileName(renderTemplate(job.file_name_template, values)) || `Fila ${i + 1}`;
+      draft.push({ rowNumber: i + 1, cells, values, base });
+    }
+
+    const nameCount = new Map<string, number>();
+    for (const d of draft) nameCount.set(d.base, (nameCount.get(d.base) ?? 0) + 1);
+
+    const all: RowJob[] = [];
+    const pending: RowJob[] = [];
+    for (const d of draft) {
+      const unique = (nameCount.get(d.base) ?? 0) > 1 ? `${d.base} (fila ${d.rowNumber})` : d.base;
+      const entry: RowJob = { rowNumber: d.rowNumber, cells: d.cells, values: d.values, fileName: `${unique}.pdf` };
       all.push(entry);
-      if (String(cells[urlIdx] ?? '').trim() === '') pending.push(entry);
+      if (String(d.cells[urlIdx] ?? '').trim() === '') pending.push(entry);
     }
     const total = all.length;
     const alreadyDone = total - pending.length;
 
     // ── Dry run: solo calcula, no toca Drive ──────────────────
     if (dry_run) {
-      const preview = pending.slice(0, dry_run_limit).map((r) => {
-        const values = resolveValues(job, headers, r.cells);
-        return {
-          row: r.rowNumber,
-          file_name: `${String(r.rowNumber).padStart(4, '0')} - ${sanitizeFileName(renderTemplate(job.file_name_template, values))}.pdf`,
-          values,
-        };
-      });
+      const preview = pending.slice(0, dry_run_limit).map((r) => ({
+        row: r.rowNumber,
+        file_name: r.fileName,
+        values: r.values,
+      }));
       return json({ ok: true, dry_run: true, total, done: alreadyDone, remaining: pending.length, preview });
     }
 
@@ -275,9 +291,8 @@ serve(async (req) => {
 
     // ── Procesar una fila ─────────────────────────────────────
     async function processRow(r: RowJob) {
-      const values = resolveValues(job, headers, r.cells);
-      const guestName = renderTemplate(job.file_name_template, values) || `Fila ${r.rowNumber}`;
-      const fileName = `${String(r.rowNumber).padStart(4, '0')} - ${sanitizeFileName(guestName)}.pdf`;
+      const { values, fileName } = r;
+      const guestName = fileName.replace(/\.pdf$/, '');
 
       // El PDF ya existe (el lote anterior murió antes del write-back)
       const already = existing.get(fileName);
@@ -302,6 +317,10 @@ serve(async (req) => {
             slides.presentations.batchUpdate({ presentationId: copyId as string, requestBody: { requests } }));
         }
 
+        // El texto ya dice la URL correcta, pero el hipervínculo sigue siendo el
+        // de la plantilla (normalmente el redirector google.com/url). Se reescribe.
+        await linkifyUrls(slides, copyId as string, Object.values(values));
+
         // Drive puede exportar una revisión anterior si no se le da un respiro
         await sleep(EXPORT_DELAY_MS);
 
@@ -314,7 +333,7 @@ serve(async (req) => {
         const uploaded = await withRetry('subir el PDF', () =>
           drive.files.create({
             requestBody: { name: fileName, mimeType: 'application/pdf', parents: [outputFolderId as string] },
-            media: { mimeType: 'application/pdf', body: Readable.from(Buffer.from(pdf.data as ArrayBuffer)) },
+            media: { mimeType: 'application/pdf', body: Readable.from([new Uint8Array(pdf.data as ArrayBuffer)]) },
             fields: 'id, webViewLink',
             supportsAllDrives: true,
           }));
@@ -342,11 +361,22 @@ serve(async (req) => {
     }
 
     // ── Bucle del lote ────────────────────────────────────────
-    const concurrency = Math.max(1, Math.min(6, job.concurrency ?? 3));
+    const concurrency = Math.max(1, Math.min(6, job.concurrency ?? 2));
     const done: any[] = [];
     const errors: any[] = [];
 
-    while (pending.length && Date.now() - t0 < budget - TAIL_MARGIN_MS) {
+    // El total se publica ANTES de procesar: si el worker muere, la barra de
+    // progreso ya sabe cuántos invitados hay y cuántos llevaba.
+    await supabase.from('labeling_jobs').update({
+      total_rows: total,
+      processed_rows: alreadyDone,
+    }).eq('id', job_id);
+
+    while (
+      pending.length &&
+      done.length + errors.length < MAX_ROWS_PER_BATCH &&
+      Date.now() - t0 < budget - TAIL_MARGIN_MS
+    ) {
       const chunk = pending.splice(0, concurrency);
       const settled = await Promise.allSettled(chunk.map(processRow));
 
@@ -380,6 +410,14 @@ serve(async (req) => {
             },
           }));
       }
+
+      // Progreso incremental: sin esto la barra no se mueve hasta terminar el
+      // lote, y si el worker muere no queda rastro de lo que sí se generó.
+      await supabase.from('labeling_jobs').update({
+        processed_rows: alreadyDone + done.length,
+        failed_rows: errors.length,
+        row_errors: errors.slice(0, 200),
+      }).eq('id', job_id);
     }
 
     const remaining = pending.length + errors.length;

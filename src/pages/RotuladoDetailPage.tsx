@@ -13,7 +13,10 @@ import { STATUS_BADGE, STATUS_LABEL } from '../lib/labeling-types';
 import PlaceholderMapper from '../components/admin/rotulado/PlaceholderMapper';
 import JobProgress from '../components/admin/rotulado/JobProgress';
 
-const STALLED_MS = 3 * 60_000;
+// Un poco por encima del TTL del lock del servidor (2 min): antes de eso el
+// reintento chocaría con el lote que todavía figura como vivo.
+const STALLED_MS = 135_000;
+const AUTO_RESUME_COOLDOWN_MS = 150_000;
 
 interface QuotationOption {
   id: string;
@@ -65,6 +68,7 @@ export default function RotuladoDetailPage() {
   const [preview, setPreview] = useState<DryRunResult | null>(null);
   const [stalled, setStalled] = useState(false);
   const pollRef = useRef<number | null>(null);
+  const lastAutoResume = useRef(0);
 
   const loadJob = useCallback(async () => {
     if (isNew || !id) return;
@@ -206,19 +210,38 @@ export default function RotuladoDetailPage() {
     }
   }
 
-  async function handleStart() {
+  async function runBatch(silent = false) {
     if (!job) return;
-    setBusy(true);
-    setError(null);
+    if (!silent) {
+      setBusy(true);
+      setError(null);
+    }
     try {
       await supabase.from('labeling_jobs').update({ status: 'running', last_error: null }).eq('id', job.id);
       const res = await startBatch(job.id, crypto.randomUUID());
-      if (res && 'ok' in res && res.ok === false) setError({ message: (res as FunctionError).message });
+      if (res && 'ok' in res && res.ok === false) {
+        const err = res as FunctionError;
+        // En el reintento automático, "ya se está ejecutando" no es un error:
+        // significa que la cadena revivió sola.
+        if (!silent || err.code !== 'JOB_LOCKED') setError({ message: err.message });
+      }
       await loadJob();
     } finally {
-      setBusy(false);
+      if (!silent) setBusy(false);
     }
   }
+
+  const handleStart = () => runBatch(false);
+
+  // Si el worker de Supabase muere a media corrida la cadena se corta. En vez
+  // de dejarlo esperando a que alguien pulse Reanudar, se relanza solo.
+  useEffect(() => {
+    if (!stalled || job?.status !== 'running') return;
+    if (Date.now() - lastAutoResume.current < AUTO_RESUME_COOLDOWN_MS) return;
+    lastAutoResume.current = Date.now();
+    void runBatch(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stalled, job?.status]);
 
   async function handlePause() {
     if (!job) return;

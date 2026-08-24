@@ -215,3 +215,68 @@ export async function findFolderByName(
 /** Nombre de carpeta válido para Drive: sin barras ni espacios de sobra. */
 export const sanitizeFolderName = (s: string) =>
   (s ?? '').replace(/[\\/]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120);
+
+/**
+ * Fija el hipervínculo real sobre cada URL que quedó como texto.
+ *
+ * Hace falta porque `replaceAllText` sustituye el texto pero hereda el enlace
+ * que el marcador tenía en la plantilla, y los enlaces autodetectados de Slides
+ * apuntan al redirector `google.com/url?q=...` en vez de al destino directo.
+ */
+// deno-lint-ignore no-explicit-any
+export async function linkifyUrls(slides: any, presentationId: string, urls: string[]) {
+  const targets = urls.filter((u) => /^https?:\/\//i.test(u));
+  if (!targets.length) return;
+
+  const doc = await withRetry('leer la copia', () =>
+    slides.presentations.get({ presentationId }));
+
+  // deno-lint-ignore no-explicit-any
+  const requests: any[] = [];
+
+  // deno-lint-ignore no-explicit-any
+  const scanText = (text: any, objectId: string, cellLocation?: any) => {
+    for (const el of text?.textElements ?? []) {
+      const content: string | undefined = el?.textRun?.content;
+      if (!content) continue;
+      const base = el.startIndex ?? 0;
+      for (const url of targets) {
+        let at = content.indexOf(url);
+        while (at !== -1) {
+          requests.push({
+            updateTextStyle: {
+              objectId,
+              ...(cellLocation ? { cellLocation } : {}),
+              textRange: { type: 'FIXED_RANGE', startIndex: base + at, endIndex: base + at + url.length },
+              style: { link: { url } },
+              fields: 'link',
+            },
+          });
+          at = content.indexOf(url, at + url.length);
+        }
+      }
+    }
+  };
+
+  // deno-lint-ignore no-explicit-any
+  const walk = (els: any[] = []) => {
+    for (const el of els) {
+      if (el.shape?.text) scanText(el.shape.text, el.objectId);
+      if (el.table?.tableRows) {
+        el.table.tableRows.forEach((row: any, rowIndex: number) => {
+          (row.tableCells ?? []).forEach((cell: any, columnIndex: number) => {
+            scanText(cell.text, el.objectId, { rowIndex, columnIndex });
+          });
+        });
+      }
+      if (el.elementGroup?.children) walk(el.elementGroup.children);
+    }
+  };
+
+  for (const page of doc.data.slides ?? []) walk(page.pageElements);
+
+  if (requests.length) {
+    await withRetry('fijar los enlaces', () =>
+      slides.presentations.batchUpdate({ presentationId, requestBody: { requests } }));
+  }
+}
