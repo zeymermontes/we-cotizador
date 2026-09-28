@@ -10,12 +10,13 @@ import {
 import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
 import MembersPanel from '../../components/admin/eventos/MembersPanel';
 import ScreensEditor from '../../components/admin/eventos/ScreensEditor';
+import FormBuilder from '../../components/admin/eventos/builder/FormBuilder';
 
 type Tab = 'resumen' | 'formulario' | 'registros' | 'comunicaciones' | 'invitaciones' | 'scanner' | 'ajustes';
 
 const TABS: { key: Tab; label: string; soon?: string; superOnly?: boolean }[] = [
   { key: 'resumen', label: 'Resumen' },
-  { key: 'formulario', label: 'Formulario', soon: 'Fase 2' },
+  { key: 'formulario', label: 'Formulario' },
   { key: 'registros', label: 'Registros', soon: 'Fase 3' },
   { key: 'comunicaciones', label: 'Comunicaciones', soon: 'Fase 4' },
   { key: 'invitaciones', label: 'Invitaciones', soon: 'Fase 5', superOnly: true },
@@ -117,10 +118,11 @@ export default function EventDetailPage() {
       </div>
 
       {tab === 'resumen' && <Resumen event={event} urls={urls} />}
+      {tab === 'formulario' && <FormBuilder event={event} />}
       {tab === 'ajustes' && (
         <Ajustes event={event} isSuper={isSuper} onPatch={patch} onReload={load} onFlash={setFlash} />
       )}
-      {tab !== 'resumen' && tab !== 'ajustes' && (
+      {tab !== 'resumen' && tab !== 'ajustes' && tab !== 'formulario' && (
         <div className="section-card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
           Esta sección llega en la {TABS.find(t => t.key === tab)?.soon?.toLowerCase()}. Mientras, configura el evento en <b>Ajustes</b>.
         </div>
@@ -174,13 +176,32 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 function Resumen({ event, urls }: { event: EventRow; urls: { registro: string; acceso: string } }) {
+  const [counts, setCounts] = useState({ total: 0, people: 0, invited: 0, confirmed: 0, checked_in: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from('registrations').select('status, party_size').eq('event_id', event.id).then(({ data }) => {
+      if (cancelled || !data) return;
+      const rows = data as { status: string; party_size: number }[];
+      const active = rows.filter(r => r.status !== 'cancelled');
+      setCounts({
+        total: active.length,
+        people: active.reduce((s, r) => s + (r.party_size ?? 1), 0),
+        invited: rows.filter(r => ['invited', 'confirmed', 'checked_in'].includes(r.status)).length,
+        confirmed: rows.filter(r => ['confirmed', 'checked_in'].includes(r.status)).length,
+        checked_in: rows.filter(r => r.status === 'checked_in').length,
+      });
+    });
+    return () => { cancelled = true; };
+  }, [event.id]);
+
   return (
     <>
       <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <div className="stat-card"><div className="stat-label">Registros</div><div className="stat-value">0</div></div>
-        <div className="stat-card"><div className="stat-label">Invitados</div><div className="stat-value">0</div></div>
-        <div className="stat-card"><div className="stat-label">Confirmados</div><div className="stat-value">0</div></div>
-        <div className="stat-card"><div className="stat-label">Asistieron</div><div className="stat-value">0</div></div>
+        <div className="stat-card"><div className="stat-label">Registros</div><div className="stat-value">{counts.total}</div><div className="text-muted text-xs">{counts.people} personas</div></div>
+        <div className="stat-card"><div className="stat-label">Invitados</div><div className="stat-value">{counts.invited}</div></div>
+        <div className="stat-card"><div className="stat-label">Confirmados</div><div className="stat-value">{counts.confirmed}</div></div>
+        <div className="stat-card"><div className="stat-label">Asistieron</div><div className="stat-value">{counts.checked_in}</div></div>
       </div>
 
       <div className="section-card">
