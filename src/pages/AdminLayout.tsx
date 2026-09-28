@@ -5,7 +5,7 @@ import logo from '../assets/logo.png';
 import Sidebar from '../components/admin/Sidebar';
 
 export default function AdminLayout() {
-  const { signOut, loading } = useAuth();
+  const { signOut, loading, isSuper } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -63,6 +63,7 @@ export default function AdminLayout() {
         isOpen={isSidebarOpen} 
         onClose={closeSidebar} 
         onLogout={handleLogout} 
+        isSuper={isSuper}
       />
 
       <main className="admin-main">

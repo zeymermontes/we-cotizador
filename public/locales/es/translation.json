@@ -303,6 +303,11 @@
     "responses": "Respuestas",
     "price_breakdown": "Desglose de precio",
     "notes": "Notas",
-    "update_status": "Actualizar estado"
+    "update_status": "Actualizar estado",
+    "magic_link": "Enlace mágico",
+    "password_login": "Contraseña",
+    "magic_link_hint": "Te enviamos un enlace a tu correo para entrar sin contraseña.",
+    "magic_link_sent": "Listo. Revisa tu correo y abre el enlace para entrar.",
+    "send_link": "Enviar enlace"
   }
 }

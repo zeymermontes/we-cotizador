@@ -302,6 +302,11 @@
     "responses": "Responses",
     "price_breakdown": "Price breakdown",
     "notes": "Notes",
-    "update_status": "Update status"
+    "update_status": "Update status",
+    "magic_link": "Magic link",
+    "password_login": "Password",
+    "magic_link_hint": "We'll email you a link to sign in without a password.",
+    "magic_link_sent": "Done. Check your inbox and open the link to sign in.",
+    "send_link": "Send link"
   }
 }
