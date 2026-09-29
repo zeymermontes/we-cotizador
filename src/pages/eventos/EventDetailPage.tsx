@@ -11,13 +11,14 @@ import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
 import MembersPanel from '../../components/admin/eventos/MembersPanel';
 import ScreensEditor from '../../components/admin/eventos/ScreensEditor';
 import FormBuilder from '../../components/admin/eventos/builder/FormBuilder';
+import RegistrationsPanel from '../../components/admin/eventos/registros/RegistrationsPanel';
 
 type Tab = 'resumen' | 'formulario' | 'registros' | 'comunicaciones' | 'invitaciones' | 'scanner' | 'ajustes';
 
 const TABS: { key: Tab; label: string; soon?: string; superOnly?: boolean }[] = [
   { key: 'resumen', label: 'Resumen' },
   { key: 'formulario', label: 'Formulario' },
-  { key: 'registros', label: 'Registros', soon: 'Fase 3' },
+  { key: 'registros', label: 'Registros' },
   { key: 'comunicaciones', label: 'Comunicaciones', soon: 'Fase 4' },
   { key: 'invitaciones', label: 'Invitaciones', soon: 'Fase 5', superOnly: true },
   { key: 'scanner', label: 'Scanner', soon: 'Fase 6' },
@@ -119,10 +120,11 @@ export default function EventDetailPage() {
 
       {tab === 'resumen' && <Resumen event={event} urls={urls} />}
       {tab === 'formulario' && <FormBuilder event={event} />}
+      {tab === 'registros' && <RegistrationsPanel event={event} />}
       {tab === 'ajustes' && (
         <Ajustes event={event} isSuper={isSuper} onPatch={patch} onReload={load} onFlash={setFlash} />
       )}
-      {tab !== 'resumen' && tab !== 'ajustes' && tab !== 'formulario' && (
+      {!['resumen', 'ajustes', 'formulario', 'registros'].includes(tab) && (
         <div className="section-card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
           Esta sección llega en la {TABS.find(t => t.key === tab)?.soon?.toLowerCase()}. Mientras, configura el evento en <b>Ajustes</b>.
         </div>
