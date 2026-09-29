@@ -416,3 +416,27 @@ export function validateSchema(schema: FormSchema, langs: Lang[]): SchemaIssue[]
   }
   return issues;
 }
+
+// ─── Respuesta legible ────────────────────────────────────────
+
+/** Texto plano de una respuesta (para tablas, CSV y variables de mensajes). */
+export function answerToText(q: Question, v: AnswerValue | undefined, lang: Lang): string {
+  if (isEmpty(v)) return '';
+  const optLabel = (id: string) => {
+    if (id.startsWith('other:')) return `${lang === 'es' ? 'Otro' : 'Other'}: ${id.slice(6)}`;
+    const o = (q.options ?? []).find(x => x.id === id);
+    return o ? text(o.label, lang) : id;
+  };
+  switch (q.type) {
+    case 'single_choice': case 'dropdown': return optLabel(String(v));
+    case 'multiple_choice': return (Array.isArray(v) ? v : [String(v)]).map(optLabel).join(', ');
+    case 'yes_no': return v === true ? (lang === 'es' ? 'Sí' : 'Yes') : 'No';
+    case 'legal': return v === true ? '✓' : '';
+    case 'date': {
+      const d = new Date(String(v) + 'T00:00:00');
+      return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    case 'rating': return `${v} / ${q.ratingSteps ?? 5}`;
+    default: return Array.isArray(v) ? v.join(', ') : String(v);
+  }
+}

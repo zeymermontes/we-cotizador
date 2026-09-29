@@ -13,6 +13,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders, json, fail } from "../_shared/cors.ts";
 import { normalizeSchema, validateSubmission, extractIdentity, type Answers } from "../_shared/form-engine.ts";
+import { runAutomation } from "../_shared/messaging.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -128,7 +129,12 @@ serve(async (req) => {
       return fail('db_error', error.message);
     }
 
-    // Fase 4: aquí se disparan las automatizaciones (confirmación por correo, etc.)
+    // Automatización de bienvenida (no bloquea la respuesta si falla)
+    try {
+      await runAutomation(db, event.id, status === 'waitlist' ? 'on_waitlist' : 'on_register', [inserted.id]);
+    } catch (e) {
+      console.error('automation on_register:', (e as Error).message);
+    }
 
     return json({ ok: true, registration_id: inserted.id, status });
   } catch (e) {

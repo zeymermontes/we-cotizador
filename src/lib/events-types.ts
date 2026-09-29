@@ -80,6 +80,8 @@ export interface EventRow {
   registration_closes_at: string | null;
   branding: EventBranding;
   screens: EventScreens;
+  sender_name: string | null;
+  reply_to: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

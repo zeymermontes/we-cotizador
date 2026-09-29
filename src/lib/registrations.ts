@@ -3,7 +3,7 @@
 // completos y se filtran en memoria, que es instantáneo y permite
 // cruzar cualquier pregunta sin consultas especiales.
 
-import { type FormSchema, type Question, type Answers, type AnswerValue, type Lang, type ConditionOp, text, isEmpty } from './form-types';
+import { type FormSchema, type Question, type Answers, type AnswerValue, type Lang, type ConditionOp, text, isEmpty, answerToText } from './form-types';
 
 export type RegistrationStatus = 'registered' | 'waitlist' | 'selected' | 'invited' | 'confirmed' | 'checked_in' | 'cancelled';
 
@@ -102,23 +102,7 @@ export function cellText(r: Registration, col: ColumnDef, lang: Lang): string {
   }
 }
 
-export function answerText(q: Question, v: AnswerValue | undefined, lang: Lang): string {
-  if (isEmpty(v)) return '';
-  const optLabel = (id: string) => {
-    if (id.startsWith('other:')) return `Otro: ${id.slice(6)}`;
-    const o = (q.options ?? []).find(x => x.id === id);
-    return o ? text(o.label, lang) : id;
-  };
-  switch (q.type) {
-    case 'single_choice': case 'dropdown': return optLabel(String(v));
-    case 'multiple_choice': return (Array.isArray(v) ? v : [String(v)]).map(optLabel).join(', ');
-    case 'yes_no': return v === true ? (lang === 'es' ? 'Sí' : 'Yes') : 'No';
-    case 'legal': return v === true ? '✓' : '';
-    case 'date': return new Date(String(v) + 'T00:00:00').toLocaleDateString('es-MX', { dateStyle: 'medium' });
-    case 'rating': return `${v} / ${q.ratingSteps ?? 5}`;
-    default: return String(v);
-  }
-}
+export const answerText = answerToText;
 
 // ─── Filtros ─────────────────────────────────────────────────
 
