@@ -16,16 +16,17 @@ import CommunicationsPanel from '../../components/admin/eventos/comunicaciones/C
 import SendEmailAction from '../../components/admin/eventos/comunicaciones/SendEmailAction';
 import InvitationsPanel from '../../components/admin/eventos/invitaciones/InvitationsPanel';
 import InvitationActions from '../../components/admin/eventos/invitaciones/InvitationActions';
+import ScannerPanel from '../../components/admin/eventos/scanner/ScannerPanel';
 
 type Tab = 'resumen' | 'formulario' | 'registros' | 'comunicaciones' | 'invitaciones' | 'scanner' | 'ajustes';
 
-const TABS: { key: Tab; label: string; soon?: string; superOnly?: boolean }[] = [
+const TABS: { key: Tab; label: string; superOnly?: boolean }[] = [
   { key: 'resumen', label: 'Resumen' },
   { key: 'formulario', label: 'Formulario' },
   { key: 'registros', label: 'Registros' },
   { key: 'comunicaciones', label: 'Comunicaciones' },
   { key: 'invitaciones', label: 'Invitaciones', superOnly: true },
-  { key: 'scanner', label: 'Scanner', soon: 'Fase 6' },
+  { key: 'scanner', label: 'Scanner' },
   { key: 'ajustes', label: 'Ajustes' },
 ];
 
@@ -117,7 +118,6 @@ export default function EventDetailPage() {
             onClick={() => navigate(`/admin/eventos/${event.id}/${t.key}`)}
           >
             {t.label}
-            {t.soon && <span className="tab-soon">{t.soon.toUpperCase()}</span>}
           </button>
         ))}
       </div>
@@ -127,13 +127,9 @@ export default function EventDetailPage() {
       {tab === 'registros' && <RegistrationsPanel event={event} extraBulkActions={ctx => <><SendEmailAction ctx={ctx} /><InvitationActions ctx={ctx} /></>} />}
       {tab === 'comunicaciones' && <CommunicationsPanel event={event} onEventPatch={patch} />}
       {tab === 'invitaciones' && isSuper && <InvitationsPanel event={event} onEventPatch={patch} />}
+      {tab === 'scanner' && <ScannerPanel event={event} />}
       {tab === 'ajustes' && (
         <Ajustes event={event} isSuper={isSuper} onPatch={patch} onReload={load} onFlash={setFlash} />
-      )}
-      {!['resumen', 'ajustes', 'formulario', 'registros', 'comunicaciones', 'invitaciones'].includes(tab) && (
-        <div className="section-card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          Esta sección llega en la {TABS.find(t => t.key === tab)?.soon?.toLowerCase()}. Mientras, configura el evento en <b>Ajustes</b>.
-        </div>
       )}
     </div>
   );

@@ -2524,3 +2524,43 @@ h6 {
 .badge-opened { background: rgba(52,211,153,0.3); color: #065f46; }
 .badge-bounced, .badge-failed { background: rgba(248,113,113,0.18); color: #b91c1c; }
 .badge-exported { background: rgba(251,191,36,0.2); color: #92400e; }
+
+/* ─── Scanner público ───────────────────────────────────────── */
+.scan-screen { display: flex; flex-direction: column; min-height: 100%; position: relative; }
+.scan-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 0; }
+.scan-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 500; }
+.scan-sub { font-size: var(--text-xs); opacity: 0.6; }
+.scan-stats { text-align: right; font-size: var(--text-sm); cursor: pointer; line-height: 1.2; }
+.scan-stats b { font-size: 1.4rem; }
+.scan-stats small { display: block; font-size: 11px; opacity: 0.6; }
+.scan-camera { padding: 0 20px; }
+#we-reader { width: 100%; border-radius: var(--radius-lg); overflow: hidden; background: #000; min-height: 240px; }
+#we-reader video { border-radius: var(--radius-lg); }
+.scan-search { padding: 0 20px; }
+.scan-results { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.scan-result { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-elevated); }
+.scan-result.done { opacity: 0.6; }
+.scan-result.cancelled { opacity: 0.5; }
+.scan-recent { margin: 12px 20px 0; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
+.scan-recent-row { display: flex; justify-content: space-between; font-size: var(--text-sm); padding: 4px 0; }
+.scan-overlay {
+  position: absolute; inset: 0; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  padding: 32px; color: #fff; cursor: pointer;
+  animation: fadeIn 0.15s ease;
+}
+.scan-overlay.ok { background: #16a34a; }
+.scan-overlay.duplicate { background: #d97706; }
+.scan-overlay.cancelled, .scan-overlay.invalid, .scan-overlay.error { background: #dc2626; }
+.scan-overlay-icon { width: 88px; height: 88px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 700; margin-bottom: 16px; animation: radioIn 300ms ease-out; }
+.scan-overlay-title { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; opacity: 0.9; }
+.scan-overlay-name { font-family: var(--font-display); font-size: 2rem; margin: 8px 0 4px; line-height: 1.2; }
+.scan-overlay-meta { font-size: var(--text-base); opacity: 0.9; margin-top: 2px; }
+.scan-overlay .btn-secondary { background: rgba(255,255,255,0.2); color: #fff; border-color: rgba(255,255,255,0.4); }
+
+/* ─── Panel de asistencia (admin) ───────────────────────────── */
+.hour-bars { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding-top: 16px; }
+.hour-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; min-width: 28px; }
+.hour-bar-fill { width: 100%; background: var(--color-primary-dark); border-radius: 6px 6px 0 0; transition: height 0.3s ease; }
+.hour-bar-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+.hour-bar-n { position: absolute; top: -14px; font-size: 10px; font-weight: 600; color: var(--text-secondary); }
