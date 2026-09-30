@@ -24,6 +24,7 @@ export interface Registration {
   notes: string | null;
   source: Record<string, string>;
   qr_token: string | null;
+  qr_url: string | null;
   invitation_url: string | null;
   created_at: string;
   updated_at: string;

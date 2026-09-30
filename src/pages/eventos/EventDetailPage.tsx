@@ -14,6 +14,8 @@ import FormBuilder from '../../components/admin/eventos/builder/FormBuilder';
 import RegistrationsPanel from '../../components/admin/eventos/registros/RegistrationsPanel';
 import CommunicationsPanel from '../../components/admin/eventos/comunicaciones/CommunicationsPanel';
 import SendEmailAction from '../../components/admin/eventos/comunicaciones/SendEmailAction';
+import InvitationsPanel from '../../components/admin/eventos/invitaciones/InvitationsPanel';
+import InvitationActions from '../../components/admin/eventos/invitaciones/InvitationActions';
 
 type Tab = 'resumen' | 'formulario' | 'registros' | 'comunicaciones' | 'invitaciones' | 'scanner' | 'ajustes';
 
@@ -22,7 +24,7 @@ const TABS: { key: Tab; label: string; soon?: string; superOnly?: boolean }[] = 
   { key: 'formulario', label: 'Formulario' },
   { key: 'registros', label: 'Registros' },
   { key: 'comunicaciones', label: 'Comunicaciones' },
-  { key: 'invitaciones', label: 'Invitaciones', soon: 'Fase 5', superOnly: true },
+  { key: 'invitaciones', label: 'Invitaciones', superOnly: true },
   { key: 'scanner', label: 'Scanner', soon: 'Fase 6' },
   { key: 'ajustes', label: 'Ajustes' },
 ];
@@ -122,12 +124,13 @@ export default function EventDetailPage() {
 
       {tab === 'resumen' && <Resumen event={event} urls={urls} />}
       {tab === 'formulario' && <FormBuilder event={event} />}
-      {tab === 'registros' && <RegistrationsPanel event={event} extraBulkActions={ctx => <SendEmailAction ctx={ctx} />} />}
+      {tab === 'registros' && <RegistrationsPanel event={event} extraBulkActions={ctx => <><SendEmailAction ctx={ctx} /><InvitationActions ctx={ctx} /></>} />}
       {tab === 'comunicaciones' && <CommunicationsPanel event={event} onEventPatch={patch} />}
+      {tab === 'invitaciones' && isSuper && <InvitationsPanel event={event} onEventPatch={patch} />}
       {tab === 'ajustes' && (
         <Ajustes event={event} isSuper={isSuper} onPatch={patch} onReload={load} onFlash={setFlash} />
       )}
-      {!['resumen', 'ajustes', 'formulario', 'registros', 'comunicaciones'].includes(tab) && (
+      {!['resumen', 'ajustes', 'formulario', 'registros', 'comunicaciones', 'invitaciones'].includes(tab) && (
         <div className="section-card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
           Esta sección llega en la {TABS.find(t => t.key === tab)?.soon?.toLowerCase()}. Mientras, configura el evento en <b>Ajustes</b>.
         </div>

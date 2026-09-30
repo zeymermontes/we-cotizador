@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.103.3",
     "@types/react-datepicker": "^6.2.0",
+    "html5-qrcode": "^2.3.8",
     "i18next": "^26.0.5",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.4",
@@ -24,7 +25,8 @@
     "react-i18next": "^17.0.4",
     "react-international-phone": "^4.8.0",
     "react-router-dom": "^7.14.1",
-    "supabase": "^2.92.1"
+    "supabase": "^2.92.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -82,6 +82,8 @@ export interface EventRow {
   screens: EventScreens;
   sender_name: string | null;
   reply_to: string | null;
+  // Ver InvitationConfig en lib/invitations.ts
+  invitation_config: object | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

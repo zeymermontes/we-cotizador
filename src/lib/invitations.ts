@@ -1,0 +1,180 @@
+// QR, invitaciones desde Slides y Excel para el bot de WhatsApp (solo super).
+import * as XLSX from 'xlsx';
+import { supabase } from './supabase';
+import type { FormSchema, Lang } from './form-types';
+import { text } from './form-types';
+import type { Registration } from './registrations';
+import { answerText } from './registrations';
+
+export type MappingSource = 'field' | 'question' | 'literal' | 'qr' | 'empty';
+
+export interface PlaceholderMapping {
+  source: MappingSource;
+  field?: string;
+  questionId?: string;
+  value?: string;
+}
+
+export const FIELD_OPTIONS: { key: string; label: string }[] = [
+  { key: 'name', label: 'Nombre completo' },
+  { key: 'first_name', label: 'Primer nombre' },
+  { key: 'party_size', label: 'Número de personas' },
+  { key: 'phone', label: 'Teléfono' },
+  { key: 'email', label: 'Correo' },
+  { key: 'company', label: 'Empresa' },
+  { key: 'event', label: 'Nombre del evento' },
+  { key: 'date', label: 'Fecha del evento' },
+  { key: 'time', label: 'Hora del evento' },
+  { key: 'venue', label: 'Lugar' },
+];
+
+export interface InvitationConfig {
+  event_folder_id: string;
+  event_folder_url: string;
+  template_id: string;
+  template_url: string;
+  template_name: string;
+  output_folder_name: string;
+  placeholder_map: Record<string, PlaceholderMapping>;
+  file_name_template: string;
+  placeholders: string[];
+  qr_shapes: number;
+}
+
+export interface InspectResult {
+  ok: true;
+  service_account_email: string;
+  folder: { id: string; name: string; url: string };
+  template: { id: string; name: string; url: string; placeholders: string[]; qr_shapes: number; slide_count: number };
+  suggested_map: Record<string, PlaceholderMapping>;
+  warnings: string[];
+}
+
+export interface FunctionError { ok: false; code: string; message: string; service_account_email?: string; retryable?: boolean }
+
+export type InvitationJobStatus = 'ready' | 'running' | 'paused' | 'completed' | 'failed';
+
+export interface InvitationJob {
+  id: string;
+  event_id: string;
+  name: string;
+  config: InvitationConfig;
+  registration_ids: string[];
+  force: boolean;
+  output_folder_id: string | null;
+  output_folder_url: string | null;
+  status: InvitationJobStatus;
+  total_rows: number;
+  processed_rows: number;
+  failed_rows: number;
+  last_error: string | null;
+  row_errors: { registration_id: string; name: string; message: string; retryable: boolean }[];
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export const JOB_STATUS_LABEL: Record<InvitationJobStatus, string> = {
+  ready: 'Lista', running: 'Generando', paused: 'Pausada', completed: 'Completada', failed: 'Falló',
+};
+export const JOB_STATUS_BADGE: Record<InvitationJobStatus, string> = {
+  ready: 'badge-pendiente', running: 'badge-enviada', paused: 'badge-cotizado', completed: 'badge-aceptada', failed: 'badge-rechazada',
+};
+
+// ─── QR ──────────────────────────────────────────────────────
+
+export interface QrProgress { done: number; failed: number; remaining: number }
+
+/** Llama a generate-qr en lotes hasta terminar. */
+export async function generateQrs(eventId: string, opts: { ids?: string[]; all?: boolean; force?: boolean }, onProgress?: (p: QrProgress) => void): Promise<QrProgress> {
+  const total: QrProgress = { done: 0, failed: 0, remaining: 0 };
+  for (let i = 0; i < 100; i++) {
+    const { data, error } = await supabase.functions.invoke<{ ok: boolean; done: number; failed: number; remaining: number; message?: string }>('generate-qr', {
+      body: { event_id: eventId, registration_ids: opts.ids, all: opts.all, force: opts.force },
+    });
+    if (error || !data?.ok) throw new Error(data?.message || error?.message || 'No se pudieron generar los QR');
+    total.done += data.done; total.failed += data.failed; total.remaining = data.remaining;
+    onProgress?.({ ...total });
+    if (data.remaining === 0 || (data.done === 0 && data.failed > 0)) break;
+  }
+  return total;
+}
+
+// ─── Invitaciones ────────────────────────────────────────────
+
+export async function inspectInvitationTemplate(eventFolderUrl: string): Promise<InspectResult | FunctionError> {
+  const { data, error } = await supabase.functions.invoke<InspectResult | FunctionError>('invitations-inspect', { body: { event_folder_url: eventFolderUrl } });
+  if (error || !data) return { ok: false, code: 'network', message: error?.message ?? 'Sin respuesta' };
+  return data;
+}
+
+export interface BatchResult { ok: true; processed: number; failed: number; remaining: number; completed: boolean }
+
+export async function runInvitationBatch(jobId: string): Promise<BatchResult | FunctionError> {
+  const { data, error } = await supabase.functions.invoke<BatchResult | FunctionError>('invitations-run-batch', { body: { job_id: jobId } });
+  if (error || !data) return { ok: false, code: 'network', message: error?.message ?? 'Sin respuesta' };
+  return data;
+}
+
+// ─── Excel para el bot de WhatsApp ───────────────────────────
+
+/** Columnas fijas que el bot ya reconoce. */
+export const BOT_COLUMNS = ['Nombre', 'Telefono', 'N.boletos', 'Confirmados', 'Invitación', 'ConfirmationLink'] as const;
+
+export interface ExcelOptions {
+  /** Preguntas extra como columnas (variables para las plantillas de Meta). */
+  questionIds: string[];
+  includeEmail: boolean;
+  includeQr: boolean;
+}
+
+export function buildBotRows(regs: Registration[], schema: FormSchema | null, lang: Lang, opts: ExcelOptions): Record<string, string | number>[] {
+  const qs = (schema?.questions ?? []).filter(q => opts.questionIds.includes(q.id));
+  return regs.map(r => {
+    const row: Record<string, string | number> = {
+      'Nombre': r.name ?? '',
+      'Telefono': (r.phone ?? '').replace(/\D/g, ''),
+      'N.boletos': r.party_size ?? 1,
+      'Confirmados': '',
+      'Invitación': r.invitation_url ?? '',
+      'ConfirmationLink': '',
+    };
+    if (opts.includeEmail) row['Correo'] = r.email ?? '';
+    if (opts.includeQr) row['QR'] = r.qr_url ?? '';
+    for (const q of qs) {
+      const header = (text(q.title, lang) || q.id).replace(/[\r\n]+/g, ' ').slice(0, 60);
+      row[header] = answerText(q, r.answers[q.id], lang);
+    }
+    return row;
+  });
+}
+
+export function buildBotExcelName(slug: string): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${slug}-whatsapp-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.xlsx`;
+}
+
+export function downloadBotExcel(fileName: string, rows: Record<string, string | number>[]) {
+  const ws = XLSX.utils.json_to_sheet(rows, { header: [...BOT_COLUMNS, ...Object.keys(rows[0] ?? {}).filter(k => !(BOT_COLUMNS as readonly string[]).includes(k))] });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
+  XLSX.writeFile(wb, fileName);
+}
+
+/** Deja constancia en la bitácora de que se exportaron para WhatsApp. */
+export async function logWhatsappExport(eventId: string, regs: Registration[]) {
+  if (regs.length === 0) return;
+  const rows = regs.map(r => ({
+    event_id: eventId,
+    registration_id: r.id,
+    channel: 'whatsapp',
+    trigger: 'export',
+    to_address: r.phone,
+    subject: 'Excel para We Bot',
+    status: 'exported',
+  }));
+  for (let i = 0; i < rows.length; i += 200) {
+    await supabase.from('messages').insert(rows.slice(i, i + 200));
+  }
+}
