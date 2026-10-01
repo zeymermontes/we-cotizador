@@ -25,6 +25,19 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
     document.title = title ?? (event ? `${event.name} | We.Page` : 'We.Page');
   }, [title, event, embedded]);
 
+  // El documento entero toma el color de fondo del evento: si la ventana del celular crece
+  // al ocultarse la barra del navegador, no asoma el fondo claro por debajo de la página.
+  useEffect(() => {
+    if (embedded) return;
+    const prev = { html: document.documentElement.style.background, body: document.body.style.background };
+    document.documentElement.style.background = m.background;
+    document.body.style.background = m.background;
+    return () => {
+      document.documentElement.style.background = prev.html;
+      document.body.style.background = prev.body;
+    };
+  }, [embedded, m.background]);
+
   const noCard = String(m.surface).trim().toLowerCase() === 'transparent';
   const style: CSSProperties = {
     ...brandingStyle(b),

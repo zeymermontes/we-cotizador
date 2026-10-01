@@ -2103,8 +2103,11 @@ h6 {
 
 /* ─── Registro de eventos: sitios públicos con branding ─────── */
 .branded-page {
+  /* svh (viewport con la barra del navegador visible): así la página no mide más que lo
+     visible y Chrome móvil no la desplaza al ocultar/mostrar la barra. El fondo del
+     documento se pinta del color del evento (BrandedShell) por si la ventana crece. */
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100svh;
   background: var(--brand-bg, #f0eeeb);
   background-size: cover;
   background-position: center;
@@ -2313,6 +2316,7 @@ h6 {
      y fuera de la barra inferior del navegador del celular. */
   .branded-page { padding: 0 0 max(10px, env(safe-area-inset-bottom)); }
   .reg-card { border-radius: 0; min-height: 0; flex: 1; box-shadow: none; }
+  html { overscroll-behavior-y: none; }
   .reg-body, .reg-footer { padding-left: 20px; padding-right: 20px; }
 }
 
