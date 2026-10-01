@@ -23,6 +23,7 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
     document.title = title ?? (event ? `${event.name} | We.Page` : 'We.Page');
   }, [title, event, embedded]);
 
+  const noCard = String(m.surface).trim().toLowerCase() === 'transparent';
   const style: CSSProperties = {
     ...brandingStyle(b),
     ...(m.background_url ? { backgroundImage: `url(${m.background_url})` } : {}),
@@ -42,12 +43,12 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
     <div className="branded-page" style={style}>
       <link rel="stylesheet" href={fontsHref([m.font_display, m.font_body])} />
       {variant === 'form' ? (
-        <div className="reg-card animate-fade-in">
+        <div className={`reg-card animate-fade-in ${noCard ? 'no-card' : ''}`}>
           {langToggle && <div style={{ padding: '12px 16px 0', textAlign: 'right' }}>{langToggle}</div>}
           {children}
         </div>
       ) : (
-        <div className="branded-card animate-fade-in">
+        <div className={`branded-card animate-fade-in ${noCard ? 'no-card' : ''}`}>
           {langToggle}
           {m.logo_url && <img src={m.logo_url} alt="" className="branded-logo" />}
           {children}

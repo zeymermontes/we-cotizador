@@ -2564,3 +2564,8 @@ h6 {
 .hour-bar-fill { width: 100%; background: var(--color-primary-dark); border-radius: 6px 6px 0 0; transition: height 0.3s ease; }
 .hour-bar-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 .hour-bar-n { position: absolute; top: -14px; font-size: 10px; font-weight: 600; color: var(--text-secondary); }
+
+/* Sin tarjeta (color de tarjeta = transparent): el contenido va directo sobre el fondo */
+.reg-card.no-card, .branded-card.no-card { box-shadow: none; }
+.reg-card.no-card .reg-footer { border-top: none; }
+.reg-card.no-card .option-card, .branded-page .no-card .rating-btn { background: color-mix(in srgb, var(--brand-text) 8%, transparent); backdrop-filter: blur(4px); }
