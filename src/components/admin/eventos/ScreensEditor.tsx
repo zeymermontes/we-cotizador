@@ -18,6 +18,7 @@ const SCREENS: { key: ScreenKey; label: string; hint: string }[] = [
   { key: 'welcome', label: 'Bienvenida del formulario', hint: 'Primera pantalla que ve el invitado antes de empezar.' },
   { key: 'thank_you', label: 'Mensaje de enviado', hint: 'Se muestra al terminar el registro.' },
   { key: 'scanner', label: 'Pantalla del scanner', hint: 'Lo que ve el staff en la puerta al escribir el PIN.' },
+  { key: 'footer', label: 'Pie de página', hint: 'Aparece abajo en todas las pantallas públicas.' },
 ];
 
 export default function ScreensEditor({ event, onSave, onChange }: Props) {

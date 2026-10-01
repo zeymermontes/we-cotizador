@@ -1,5 +1,5 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
-import { type PublicEvent, type EventLanguage, DEFAULT_BRANDING, LANGUAGE_LABEL, screenFonts } from '../../lib/events-types';
+import { type PublicEvent, type EventLanguage, DEFAULT_BRANDING, LANGUAGE_LABEL, screenFonts, elementShown, elementFont } from '../../lib/events-types';
 import { brandingStyle, fontsHref } from '../../lib/branding';
 
 interface ShellProps {
@@ -65,7 +65,9 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
           {children}
         </div>
       )}
-      {!embedded && <p style={{ marginTop: 16, fontSize: 11, opacity: 0.5 }}>Powered by We.Page</p>}
+      {!embedded && elementShown(event?.screens?.footer, 'powered') && (
+        <p style={{ marginTop: 16, fontSize: 11, opacity: 0.5, ...elementFont(event?.screens?.footer, 'powered') }}>Powered by We.Page</p>
+      )}
     </div>
   );
 }

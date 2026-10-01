@@ -180,7 +180,7 @@ export function registerTools(server: McpServer) {
       sender_name: z.string().nullable().optional(),
       reply_to: z.string().nullable().optional(),
       branding: z.record(z.unknown()).optional().describe('{ logo_url, background_url, primary, background, surface, text, font_display, font_body, button_radius }'),
-      screens: z.record(z.unknown()).optional().describe('{ welcome: {title:{es,en}, subtitle, button, elements}, thank_you: {title, subtitle, elements}, scanner: {title, subtitle, elements} }. elements: { <logo|title|date|venue|subtitle|button|hint|check|name>: { show?, size? (px), bold?, italic?, underline?, uppercase?, color? (hex), opacity? (0-100), font? (display|body|nombre de Google Font) } } para ocultar o cambiar el tamaño de cada elemento.'),
+      screens: z.record(z.unknown()).optional().describe('{ welcome: {title:{es,en}, subtitle, button, elements}, thank_you: {title, subtitle, elements}, scanner: {title, subtitle, elements} }. elements: { <logo|title|date|venue|subtitle|button|hint|check|name|powered (en footer)>: { show?, size? (px), bold?, italic?, underline?, uppercase?, color? (hex), opacity? (0-100), font? (display|body|nombre de Google Font) } } para ocultar o cambiar el tamaño de cada elemento.'),
       confirm: z.boolean().optional().describe('Obligatorio para cambiar status'),
     },
   }, wrap('update_event', async ({ event, confirm, ...fields }) => {

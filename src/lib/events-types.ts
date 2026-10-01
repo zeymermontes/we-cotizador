@@ -98,7 +98,7 @@ export interface ScreenElementDef {
 }
 
 /** Todo lo que se dibuja en cada pantalla pública, en el orden en que aparece. */
-export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner', ScreenElementDef[]> = {
+export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'footer', ScreenElementDef[]> = {
   welcome: [
     { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto' },
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Regístrate a {{evento}}', en: 'Register for {{evento}}' }, defaultSize: 36 },
@@ -117,6 +117,9 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner', Screen
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Control de acceso', en: 'Check-in' }, defaultSize: 26 },
     { key: 'name', label: 'Nombre del evento', defaultSize: 16 },
     { key: 'subtitle', label: 'Instrucción', text: 'subtitle', placeholder: { es: 'Escanea el QR de la invitación.', en: 'Scan the invitation QR.' }, defaultSize: 16 },
+  ],
+  footer: [
+    { key: 'powered', label: 'Powered by We.Page', defaultSize: 11, hint: 'al pie de todas las pantallas' },
   ],
 };
 
@@ -171,6 +174,8 @@ export interface EventScreens {
   welcome?: ScreenCopy;
   thank_you?: ScreenCopy;
   scanner?: ScreenCopy;
+  /** Pie común a todas las pantallas públicas (solo elementos, sin textos). */
+  footer?: ScreenCopy;
 }
 
 export interface EventRow {
