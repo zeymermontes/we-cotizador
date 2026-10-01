@@ -32,9 +32,13 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
     const prev = { html: document.documentElement.style.background, body: document.body.style.background };
     document.documentElement.style.background = m.background;
     document.body.style.background = m.background;
+    // body y #root usan min-height 100vh (altura con la barra del navegador oculta en Android):
+    // en páginas públicas se limitan a la altura visible para que no exista scroll de más.
+    document.documentElement.classList.add('we-public');
     return () => {
       document.documentElement.style.background = prev.html;
       document.body.style.background = prev.body;
+      document.documentElement.classList.remove('we-public');
     };
   }, [embedded, m.background]);
 

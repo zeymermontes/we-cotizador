@@ -2930,3 +2930,6 @@ h6 {
 @media (max-width: 420px) {
   .we-datepicker .react-datepicker__day-name, .we-datepicker .react-datepicker__day { width: 2.1rem !important; line-height: 2.1rem !important; }
 }
+
+/* Páginas públicas: el documento no mide más que la ventana visible (ver BrandedShell). */
+html.we-public body, html.we-public #root { min-height: 100svh; }
