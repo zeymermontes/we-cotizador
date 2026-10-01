@@ -1,7 +1,10 @@
 import { useState, useRef } from 'react';
 import type { EventRow, EventBranding } from '../../../lib/events-types';
 import { DEFAULT_BRANDING, FONT_OPTIONS } from '../../../lib/events-types';
-import { uploadEventImage, removeEventImage, formatBytes, type ImageKind } from '../../../lib/images';
+import { uploadEventImage, removeEventImage, formatBytes, type ImageKind, type ImageStage } from '../../../lib/images';
+
+const STAGE_TEXT: Record<ImageStage, string> = { decode: 'Leyendo la imagen…', compress: 'Convirtiendo y comprimiendo…', upload: 'Subiendo…' };
+const ACCEPT = 'image/*,.heic,.heif,.tif,.tiff,.avif';
 import { brandingStyle, fontsHref } from '../../../lib/branding';
 
 interface Props {
@@ -30,7 +33,7 @@ export default function BrandingEditor({ event, onSave }: Props) {
     <form className="section-card" onSubmit={save}>
       <h3>Branding</h3>
       <p className="section-hint">
-        Se aplica al formulario de registro, a la pantalla de gracias y al scanner. Las imágenes se comprimen solas antes de subir.
+        Se aplica al formulario de registro, a la pantalla de gracias y al scanner. Las imágenes se convierten a WebP y se comprimen solas antes de subir, sin importar su peso o formato (JPG, PNG, HEIC de iPhone, TIFF…).
       </p>
 
       {error && <div className="inline-alert error">{error}</div>}
@@ -168,25 +171,25 @@ interface ImageFieldProps {
 }
 
 function ImageField({ label, hint, eventId, kind, value, onChange, onError }: ImageFieldProps) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<ImageStage | null>(null);
   const [over, setOver] = useState(false);
   const [meta, setMeta] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handle(file: File | undefined) {
     if (!file) return;
-    setBusy(true);
+    setBusy('decode');
     onError('');
     try {
       const previous = value;
-      const up = await uploadEventImage(eventId, kind, file);
+      const up = await uploadEventImage(eventId, kind, file, undefined, setBusy);
       onChange(up.url);
       setMeta(`${formatBytes(up.originalBytes)} → ${formatBytes(up.blob.size)}`);
       if (previous) removeEventImage(previous).catch(() => {});
     } catch (e) {
       onError((e as Error).message);
     } finally {
-      setBusy(false);
+      setBusy(null);
       if (inputRef.current) inputRef.current.value = '';
     }
   }
@@ -200,9 +203,9 @@ function ImageField({ label, hint, eventId, kind, value, onChange, onError }: Im
         onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); handle(e.dataTransfer.files?.[0]); }}
       >
-        <input ref={inputRef} type="file" accept="image/*" onChange={e => handle(e.target.files?.[0])} disabled={busy} />
+        <input ref={inputRef} type="file" accept={ACCEPT} onChange={e => handle(e.target.files?.[0])} disabled={!!busy} />
         {busy ? (
-          <span>Comprimiendo y subiendo...</span>
+          <span>{STAGE_TEXT[busy]}</span>
         ) : value ? (
           <>
             <img src={value} alt={label} />

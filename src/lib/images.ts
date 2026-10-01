@@ -1,8 +1,11 @@
 // Subida eficiente de imágenes al bucket `event-assets`.
 //
 // Todo se redimensiona y convierte a WebP en el navegador antes de subir:
-// un logo de 4 MB se vuelve ~30 KB y un fondo de 12 MB ~150 KB. Los SVG
-// se suben tal cual (ya son chicos y escalan sin pérdida).
+// un logo de 4 MB se vuelve ~30 KB y un fondo de 40 MB ~200 KB. Acepta
+// JPG, PNG, WebP, GIF, BMP, TIFF, AVIF y HEIC/HEIF (fotos de iPhone; se
+// decodifican con un conversor que solo se descarga cuando hace falta).
+// Si el resultado sigue pesando más de lo permitido, baja calidad y tamaño
+// por pasos hasta que quepa. Los SVG se suben tal cual.
 
 import { supabase } from './supabase';
 
@@ -22,10 +25,12 @@ const LIMITS: Record<ImageKind, Limits> = {
   qr: { maxSide: 800, quality: 1 },
 };
 
-/** Tamaño máximo aceptado ANTES de comprimir. */
-export const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+/** Tamaño máximo aceptado ANTES de comprimir (solo evita colgar el navegador). */
+export const MAX_SOURCE_BYTES = 200 * 1024 * 1024;
 /** Tamaño máximo que dejamos subir DESPUÉS de comprimir (coincide con el bucket). */
 export const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
+export type ImageStage = 'decode' | 'compress' | 'upload';
 
 export interface CompressedImage {
   blob: Blob;
@@ -42,65 +47,121 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   });
 }
 
-async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
-  if ('createImageBitmap' in window) {
-    try {
-      // imageOrientation respeta el EXIF de fotos tomadas con el celular
-      return await createImageBitmap(file, { imageOrientation: 'from-image' });
-    } catch {
-      /* cae al <img> */
-    }
-  }
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|svg)$/i;
+const HEIC_EXT = /\.(heic|heif)$/i;
+
+function isHeic(file: File): boolean {
+  return file.type === 'image/heic' || file.type === 'image/heif' || HEIC_EXT.test(file.name);
+}
+
+function looksLikeImage(file: File): boolean {
+  return file.type.startsWith('image/') || IMAGE_EXT.test(file.name);
+}
+
+/** HEIC/HEIF → JPEG en el navegador. El conversor pesa ~1 MB y se carga solo aquí. */
+async function heicToJpeg(file: File): Promise<Blob> {
+  const { default: heic2any } = await import('heic2any');
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
+  return Array.isArray(out) ? out[0] : out;
+}
+
+function decodeViaImg(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Imagen inválida')); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen. Prueba con JPG, PNG o WebP.')); };
     img.src = url;
   });
 }
 
-export async function compressImage(file: File, kind: ImageKind): Promise<CompressedImage> {
-  if (!file.type.startsWith('image/')) throw new Error('El archivo no es una imagen');
-  if (file.size > MAX_SOURCE_BYTES) throw new Error('La imagen pesa más de 15 MB');
+async function decodeBlob(blob: Blob): Promise<ImageBitmap | HTMLImageElement> {
+  if ('createImageBitmap' in window) {
+    try {
+      // imageOrientation respeta el EXIF de fotos tomadas con el celular
+      return await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    } catch {
+      /* cae al <img> */
+    }
+  }
+  return decodeViaImg(blob);
+}
 
-  if (file.type === 'image/svg+xml') {
+async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
+  if (isHeic(file)) {
+    // Safari lo decodifica nativo; Chrome y Firefox necesitan el conversor.
+    try {
+      return await decodeBlob(file);
+    } catch {
+      return decodeBlob(await heicToJpeg(file));
+    }
+  }
+  return decodeBlob(file);
+}
+
+/** Pasos de calidad y de tamaño que se intentan hasta que el archivo quepa. */
+const QUALITY_STEPS = [1, 0.85, 0.7, 0.55] as const;
+const SIDE_STEPS = [1, 0.8, 0.65, 0.5] as const;
+
+export async function compressImage(file: File, kind: ImageKind, onStage?: (s: ImageStage) => void): Promise<CompressedImage> {
+  if (!looksLikeImage(file)) throw new Error('El archivo no es una imagen');
+  if (file.size > MAX_SOURCE_BYTES) throw new Error(`La imagen pesa ${formatBytes(file.size)}; el máximo es ${formatBytes(MAX_SOURCE_BYTES)}`);
+
+  if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
     return { blob: file, contentType: 'image/svg+xml', extension: 'svg', width: 0, height: 0, originalBytes: file.size };
   }
 
   const { maxSide, quality } = LIMITS[kind];
+  onStage?.('decode');
   const source = await decode(file);
   const srcW = source.width;
   const srcH = source.height;
-  const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
-  const width = Math.max(1, Math.round(srcW * scale));
-  const height = Math.max(1, Math.round(srcH * scale));
+  if (!srcW || !srcH) throw new Error('La imagen está vacía o dañada');
 
+  onStage?.('compress');
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas no disponible');
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(source, 0, 0, width, height);
-  if ('close' in source) source.close();
 
-  let blob = await canvasToBlob(canvas, 'image/webp', quality);
-  let contentType = 'image/webp';
-  let extension = 'webp';
+  // Safari viejo no codifica WebP y devuelve PNG disfrazado; se detecta en el primer intento.
+  let type = 'image/webp';
+  let best: { blob: Blob; width: number; height: number } | null = null;
 
-  // Safari viejo no codifica WebP y devuelve PNG disfrazado
-  if (blob.type !== 'image/webp') {
-    blob = await canvasToBlob(canvas, 'image/png', 1);
-    contentType = 'image/png';
-    extension = 'png';
+  try {
+    for (const sideFactor of SIDE_STEPS) {
+      const scale = Math.min(1, (maxSide * sideFactor) / Math.max(srcW, srcH));
+      const width = Math.max(1, Math.round(srcW * scale));
+      const height = Math.max(1, Math.round(srcH * scale));
+      canvas.width = width;
+      canvas.height = height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(source, 0, 0, width, height);
+
+      for (const qFactor of QUALITY_STEPS) {
+        const q = type === 'image/png' ? 1 : Math.max(0.3, quality * qFactor);
+        const blob = await canvasToBlob(canvas, type, q);
+        if (blob.type !== type) type = blob.type === 'image/png' ? 'image/png' : type;
+        if (!best || blob.size < best.blob.size) best = { blob, width, height };
+        if (blob.size <= MAX_UPLOAD_BYTES) {
+          return finish(best, file.size);
+        }
+        if (type === 'image/png') break; // PNG no tiene calidad: solo ayuda reducir tamaño
+      }
+    }
+  } finally {
+    if ('close' in source) source.close();
   }
 
-  if (blob.size > MAX_UPLOAD_BYTES) {
-    throw new Error('La imagen sigue siendo demasiado grande después de comprimirla');
+  if (!best || best.blob.size > MAX_UPLOAD_BYTES) {
+    throw new Error('La imagen sigue siendo demasiado grande después de comprimirla. Prueba con una versión más pequeña.');
   }
+  return finish(best, file.size);
+}
 
-  return { blob, contentType, extension, width, height, originalBytes: file.size };
+function finish(r: { blob: Blob; width: number; height: number }, originalBytes: number): CompressedImage {
+  const png = r.blob.type === 'image/png';
+  return { blob: r.blob, contentType: png ? 'image/png' : 'image/webp', extension: png ? 'png' : 'webp', width: r.width, height: r.height, originalBytes };
 }
 
 export interface UploadedImage extends CompressedImage {
@@ -117,8 +178,10 @@ export async function uploadEventImage(
   kind: ImageKind,
   file: File,
   name?: string,
+  onStage?: (s: ImageStage) => void,
 ): Promise<UploadedImage> {
-  const compressed = await compressImage(file, kind);
+  const compressed = await compressImage(file, kind, onStage);
+  onStage?.('upload');
   const base = (name || kind).replace(/[^a-z0-9_-]/gi, '').toLowerCase() || kind;
   const path = `${eventId}/${kind}/${base}-${Date.now()}.${compressed.extension}`;
 

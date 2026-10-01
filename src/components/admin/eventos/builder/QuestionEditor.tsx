@@ -209,13 +209,13 @@ function ImageRow({ eventId, value, onChange }: { eventId: string; value: string
   }
   return (
     <div className="switch-row" style={{ marginTop: 6 }}>
-      <div>Imagen de apoyo<small>Se muestra debajo del título. Se comprime sola.</small>{err && <small style={{ color: 'var(--color-error)' }}>{err}</small>}</div>
+      <div>Imagen de apoyo<small>Se muestra debajo del título. Se convierte y comprime sola (JPG, PNG, HEIC…).</small>{err && <small style={{ color: 'var(--color-error)' }}>{err}</small>}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {value && <img src={value} alt="" style={{ height: 36, borderRadius: 6 }} />}
         {value && <button className="btn btn-ghost btn-xs" onClick={() => { removeEventImage(value).catch(() => {}); onChange(null); }}>Quitar</button>}
         <label className="btn btn-secondary btn-xs" style={{ cursor: 'pointer' }}>
           {busy ? 'Subiendo…' : value ? 'Cambiar' : 'Subir'}
-          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handle(e.target.files?.[0])} disabled={busy} />
+          <input type="file" accept="image/*,.heic,.heif,.tif,.tiff,.avif" style={{ display: 'none' }} onChange={e => handle(e.target.files?.[0])} disabled={busy} />
         </label>
       </div>
     </div>
@@ -269,7 +269,7 @@ function OptionsEditor({ q, langs, eventId, questions, index, onChange }: { q: Q
             <img src={o.image} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }} title="Quitar imagen" onClick={() => { removeEventImage(o.image).catch(() => {}); update(i, { image: null }); }} />
           ) : (
             <label className="btn btn-ghost btn-xs" style={{ cursor: 'pointer' }} title="Imagen">🖼
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => upload(i, e.target.files?.[0])} />
+              <input type="file" accept="image/*,.heic,.heif,.tif,.tiff,.avif" style={{ display: 'none' }} onChange={e => upload(i, e.target.files?.[0])} />
             </label>
           )}
           <button className={`btn btn-ghost btn-xs ${o.showIf?.conditions.length || o.score ? 'active' : ''}`} title="Puntos y condición" onClick={() => setAdvanced(advanced === o.id ? null : o.id)} style={o.showIf?.conditions.length || o.score ? { color: 'var(--color-primary-deep)' } : undefined}>⚙</button>
