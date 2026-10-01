@@ -5,6 +5,8 @@ import { LANGUAGE_LABEL } from '../../../lib/events-types';
 interface Props {
   event: EventRow;
   onSave: (screens: EventScreens) => Promise<boolean>;
+  /** Cada cambio sin guardar, para la vista previa en vivo. */
+  onChange?: (screens: EventScreens) => void;
 }
 
 type ScreenKey = keyof EventScreens;
@@ -41,19 +43,21 @@ const SCREENS: { key: ScreenKey; label: string; hint: string; fields: { key: Fie
   },
 ];
 
-export default function ScreensEditor({ event, onSave }: Props) {
+export default function ScreensEditor({ event, onSave, onChange }: Props) {
   const [screens, setScreens] = useState<EventScreens>(event.screens ?? {});
   const [saving, setSaving] = useState(false);
   const langs: EventLanguage[] = event.languages;
 
   function setText(screen: ScreenKey, field: FieldKey, lang: EventLanguage, value: string) {
-    setScreens(prev => ({
-      ...prev,
+    const next: EventScreens = {
+      ...screens,
       [screen]: {
-        ...(prev[screen] ?? {}),
-        [field]: { ...((prev[screen]?.[field]) ?? {}), [lang]: value },
+        ...(screens[screen] ?? {}),
+        [field]: { ...((screens[screen]?.[field]) ?? {}), [lang]: value },
       },
-    }));
+    };
+    setScreens(next);
+    onChange?.(next);
   }
 
   async function save(e: React.FormEvent) {

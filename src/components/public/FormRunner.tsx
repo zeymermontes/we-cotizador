@@ -18,6 +18,8 @@ interface Props {
   /** Clave de localStorage para retomar; sin ella no se guarda nada. */
   storageKey?: string;
   hiddenValues?: Record<string, string>;
+  /** Pantalla con la que arranca (solo vista previa del admin). */
+  initialStage?: 'welcome' | 'done';
   onSubmit: (answers: Answers, submissionId: string) => Promise<SubmitResult>;
 }
 
@@ -56,12 +58,12 @@ const DEFAULT_COPY = {
   en: { welcome: 'Register for {{evento}}', welcomeSub: 'It takes less than a minute.', start: 'Start', thanks: 'All set, {{nombre}}!', thanksSub: 'Your registration has been saved.' },
 };
 
-export default function FormRunner({ schema, event, lang, mode, storageKey, hiddenValues, onSubmit }: Props) {
+export default function FormRunner({ schema, event, lang, mode, storageKey, hiddenValues, initialStage, onSubmit }: Props) {
   const t = RUNNER_TEXT[lang];
   const copy = DEFAULT_COPY[lang];
   const saved = useMemo(() => load(storageKey), [storageKey]);
 
-  const [stage, setStage] = useState<Stage>(saved?.stage === 'questions' ? 'questions' : 'welcome');
+  const [stage, setStage] = useState<Stage>(saved?.stage === 'questions' ? 'questions' : (initialStage ?? 'welcome'));
   const prefilled = useMemo(() => {
     const set = new Set<string>();
     for (const q of schema.questions) if (q.key && hiddenValues?.[q.key] !== undefined && hiddenValues[q.key] !== '') set.add(q.id);

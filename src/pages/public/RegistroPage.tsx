@@ -5,6 +5,18 @@ import BrandedShell, { ShellMessage } from '../../components/public/BrandedShell
 import FormRunner, { type SubmitResult } from '../../components/public/FormRunner';
 import { usePublicEvent, useEventLanguage } from '../../hooks/usePublicEvent';
 import { type FormSchema, type Answers, normalizeSchema } from '../../lib/form-types';
+import type { EventBranding, EventScreens, EventLanguage } from '../../lib/events-types';
+
+/** Mensaje que manda el admin al iframe de vista previa. */
+export interface PreviewMessage {
+  type: 'we-preview';
+  branding?: EventBranding;
+  screens?: EventScreens;
+  stage?: 'welcome' | 'done';
+  lang?: EventLanguage;
+}
+
+const IS_PREVIEW = new URLSearchParams(window.location.search).get('preview') === '1';
 
 const COPY = {
   es: {
@@ -29,22 +41,46 @@ type FormState = { status: 'loading' } | { status: 'missing' } | { status: 'read
 
 export default function RegistroPage() {
   const { slug } = useParams<{ slug: string }>();
-  const state = usePublicEvent(slug);
-  const event = state.status === 'ready' ? state.event : null;
-  const [lang, setLang] = useEventLanguage(event);
+  const state = usePublicEvent(slug, IS_PREVIEW);
+  const loaded = state.status === 'ready' ? state.event : null;
+  const [override, setOverride] = useState<Omit<PreviewMessage, 'type'>>({});
+  // En vista previa el admin manda branding y textos sin guardar; se pintan encima de lo cargado.
+  const event = useMemo(() => (loaded && IS_PREVIEW ? { ...loaded, branding: override.branding ?? loaded.branding, screens: override.screens ?? loaded.screens } : loaded), [loaded, override]);
+  const [langSaved, setLang] = useEventLanguage(event);
+  const lang = IS_PREVIEW && override.lang ? override.lang : langSaved;
   const [form, setForm] = useState<FormState>({ status: 'loading' });
   const c = COPY[lang];
 
   useEffect(() => {
+    if (!IS_PREVIEW) return;
+    const onMessage = (e: MessageEvent<PreviewMessage>) => {
+      if (e.data?.type !== 'we-preview') return;
+      const { branding, screens, stage, lang: l } = e.data;
+      setOverride({ branding, screens, stage, lang: l });
+    };
+    window.addEventListener('message', onMessage);
+    window.parent?.postMessage({ type: 'we-preview-ready' }, '*');
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  useEffect(() => {
     if (!slug || state.status !== 'ready') return;
     let cancelled = false;
+    const eventId = state.event.id;
     supabase.from('event_forms_public').select('version, schema').eq('slug', slug).maybeSingle()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (cancelled) return;
-        setForm(data ? { status: 'ready', version: data.version, schema: normalizeSchema(data.schema) } : { status: 'missing' });
+        if (data) { setForm({ status: 'ready', version: data.version, schema: normalizeSchema(data.schema) }); return; }
+        if (IS_PREVIEW) {
+          // Sin versión publicada, la vista previa enseña el borrador del builder.
+          const { data: draft } = await supabase.from('event_forms').select('draft').eq('event_id', eventId).maybeSingle();
+          if (cancelled) return;
+          if (draft?.draft) { setForm({ status: 'ready', version: 0, schema: normalizeSchema(draft.draft) }); return; }
+        }
+        setForm({ status: 'missing' });
       });
     return () => { cancelled = true; };
-  }, [slug, state.status]);
+  }, [slug, state]);
 
   // Campos ocultos y origen desde la URL (utm_source=…, ref=…)
   const params = useMemo(() => {
@@ -79,7 +115,7 @@ export default function RegistroPage() {
   }
 
   const closedByDate = event.registration_closes_at && new Date(event.registration_closes_at) < new Date();
-  if (event.status === 'closed' || closedByDate) {
+  if (!IS_PREVIEW && (event.status === 'closed' || closedByDate)) {
     return (
       <BrandedShell event={event} lang={lang} onLang={setLang}>
         <ShellMessage title={c.closed} text={c.closedText} />
@@ -98,13 +134,14 @@ export default function RegistroPage() {
   return (
     <BrandedShell event={event} lang={lang} onLang={setLang} variant="form">
       <FormRunner
-        key={lang}
+        key={IS_PREVIEW ? `${lang}-${override.stage ?? 'welcome'}` : lang}
         schema={form.schema}
         event={event}
         lang={lang}
-        mode="live"
-        storageKey={`we-reg-${event.slug}-v${form.version}`}
+        mode={IS_PREVIEW ? 'preview' : 'live'}
+        storageKey={IS_PREVIEW ? undefined : `we-reg-${event.slug}-v${form.version}`}
         hiddenValues={params}
+        initialStage={IS_PREVIEW ? override.stage : undefined}
         onSubmit={onSubmit}
       />
     </BrandedShell>

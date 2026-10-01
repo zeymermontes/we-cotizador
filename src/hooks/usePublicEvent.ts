@@ -7,24 +7,24 @@ export type PublicEventState =
   | { status: 'missing' }
   | { status: 'ready'; event: PublicEvent };
 
-/** Carga un evento publicado por su slug (vista events_public). */
-export function usePublicEvent(slug: string | undefined): PublicEventState {
+const PUBLIC_COLUMNS = 'id, slug, name, description, event_date, timezone, venue, status, languages, default_language, registration_closes_at, branding, screens';
+
+/** Carga un evento publicado por su slug (vista events_public).
+ *  En vista previa (admin con sesión) lee la tabla events, así se ve aunque esté en borrador. */
+export function usePublicEvent(slug: string | undefined, preview = false): PublicEventState {
   const [state, setState] = useState<PublicEventState>(() => (slug ? { status: 'loading' } : { status: 'missing' }));
 
   useEffect(() => {
     if (!slug) return;
     let cancelled = false;
-    supabase
-      .from('events_public')
-      .select('*')
-      .eq('slug', slug)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        setState(data ? { status: 'ready', event: data as PublicEvent } : { status: 'missing' });
-      });
+    const fromPublic = () => supabase.from('events_public').select('*').eq('slug', slug).maybeSingle().then(r => r.data as PublicEvent | null);
+    const fromTable = () => supabase.from('events').select(PUBLIC_COLUMNS).eq('slug', slug).maybeSingle().then(r => r.data as PublicEvent | null);
+    (preview ? fromTable().then(d => d ?? fromPublic()) : fromPublic()).then(data => {
+      if (cancelled) return;
+      setState(data ? { status: 'ready', event: data } : { status: 'missing' });
+    });
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, preview]);
 
   return state;
 }

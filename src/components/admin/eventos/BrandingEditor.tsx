@@ -5,22 +5,24 @@ import { uploadEventImage, removeEventImage, formatBytes, type ImageKind, type I
 
 const STAGE_TEXT: Record<ImageStage, string> = { decode: 'Leyendo la imagen…', compress: 'Convirtiendo y comprimiendo…', upload: 'Subiendo…' };
 const ACCEPT = 'image/*,.heic,.heif,.tif,.tiff,.avif';
-import { brandingStyle, fontsHref } from '../../../lib/branding';
+import { fontsHref } from '../../../lib/branding';
 
 interface Props {
   event: EventRow;
   onSave: (branding: EventBranding) => Promise<boolean>;
+  /** Cada cambio sin guardar, para la vista previa en vivo. */
+  onChange?: (branding: Required<EventBranding>) => void;
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-export default function BrandingEditor({ event, onSave }: Props) {
-  const [b, setB] = useState<Required<EventBranding>>({ ...DEFAULT_BRANDING, ...event.branding });
+export default function BrandingEditor({ event, onSave, onChange }: Props) {
+  const [b, setBState] = useState<Required<EventBranding>>({ ...DEFAULT_BRANDING, ...event.branding });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const set = <K extends keyof EventBranding>(key: K, value: Required<EventBranding>[K]) =>
-    setB(prev => ({ ...prev, [key]: value }));
+  const setB = (next: Required<EventBranding>) => { setBState(next); onChange?.(next); };
+  const set = <K extends keyof EventBranding>(key: K, value: Required<EventBranding>[K]) => setB({ ...b, [key]: value });
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +40,7 @@ export default function BrandingEditor({ event, onSave }: Props) {
 
       {error && <div className="inline-alert error">{error}</div>}
 
-      <div className="field-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+      <div>
         <div>
           <div className="field-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <ImageField
@@ -86,28 +88,7 @@ export default function BrandingEditor({ event, onSave }: Props) {
           </div>
         </div>
 
-        <div>
-          <label className="input-label">Vista previa</label>
-          <div
-            className="brand-preview"
-            style={{
-              ...brandingStyle(b),
-              background: b.background_url ? `url(${b.background_url}) center/cover` : b.background,
-              fontFamily: `'${b.font_body}', sans-serif`,
-              color: b.text,
-            }}
-          >
-            <div className="brand-preview-card" style={{ background: b.surface }}>
-              {b.logo_url && <img src={b.logo_url} alt="" className="branded-logo" />}
-              <h2 style={{ fontFamily: `'${b.font_display}', serif`, fontWeight: 500, marginBottom: 6 }}>{event.name}</h2>
-              <p style={{ fontSize: 14, opacity: 0.7, marginBottom: 16 }}>Regístrate para recibir tu invitación.</p>
-              <button type="button" className="branded-btn" style={{ background: b.primary, color: b.button_text || b.text, borderRadius: b.button_radius }}>
-                Comenzar →
-              </button>
-            </div>
-          </div>
-          <FontLoader fonts={[b.font_display, b.font_body]} />
-        </div>
+        <FontLoader fonts={[b.font_display, b.font_body]} />
       </div>
 
       <div className="modal-actions">

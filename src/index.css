@@ -2692,3 +2692,69 @@ h6 {
 .font-select-option.custom { font-size: 14px; color: var(--text-muted); border-top: 1px solid var(--border-default); margin-top: 4px; padding-top: 10px; border-radius: 0; }
 .font-select-check { font-size: 12px; color: var(--color-primary-deep); text-align: center; }
 .font-select-sample { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+
+/* ─── Ajustes: editores + vista previa en vivo ─── */
+.ajustes-live {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 460px);
+  gap: var(--space-lg);
+  align-items: start;
+}
+.ajustes-live-editors { min-width: 0; }
+.device-preview {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.device-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.device-preview-bar .seg {
+  display: inline-flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 2px;
+}
+.device-preview-bar .seg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.device-preview-bar .seg-btn.active { background: var(--bg-elevated); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.device-stage {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.device-frame {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--shadow-lg);
+  flex: none;
+}
+.device-frame.mobile { border-radius: 28px; border: 6px solid #111; }
+.device-frame.desktop { border-radius: 10px; border: 1px solid var(--border-default); }
+.device-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  background: #fff;
+}
+.device-preview-hint { font-size: var(--text-xs); color: var(--text-muted); margin: 0; }
+@media (max-width: 1100px) {
+  .ajustes-live { grid-template-columns: 1fr; }
+  .device-preview { position: static; }
+}

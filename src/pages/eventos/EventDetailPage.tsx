@@ -10,6 +10,7 @@ import {
 import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
 import MembersPanel from '../../components/admin/eventos/MembersPanel';
 import ScreensEditor from '../../components/admin/eventos/ScreensEditor';
+import DevicePreview from '../../components/admin/eventos/DevicePreview';
 import FormBuilder from '../../components/admin/eventos/builder/FormBuilder';
 import RegistrationsPanel from '../../components/admin/eventos/registros/RegistrationsPanel';
 import CommunicationsPanel from '../../components/admin/eventos/comunicaciones/CommunicationsPanel';
@@ -247,6 +248,8 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     login_method: event.login_method,
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
+  const [previewBranding, setPreviewBranding] = useState<EventRow['branding']>(event.branding);
+  const [previewScreens, setPreviewScreens] = useState<EventRow['screens']>(event.screens);
   const [pin, setPin] = useState('');
   const [savingPin, setSavingPin] = useState(false);
 
@@ -369,15 +372,21 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
         </div>
       </form>
 
-      <BrandingEditor
-        event={event}
-        onSave={(branding) => onPatch({ branding }, 'Branding guardado')}
-      />
-
-      <ScreensEditor
-        event={event}
-        onSave={(screens) => onPatch({ screens }, 'Textos guardados')}
-      />
+      <div className="ajustes-live">
+        <div className="ajustes-live-editors">
+          <BrandingEditor
+            event={event}
+            onSave={(branding) => onPatch({ branding }, 'Branding guardado')}
+            onChange={setPreviewBranding}
+          />
+          <ScreensEditor
+            event={event}
+            onSave={(screens) => onPatch({ screens }, 'Textos guardados')}
+            onChange={setPreviewScreens}
+          />
+        </div>
+        <DevicePreview slug={event.slug} languages={event.languages} branding={previewBranding} screens={previewScreens} />
+      </div>
 
       <form className="section-card" onSubmit={savePin}>
         <h3>PIN del scanner</h3>
