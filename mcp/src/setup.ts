@@ -164,7 +164,7 @@ async function main() {
 }
 
 async function printConnect(email: string, offer = false) {
-  const cmd = `claude mcp add we-eventos -- node "${BIN}"`;
+  const cmd = `claude mcp add --scope user we-eventos -- node "${BIN}"`;
   console.log(`\n${bold('Claude Code')} — corre esto una vez:\n\n  ${cmd}\n`);
   console.log(`${bold('Claude Desktop')} — agrega esto a ${dim('~/Library/Application Support/Claude/claude_desktop_config.json')}:\n`);
   console.log(JSON.stringify({ mcpServers: { 'we-eventos': { command: 'node', args: [BIN] } } }, null, 2).split('\n').map(l => '  ' + l).join('\n'));
@@ -177,7 +177,8 @@ async function printConnect(email: string, offer = false) {
       const run = await ask('¿Lo conecto a Claude Code ahora mismo? (S/n): ');
       if (!/^n/i.test(run)) {
         try {
-          execSync(`claude mcp remove we-eventos`, { stdio: 'ignore' });
+          execSync(`claude mcp remove we-eventos -s user`, { stdio: 'ignore' });
+          execSync(`claude mcp remove we-eventos -s local`, { stdio: 'ignore' });
         } catch { /* no existía */ }
         try {
           execSync(cmd, { stdio: 'inherit' });
