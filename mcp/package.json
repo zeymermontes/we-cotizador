@@ -1,0 +1,23 @@
+{
+  "name": "we-eventos-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Servidor MCP local para leer, crear y modificar eventos de registro de We.Page",
+  "type": "module",
+  "bin": { "we-eventos-mcp": "./bin.js" },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@supabase/supabase-js": "^2.103.3",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "typescript": "~6.0.2"
+  }
+}
