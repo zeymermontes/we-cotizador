@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { EventRow, EventScreens, EventLanguage, ScreenCopy, ElementStyle } from '../../../lib/events-types';
 import { LANGUAGE_LABEL, SCREEN_ELEMENTS } from '../../../lib/events-types';
 
 interface Props {
   event: EventRow;
-  onSave: (screens: EventScreens) => Promise<boolean>;
+  /** Si falta, el guardado lo hace quien lo contiene (pestaña Diseño). */
+  onSave?: (screens: EventScreens) => Promise<boolean>;
   /** Cada cambio sin guardar, para la vista previa en vivo. */
   onChange?: (screens: EventScreens) => void;
 }
@@ -43,6 +45,7 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (!onSave) return;
     setSaving(true);
     await onSave(screens);
     setSaving(false);
@@ -76,7 +79,7 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
                   </label>
                   <div className="screen-el-label">
                     {el.label}
-                    {el.hint && <small>{el.hint}</small>}
+                    {el.hint && <small>{el.hint === 'se toma de Ajustes generales' ? <>se toma de <Link to={`/admin/eventos/${event.id}/ajustes`}>Ajustes</Link></> : el.hint}</small>}
                   </div>
                   <div className="screen-el-text">
                     {el.text ? langs.map(lang => (
@@ -131,9 +134,11 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
         </div>
       ))}
 
-      <div className="modal-actions">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Guardando...' : 'Guardar textos'}</button>
-      </div>
+      {onSave && (
+        <div className="modal-actions">
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Guardando...' : 'Guardar textos'}</button>
+        </div>
+      )}
     </form>
   );
 }

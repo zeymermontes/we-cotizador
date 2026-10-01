@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '../../../../lib/supabase';
 import { publicUrls } from '../../../../lib/host';
 import type { EventRow } from '../../../../lib/events-types';
@@ -10,6 +9,20 @@ interface Session { id: string; device_label: string | null; created_at: string;
 interface RegLite { id: string; name: string | null; party_size: number; status: string; email: string | null; phone: string | null; company: string | null }
 
 export default function ScannerPanel({ event }: { event: EventRow }) {
+  const [pin, setPin] = useState('');
+  const [savingPin, setSavingPin] = useState(false);
+  const [pinMsg, setPinMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function savePin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!/^[0-9]{4,8}$/.test(pin)) { setPinMsg({ ok: false, text: 'El PIN debe tener entre 4 y 8 dígitos.' }); return; }
+    setSavingPin(true);
+    const { error } = await supabase.rpc('set_event_scanner_pin', { p_event_id: event.id, p_pin: pin });
+    setSavingPin(false);
+    if (error) { setPinMsg({ ok: false, text: error.message }); return; }
+    setPin('');
+    setPinMsg({ ok: true, text: 'PIN actualizado. Los dispositivos ya conectados siguen activos.' });
+  }
   const [regs, setRegs] = useState<RegLite[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -81,10 +94,32 @@ export default function ScannerPanel({ event }: { event: EventRow }) {
         <span><span className={live ? 'live-dot' : ''} />{live ? 'En vivo' : 'Conectando…'}</span>
         <span>Scanner: <code>{urls.acceso}</code></span>
         <a className="btn btn-ghost btn-xs" href={urls.acceso} target="_blank" rel="noopener noreferrer">Abrir ↗</a>
-        <Link className="btn btn-ghost btn-xs" to={`/admin/eventos/${event.id}/ajustes`}>Cambiar PIN</Link>
         <span style={{ flex: 1 }} />
         <button className="btn btn-secondary btn-xs" onClick={exportAttendance} disabled={regs.length === 0}>Exportar asistencia</button>
       </div>
+
+      <form className="section-card" onSubmit={savePin} style={{ marginBottom: 20 }}>
+        <h3>PIN del scanner</h3>
+        <p className="section-hint">
+          El staff lo escribe en <code>{urls.acceso}</code> para empezar a escanear. Solo dígitos, de 4 a 8. No se puede ver, solo cambiar.
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            className="input-field"
+            style={{ maxWidth: 200, letterSpacing: '0.2em' }}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={8}
+            value={pin}
+            onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setPinMsg(null); }}
+            placeholder="Nuevo PIN"
+          />
+          <button type="submit" className="btn btn-secondary btn-sm" disabled={savingPin || pin.length < 4}>
+            {savingPin ? 'Guardando...' : 'Cambiar PIN'}
+          </button>
+          {pinMsg && <span className={`text-xs ${pinMsg.ok ? 'text-muted' : ''}`} style={pinMsg.ok ? undefined : { color: 'var(--color-error)' }}>{pinMsg.text}</span>}
+        </div>
+      </form>
 
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card"><div className="stat-label">Personas dentro</div><div className="stat-value">{enteredPeople}</div><div className="text-muted text-xs">de {expectedPeople} esperadas · {pct}%</div></div>

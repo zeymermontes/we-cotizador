@@ -19,11 +19,12 @@ import InvitationsPanel from '../../components/admin/eventos/invitaciones/Invita
 import InvitationActions from '../../components/admin/eventos/invitaciones/InvitationActions';
 import ScannerPanel from '../../components/admin/eventos/scanner/ScannerPanel';
 
-type Tab = 'resumen' | 'formulario' | 'registros' | 'comunicaciones' | 'invitaciones' | 'scanner' | 'ajustes';
+type Tab = 'resumen' | 'formulario' | 'diseno' | 'registros' | 'comunicaciones' | 'invitaciones' | 'scanner' | 'ajustes';
 
 const TABS: { key: Tab; label: string; superOnly?: boolean }[] = [
   { key: 'resumen', label: 'Resumen' },
   { key: 'formulario', label: 'Formulario' },
+  { key: 'diseno', label: 'Diseño' },
   { key: 'registros', label: 'Registros' },
   { key: 'comunicaciones', label: 'Comunicaciones' },
   { key: 'invitaciones', label: 'Invitaciones', superOnly: true },
@@ -125,6 +126,7 @@ export default function EventDetailPage() {
 
       {tab === 'resumen' && <Resumen event={event} urls={urls} />}
       {tab === 'formulario' && <FormBuilder event={event} />}
+      {tab === 'diseno' && <Diseno event={event} onPatch={patch} />}
       {tab === 'registros' && <RegistrationsPanel event={event} extraBulkActions={ctx => <><SendEmailAction ctx={ctx} /><InvitationActions ctx={ctx} /></>} />}
       {tab === 'comunicaciones' && <CommunicationsPanel event={event} onEventPatch={patch} />}
       {tab === 'invitaciones' && isSuper && <InvitationsPanel event={event} onEventPatch={patch} />}
@@ -133,6 +135,54 @@ export default function EventDetailPage() {
         <Ajustes event={event} isSuper={isSuper} onPatch={patch} onReload={load} onFlash={setFlash} />
       )}
     </div>
+  );
+}
+
+// ─── Diseño (branding + pantallas + vista previa, un solo guardado) ───
+
+function Diseno({ event, onPatch }: { event: EventRow; onPatch: (fields: Partial<EventRow>, okText?: string) => Promise<boolean> }) {
+  const [branding, setBranding] = useState<EventRow['branding']>(event.branding);
+  const [screens, setScreens] = useState<EventRow['screens']>(event.screens);
+  const [saving, setSaving] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  const dirty = JSON.stringify(branding) !== JSON.stringify(event.branding) || JSON.stringify(screens) !== JSON.stringify(event.screens);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  async function save() {
+    setSaving(true);
+    await onPatch({ branding, screens }, 'Diseño guardado');
+    setSaving(false);
+  }
+
+  function discard() {
+    setBranding(event.branding);
+    setScreens(event.screens);
+    setResetKey(k => k + 1);
+  }
+
+  return (
+    <>
+      <div className="ajustes-live">
+        <div className="ajustes-live-editors" key={resetKey}>
+          <BrandingEditor event={event} onChange={setBranding} />
+          <ScreensEditor event={event} onChange={setScreens} />
+        </div>
+        <DevicePreview slug={event.slug} languages={event.languages} branding={branding} screens={screens} />
+      </div>
+      <div className={`save-bar ${dirty ? 'show' : ''}`} role="status">
+        <span>{dirty ? 'Tienes cambios sin guardar. El público sigue viendo la versión anterior.' : 'Todo guardado.'}</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="btn btn-ghost btn-sm" onClick={discard} disabled={!dirty || saving}>Descartar</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={!dirty || saving}>{saving ? 'Guardando...' : 'Guardar diseño'}</button>
+      </div>
+    </>
   );
 }
 
@@ -248,10 +298,6 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     login_method: event.login_method,
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
-  const [previewBranding, setPreviewBranding] = useState<EventRow['branding']>(event.branding);
-  const [previewScreens, setPreviewScreens] = useState<EventRow['screens']>(event.screens);
-  const [pin, setPin] = useState('');
-  const [savingPin, setSavingPin] = useState(false);
 
   function toggleLanguage(lang: EventLanguage) {
     setGeneral(g => {
@@ -282,17 +328,6 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     setSavingGeneral(false);
   }
 
-  async function savePin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!/^[0-9]{4,8}$/.test(pin)) return onFlash({ kind: 'error', text: 'El PIN debe tener entre 4 y 8 dígitos.' });
-    setSavingPin(true);
-    const { error } = await supabase.rpc('set_event_scanner_pin', { p_event_id: event.id, p_pin: pin });
-    setSavingPin(false);
-    if (error) return onFlash({ kind: 'error', text: error.message });
-    setPin('');
-    onFlash({ kind: 'success', text: 'PIN del scanner actualizado' });
-  }
-
   async function deleteEvent() {
     if (!confirm(`¿Eliminar "${event.name}" definitivamente? Se borran su formulario, registros e imágenes. Esto no se puede deshacer.`)) return;
     if (!confirm('Última confirmación: ¿eliminar el evento?')) return;
@@ -305,7 +340,7 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     <>
       <form className="section-card" onSubmit={saveGeneral}>
         <h3>General</h3>
-        <p className="section-hint">Nombre, fecha, lugar, idiomas y acceso de los administradores.</p>
+        <p className="section-hint">Nombre, fecha, lugar, idiomas y acceso de los administradores. El diseño y los textos de las pantallas están en la pestaña Diseño; el PIN del staff, en Scanner.</p>
 
         <div className="field-grid">
           <div className="input-group">
@@ -369,44 +404,6 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
 
         <div className="modal-actions">
           <button type="submit" className="btn btn-primary btn-sm" disabled={savingGeneral}>{savingGeneral ? 'Guardando...' : 'Guardar'}</button>
-        </div>
-      </form>
-
-      <div className="ajustes-live">
-        <div className="ajustes-live-editors">
-          <BrandingEditor
-            event={event}
-            onSave={(branding) => onPatch({ branding }, 'Branding guardado')}
-            onChange={setPreviewBranding}
-          />
-          <ScreensEditor
-            event={event}
-            onSave={(screens) => onPatch({ screens }, 'Textos guardados')}
-            onChange={setPreviewScreens}
-          />
-        </div>
-        <DevicePreview slug={event.slug} languages={event.languages} branding={previewBranding} screens={previewScreens} />
-      </div>
-
-      <form className="section-card" onSubmit={savePin}>
-        <h3>PIN del scanner</h3>
-        <p className="section-hint">
-          El staff lo escribe en <code>acceso.we.page/{event.slug}</code> para empezar a escanear. Solo dígitos, de 4 a 8. No se puede ver, solo cambiar.
-        </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            className="input-field"
-            style={{ maxWidth: 200, letterSpacing: '0.2em' }}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={8}
-            value={pin}
-            onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-            placeholder="Nuevo PIN"
-          />
-          <button type="submit" className="btn btn-secondary btn-sm" disabled={savingPin || pin.length < 4}>
-            {savingPin ? 'Guardando...' : 'Cambiar PIN'}
-          </button>
         </div>
       </form>
 

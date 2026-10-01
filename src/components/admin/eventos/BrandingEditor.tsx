@@ -9,7 +9,8 @@ import { fontsHref } from '../../../lib/branding';
 
 interface Props {
   event: EventRow;
-  onSave: (branding: EventBranding) => Promise<boolean>;
+  /** Si falta, el guardado lo hace quien lo contiene (pestaña Diseño). */
+  onSave?: (branding: EventBranding) => Promise<boolean>;
   /** Cada cambio sin guardar, para la vista previa en vivo. */
   onChange?: (branding: Required<EventBranding>) => void;
 }
@@ -26,6 +27,7 @@ export default function BrandingEditor({ event, onSave, onChange }: Props) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (!onSave) return;
     setSaving(true);
     await onSave(b);
     setSaving(false);
@@ -95,7 +97,7 @@ export default function BrandingEditor({ event, onSave, onChange }: Props) {
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setB({ ...DEFAULT_BRANDING, logo_url: b.logo_url, background_url: b.background_url })}>
           Restablecer colores
         </button>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Guardando...' : 'Guardar branding'}</button>
+        {onSave && <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Guardando...' : 'Guardar branding'}</button>}
       </div>
     </form>
   );
