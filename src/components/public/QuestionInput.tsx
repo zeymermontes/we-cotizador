@@ -1,21 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
-import type { Question, AnswerValue, Lang } from '../../lib/form-types';
-import { text, RUNNER_TEXT, letterFor } from '../../lib/form-types';
+import type { Question, AnswerValue, Lang, Answers, EvalContext } from '../../lib/form-types';
+import { text, RUNNER_TEXT, letterFor, visibleOptions } from '../../lib/form-types';
 
 interface Props {
   q: Question;
   value: AnswerValue | undefined;
   lang: Lang;
   keyboard: boolean;
+  /** Respuestas actuales: filtran las opciones con condición */
+  answers?: Answers;
+  ctx?: EvalContext;
   onChange: (v: AnswerValue) => void;
   /** Respuesta "cerrada" (opción única, sí/no, rating): avanza solo. */
   onCommit: () => void;
   onEnter: () => void;
 }
 
-export default function QuestionInput({ q, value, lang, keyboard, onChange, onCommit, onEnter }: Props) {
+export default function QuestionInput({ q, value, lang, keyboard, answers, ctx, onChange, onCommit, onEnter }: Props) {
+  const options = answers ? visibleOptions(q, answers, ctx) : (q.options ?? []);
   const t = RUNNER_TEXT[lang];
   const ph = text(q.placeholder, lang);
   const firstRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
@@ -122,17 +126,17 @@ export default function QuestionInput({ q, value, lang, keyboard, onChange, onCo
           onKeyDown={enterKey}
         >
           <option value="">{t.choose}…</option>
-          {(q.options ?? []).map(o => (
+          {options.map(o => (
             <option key={o.id} value={o.id}>{text(o.label, lang)}</option>
           ))}
         </select>
       );
 
     case 'single_choice':
-      return <Choices q={q} value={value} lang={lang} keyboard={keyboard} multiple={false} onChange={onChange} onCommit={onCommit} />;
+      return <Choices q={q} options={options} value={value} lang={lang} keyboard={keyboard} multiple={false} onChange={onChange} onCommit={onCommit} />;
 
     case 'multiple_choice':
-      return <Choices q={q} value={value} lang={lang} keyboard={keyboard} multiple onChange={onChange} onCommit={onCommit} />;
+      return <Choices q={q} options={options} value={value} lang={lang} keyboard={keyboard} multiple onChange={onChange} onCommit={onCommit} />;
 
     case 'yes_no':
       return (
@@ -196,6 +200,7 @@ export default function QuestionInput({ q, value, lang, keyboard, onChange, onCo
 
 interface ChoicesProps {
   q: Question;
+  options: Question['options'];
   value: AnswerValue | undefined;
   lang: Lang;
   keyboard: boolean;
@@ -204,9 +209,9 @@ interface ChoicesProps {
   onCommit: () => void;
 }
 
-function Choices({ q, value, lang, keyboard, multiple, onChange, onCommit }: ChoicesProps) {
+function Choices({ q, options: optionsIn, value, lang, keyboard, multiple, onChange, onCommit }: ChoicesProps) {
   const t = RUNNER_TEXT[lang];
-  const options = q.options ?? [];
+  const options = optionsIn ?? [];
   const selected: string[] = multiple
     ? (Array.isArray(value) ? value : [])
     : (typeof value === 'string' ? [value] : []);

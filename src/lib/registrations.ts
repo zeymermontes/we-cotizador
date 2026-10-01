@@ -107,7 +107,7 @@ export const answerText = answerToText;
 
 // ─── Filtros ─────────────────────────────────────────────────
 
-export type FilterOp = ConditionOp | 'before' | 'after';
+export type FilterOp = Extract<ConditionOp, 'eq' | 'neq' | 'contains' | 'not_contains' | 'gt' | 'lt' | 'gte' | 'lte' | 'empty' | 'not_empty' | 'before' | 'after'>;
 
 export interface Filter {
   id: string;

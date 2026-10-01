@@ -66,7 +66,7 @@ serve(async (req) => {
     if (existing) return json({ ok: true, registration_id: existing.id, duplicate_submission: true });
 
     // 3. Validación con el mismo motor que el navegador
-    const { errors, clean } = validateSubmission(schema, answers);
+    const { errors, clean } = validateSubmission(schema, answers, { lang });
     if (Object.keys(errors).length > 0) {
       return fail('invalid', 'Hay respuestas inválidas', { errors });
     }

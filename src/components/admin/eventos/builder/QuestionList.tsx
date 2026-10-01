@@ -9,12 +9,14 @@ interface Props {
   questions: Question[];
   selectedId: string | null;
   lang: Lang;
+  /** Problemas del linter por pregunta */
+  issues?: Map<string, 'error' | 'warning'>;
   onSelect: (id: string) => void;
   onReorder: (next: Question[]) => void;
   onAdd: () => void;
 }
 
-export default function QuestionList({ questions, selectedId, lang, onSelect, onReorder, onAdd }: Props) {
+export default function QuestionList({ questions, selectedId, lang, issues, onSelect, onReorder, onAdd }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -45,7 +47,7 @@ export default function QuestionList({ questions, selectedId, lang, onSelect, on
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
           {questions.map((q, i) => (
-            <Item key={q.id} q={q} index={i} lang={lang} active={q.id === selectedId} onSelect={() => onSelect(q.id)} />
+            <Item key={q.id} q={q} index={i} lang={lang} active={q.id === selectedId} issue={issues?.get(q.id) ?? null} onSelect={() => onSelect(q.id)} />
           ))}
         </SortableContext>
       </DndContext>
@@ -53,7 +55,7 @@ export default function QuestionList({ questions, selectedId, lang, onSelect, on
   );
 }
 
-function Item({ q, index, lang, active, onSelect }: { q: Question; index: number; lang: Lang; active: boolean; onSelect: () => void }) {
+function Item({ q, index, lang, active, issue, onSelect }: { q: Question; index: number; lang: Lang; active: boolean; issue: 'error' | 'warning' | null; onSelect: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: q.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const title = text(q.title, lang) || (q.type === 'hidden' ? `oculto: ${q.key ?? ''}` : '');
@@ -90,6 +92,7 @@ function Item({ q, index, lang, active, onSelect }: { q: Question; index: number
       <span className="item-icon" title={info.label}>{info.icon}</span>
       <span ref={titleRef} className={`item-title ${title ? '' : 'empty'}`}><span className="item-title-inner">{title || 'Sin título'}</span></span>
       <span className="item-flags">
+        {issue && <span className={`flag-${issue}`} title={issue === 'error' ? 'Tiene errores' : 'Tiene avisos'}>{issue === 'error' ? '⛔' : '⚠️'}</span>}
         {q.required && q.type !== 'statement' && q.type !== 'hidden' && <span title="Obligatoria">*</span>}
         {hasLogic && <span title="Tiene lógica">⤳</span>}
         {q.identity && <span title={`Identidad: ${q.identity}`}>id</span>}

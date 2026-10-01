@@ -1,23 +1,19 @@
-import type { Question, Lang, Condition, ConditionGroup, LogicRule, ConditionOp } from '../../../../lib/form-types';
-import { OP_LABEL, opsFor, text, uid, TYPE_INFO } from '../../../../lib/form-types';
+import type { Question, Lang, ConditionGroup, ConditionNode, LogicRule, ConditionOp, ConditionValue, Ending } from '../../../../lib/form-types';
+import { OP_LABEL, opsFor, text, uid, isGroup, isSpecialVar } from '../../../../lib/form-types';
+import { type Candidate, candidatesFor, defaultValueFor, newConditionFor, questionLabel as label } from './logic-helpers';
 
 interface Props {
   question: Question;
   index: number;
   questions: Question[];
   lang: Lang;
+  endings?: Ending[];
   onChange: (q: Question) => void;
 }
 
-const label = (q: Question, i: number, lang: Lang) =>
-  `${i + 1}. ${text(q.title, lang) || TYPE_INFO[q.type].label}`;
-
-export default function LogicEditor({ question, index, questions, lang, onChange }: Props) {
-  // Solo preguntas ANTERIORES pueden condicionar; ocultas también (vienen de la URL).
-  const previous = questions
-    .map((q, i) => ({ q, i }))
-    .filter(({ q, i }) => (i < index || q.type === 'hidden') && q.type !== 'statement' && q.id !== question.id);
-  // Solo se puede saltar a preguntas POSTERIORES (o al final).
+export default function LogicEditor({ question, index, questions, lang, endings = [], onChange }: Props) {
+  const previous = candidatesFor(questions, index, lang);
+  const withSelf = candidatesFor(questions, index, lang, true);
   const later = questions.map((q, i) => ({ q, i })).filter(({ q, i }) => i > index && q.type !== 'hidden');
 
   const showIf: ConditionGroup = question.showIf ?? { match: 'all', conditions: [] };
@@ -26,28 +22,18 @@ export default function LogicEditor({ question, index, questions, lang, onChange
   const setShowIf = (g: ConditionGroup | null) => onChange({ ...question, showIf: g && g.conditions.length ? g : null });
   const setRules = (r: LogicRule[]) => onChange({ ...question, logic: r });
 
-  const newCondition = (): Condition | null => {
-    const first = previous[0];
-    if (!first) return null;
-    return { questionId: first.q.id, op: opsFor(first.q.type)[0] ?? 'eq', value: defaultValue(first.q) };
-  };
+  const hasPrevious = previous.some(c => !isSpecialVar(c.id));
 
   return (
     <>
       <div className="editor-section">
         <h4>Mostrar solo si…</h4>
         <p className="section-hint">
-          {previous.length === 0
-            ? 'No hay preguntas anteriores que puedan condicionar esta.'
-            : 'Si no se cumple, la pregunta se salta sin que el invitado la vea.'}
+          {hasPrevious
+            ? 'Si no se cumple, la pregunta se salta sin que el invitado la vea. Puedes agrupar: (A y B) o C.'
+            : 'No hay preguntas anteriores; aún puedes condicionar por idioma, puntaje o fecha.'}
         </p>
-        <ConditionsEditor
-          group={showIf}
-          previous={previous}
-          lang={lang}
-          onChange={setShowIf}
-          newCondition={newCondition}
-        />
+        <ConditionsEditor group={showIf} candidates={previous} lang={lang} onChange={setShowIf} />
       </div>
 
       {question.type !== 'hidden' && (
@@ -60,22 +46,13 @@ export default function LogicEditor({ question, index, questions, lang, onChange
             <div key={r.id} className="rule-card">
               <ConditionsEditor
                 group={r}
-                previous={[{ q: question, i: index }, ...previous]}
+                candidates={withSelf}
                 lang={lang}
                 onChange={g => setRules(rules.map((x, i) => (i === ri ? { ...x, ...(g ?? { match: 'all', conditions: [] }) } : x)))}
-                newCondition={() => ({ questionId: question.id, op: opsFor(question.type)[0] ?? 'eq', value: defaultValue(question) })}
-                selfLabel="esta pregunta"
               />
               <div className="rule-row" style={{ marginTop: 8 }}>
                 <span>→ ir a</span>
-                <select
-                  className="glass-select"
-                  value={r.jumpTo}
-                  onChange={e => setRules(rules.map((x, i) => (i === ri ? { ...x, jumpTo: e.target.value } : x)))}
-                >
-                  {later.map(({ q, i }) => <option key={q.id} value={q.id}>{label(q, i, lang)}</option>)}
-                  <option value="end">Fin del formulario (enviar)</option>
-                </select>
+                <JumpTarget value={r.jumpTo} later={later} lang={lang} endings={endings} onChange={v => setRules(rules.map((x, i) => (i === ri ? { ...x, jumpTo: v } : x)))} />
                 <span className="spacer" style={{ flex: 1 }} />
                 <button className="btn btn-ghost btn-xs" onClick={() => setRules(rules.filter((_, i) => i !== ri))}>Quitar regla</button>
               </div>
@@ -83,12 +60,10 @@ export default function LogicEditor({ question, index, questions, lang, onChange
           ))}
           <button
             className="btn btn-secondary btn-xs"
-            onClick={() => setRules([...rules, {
-              id: uid('r'),
-              match: 'all',
-              conditions: [{ questionId: question.id, op: opsFor(question.type)[0] ?? 'eq', value: defaultValue(question) }],
-              jumpTo: later[0]?.q.id ?? 'end',
-            }])}
+            onClick={() => {
+              const c = newConditionFor(withSelf[0]);
+              setRules([...rules, { id: uid('r'), match: 'all', conditions: c ? [c] : [], jumpTo: later[0]?.q.id ?? 'end' }]);
+            }}
           >
             + Agregar salto
           </button>
@@ -98,31 +73,40 @@ export default function LogicEditor({ question, index, questions, lang, onChange
   );
 }
 
-function defaultValue(q: Question): string | number | boolean | undefined {
-  if (q.type === 'yes_no' || q.type === 'legal') return true;
-  if (q.type === 'single_choice' || q.type === 'multiple_choice' || q.type === 'dropdown') return q.options?.[0]?.id;
-  if (q.type === 'number' || q.type === 'rating') return 1;
-  return '';
+/** Selector de destino de un salto: pregunta posterior, final por defecto o final alternativo. */
+export function JumpTarget({ value, later, lang, endings, onChange }: {
+  value: string; later: { q: Question; i: number }[]; lang: Lang; endings: Ending[]; onChange: (v: string) => void;
+}) {
+  return (
+    <select className="glass-select" value={value} onChange={e => onChange(e.target.value)}>
+      {later.map(({ q, i }) => <option key={q.id} value={q.id}>{label(q, i, lang)}</option>)}
+      <option value="end">Fin del formulario (enviar)</option>
+      {endings.map(e => <option key={e.id} value={`end:${e.id}`}>Final: {e.name || text(e.title, lang) || e.id}</option>)}
+      {!later.some(l => l.q.id === value) && value !== 'end' && !value.startsWith('end:') && <option value={value}>⚠ destino eliminado</option>}
+    </select>
+  );
 }
+
+// ─── Editor de un grupo de condiciones (recursivo) ───────────
 
 interface CondProps {
   group: ConditionGroup;
-  previous: { q: Question; i: number }[];
+  candidates: Candidate[];
   lang: Lang;
   onChange: (g: ConditionGroup | null) => void;
-  newCondition: () => Condition | null;
-  selfLabel?: string;
+  nested?: boolean;
 }
 
-function ConditionsEditor({ group, previous, lang, onChange, newCondition, selfLabel }: CondProps) {
-  const setCond = (ci: number, patch: Partial<Condition>) =>
-    onChange({ ...group, conditions: group.conditions.map((c, i) => (i === ci ? { ...c, ...patch } : c)) });
+export function ConditionsEditor({ group, candidates, lang, onChange, nested }: CondProps) {
+  const setNode = (i: number, node: ConditionNode) => onChange({ ...group, conditions: group.conditions.map((n, k) => (k === i ? node : n)) });
+  const removeNode = (i: number) => onChange({ ...group, conditions: group.conditions.filter((_, k) => k !== i) });
+  const byId = new Map(candidates.map(c => [c.id, c]));
 
   return (
-    <div>
-      {group.conditions.length > 1 && (
+    <div className={`cond-group ${nested ? 'nested' : ''}`}>
+      {(group.conditions.length > 1 || nested) && (
         <div className="rule-row">
-          <span>Se cumple si</span>
+          <span>{nested ? 'Subgrupo:' : 'Se cumple si'}</span>
           <select className="glass-select" value={group.match} onChange={e => onChange({ ...group, match: e.target.value as 'all' | 'any' })}>
             <option value="all">todas</option>
             <option value="any">cualquiera</option>
@@ -130,47 +114,94 @@ function ConditionsEditor({ group, previous, lang, onChange, newCondition, selfL
           <span>de estas condiciones:</span>
         </div>
       )}
-      {group.conditions.map((c, ci) => {
-        const ref = previous.find(p => p.q.id === c.questionId);
-        const refQ = ref?.q;
-        const ops = refQ ? opsFor(refQ.type) : (['eq'] as ConditionOp[]);
+      {group.conditions.map((node, ci) => {
+        if (isGroup(node)) {
+          return (
+            <div key={ci} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <ConditionsEditor group={node} candidates={candidates} lang={lang} nested onChange={g => (g ? setNode(ci, g) : removeNode(ci))} />
+              </div>
+              <button className="btn btn-ghost btn-xs" onClick={() => removeNode(ci)} title="Quitar subgrupo">✕</button>
+            </div>
+          );
+        }
+        const c = node;
+        const ref = byId.get(c.questionId);
+        const ops = ref ? opsFor(ref.kind) : [];
         const needsValue = c.op !== 'empty' && c.op !== 'not_empty';
         return (
-          <div key={ci} className="rule-row">
+          <div key={ci} className={`rule-row ${ref ? '' : 'orphan'}`}>
+            {!ref && <span className="orphan-tag">⚠ pregunta eliminada:</span>}
             <select
               className="glass-select"
-              value={c.questionId}
+              value={ref ? c.questionId : '__orphan'}
               onChange={e => {
-                const nq = previous.find(p => p.q.id === e.target.value)?.q;
-                setCond(ci, { questionId: e.target.value, op: nq ? opsFor(nq.type)[0] : 'eq', value: nq ? defaultValue(nq) : '' });
+                const nc = byId.get(e.target.value);
+                if (!nc) return;
+                const op = opsFor(nc.kind)[0] ?? 'eq';
+                setNode(ci, { questionId: nc.id, op, value: defaultValueFor(nc, op) });
               }}
             >
-              {previous.map(({ q, i }, idx) => (
-                <option key={q.id} value={q.id}>{idx === 0 && selfLabel ? selfLabel : label(q, i, lang)}</option>
-              ))}
+              {!ref && <option value="__orphan">(elige otra pregunta)</option>}
+              {candidates.map(cand => <option key={cand.id} value={cand.id}>{cand.label}</option>)}
             </select>
-            <select className="glass-select" value={c.op} onChange={e => setCond(ci, { op: e.target.value as ConditionOp })}>
-              {ops.map(op => <option key={op} value={op}>{OP_LABEL[op]}</option>)}
-            </select>
-            {needsValue && refQ && <ValueInput q={refQ} lang={lang} value={c.value} onChange={v => setCond(ci, { value: v })} />}
-            <button className="btn btn-ghost btn-xs" onClick={() => onChange({ ...group, conditions: group.conditions.filter((_, i) => i !== ci) })}>✕</button>
+            {ref && (
+              <select className="glass-select" value={c.op} onChange={e => { const op = e.target.value as ConditionOp; setNode(ci, { ...c, op, value: needsValueFor(op) ? (sameKind(c.op, op) ? c.value : defaultValueFor(ref, op)) : undefined }); }}>
+                {ops.map(op => <option key={op} value={op}>{OP_LABEL[op]}</option>)}
+              </select>
+            )}
+            {ref && needsValue && <ValueInput cand={ref} op={c.op} value={c.value} onChange={v => setNode(ci, { ...c, value: v })} />}
+            <button className="btn btn-ghost btn-xs" onClick={() => removeNode(ci)}>✕</button>
           </div>
         );
       })}
-      {previous.length > 0 && (
-        <button
-          className="btn btn-ghost btn-xs"
-          onClick={() => { const c = newCondition(); if (c) onChange({ ...group, conditions: [...group.conditions, c] }); }}
-        >
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button className="btn btn-ghost btn-xs" onClick={() => { const c = newConditionFor(candidates[0]); if (c) onChange({ ...group, conditions: [...group.conditions, c] }); }}>
           + condición
         </button>
-      )}
+        {!nested && (
+          <button className="btn btn-ghost btn-xs" onClick={() => { const c = newConditionFor(candidates[0]); onChange({ ...group, conditions: [...group.conditions, { match: group.match === 'all' ? 'any' : 'all', conditions: c ? [c] : [] }] }); }}>
+            + subgrupo
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-function ValueInput({ q, lang, value, onChange }: { q: Question; lang: Lang; value: Condition['value']; onChange: (v: Condition['value']) => void }) {
-  if (q.type === 'yes_no' || q.type === 'legal') {
+const needsValueFor = (op: ConditionOp) => op !== 'empty' && op !== 'not_empty';
+const sameKind = (a: ConditionOp, b: ConditionOp) => {
+  const k = (op: ConditionOp) => (op === 'between' ? 'range' : op.startsWith('count_') || op.startsWith('age_') ? 'num' : op === 'before' || op === 'after' ? 'date' : 'val');
+  return k(a) === k(b);
+};
+
+function ValueInput({ cand, op, value, onChange }: { cand: Candidate; op: ConditionOp; value: ConditionValue | undefined; onChange: (v: ConditionValue) => void }) {
+  if (op === 'between') {
+    const [lo, hi] = Array.isArray(value) ? value : [0, 10];
+    return (
+      <>
+        <input className="input-field" type="number" style={{ minWidth: 70 }} value={lo} onChange={e => onChange([Number(e.target.value), hi])} />
+        <span>y</span>
+        <input className="input-field" type="number" style={{ minWidth: 70 }} value={hi} onChange={e => onChange([lo, Number(e.target.value)])} />
+      </>
+    );
+  }
+  if (op.startsWith('count_') || op.startsWith('age_')) {
+    return <input className="input-field" type="number" min={0} style={{ minWidth: 70 }} value={typeof value === 'number' ? value : ''} onChange={e => onChange(Number(e.target.value))} />;
+  }
+  if (op === 'before' || op === 'after') {
+    const isToday = value === '$today';
+    return (
+      <>
+        <select className="glass-select" value={isToday ? '$today' : 'date'} onChange={e => onChange(e.target.value === '$today' ? '$today' : '')}>
+          <option value="$today">hoy</option>
+          <option value="date">una fecha…</option>
+        </select>
+        {!isToday && <input className="input-field" type="date" value={String(value ?? '')} onChange={e => onChange(e.target.value)} />}
+      </>
+    );
+  }
+  if (cand.kind === 'yes_no' || cand.kind === 'legal') {
     return (
       <select className="glass-select" value={String(value)} onChange={e => onChange(e.target.value === 'true')}>
         <option value="true">Sí</option>
@@ -178,15 +209,18 @@ function ValueInput({ q, lang, value, onChange }: { q: Question; lang: Lang; val
       </select>
     );
   }
-  if (q.type === 'single_choice' || q.type === 'multiple_choice' || q.type === 'dropdown') {
+  if (cand.options?.length) {
     return (
       <select className="glass-select" value={String(value ?? '')} onChange={e => onChange(e.target.value)}>
-        {(q.options ?? []).map(o => <option key={o.id} value={o.id}>{text(o.label, lang) || '(sin texto)'}</option>)}
+        {cand.options.map(o => <option key={o.id} value={o.id}>{o.label || '(sin texto)'}</option>)}
       </select>
     );
   }
-  if (q.type === 'number' || q.type === 'rating') {
+  if (cand.kind === 'number' || cand.kind === 'rating') {
     return <input className="input-field" type="number" value={value === undefined ? '' : String(value)} onChange={e => onChange(e.target.value === '' ? '' : Number(e.target.value))} />;
+  }
+  if (cand.kind === 'date') {
+    return <input className="input-field" type="date" value={String(value ?? '')} onChange={e => onChange(e.target.value)} />;
   }
   return <input className="input-field" type="text" value={String(value ?? '')} onChange={e => onChange(e.target.value)} placeholder="valor" />;
 }

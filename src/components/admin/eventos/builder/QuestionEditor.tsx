@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { Question, QuestionType, Lang, Localized, Identity, ChoiceOption } from '../../../../lib/form-types';
-import { QUESTION_TYPES, TYPE_INFO, IDENTITY_LABEL, identityOptionsFor, isChoice, newOption, uid } from '../../../../lib/form-types';
+import type { Question, QuestionType, Lang, Localized, Identity, ChoiceOption, Ending, ConditionGroup } from '../../../../lib/form-types';
+import { QUESTION_TYPES, TYPE_INFO, IDENTITY_LABEL, identityOptionsFor, isChoice, newOption, uid, flattenConditions, opsFor } from '../../../../lib/form-types';
 import { uploadEventImage, removeEventImage } from '../../../../lib/images';
-import LogicEditor from './LogicEditor';
+import LogicEditor, { ConditionsEditor } from './LogicEditor';
+import { candidatesFor } from './logic-helpers';
 
 interface Props {
   question: Question;
@@ -10,6 +11,7 @@ interface Props {
   questions: Question[];
   langs: Lang[];
   eventId: string;
+  endings?: Ending[];
   onChange: (q: Question) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -17,7 +19,7 @@ interface Props {
 
 const LANG_TAG: Record<Lang, string> = { es: 'ES', en: 'EN' };
 
-export default function QuestionEditor({ question: q, index, questions, langs, eventId, onChange, onDelete, onDuplicate }: Props) {
+export default function QuestionEditor({ question: q, index, questions, langs, eventId, endings = [], onChange, onDelete, onDuplicate }: Props) {
   const info = TYPE_INFO[q.type];
   const set = (patch: Partial<Question>) => onChange({ ...q, ...patch });
   const setLoc = (field: 'title' | 'description' | 'placeholder' | 'buttonLabel', lang: Lang, value: string) =>
@@ -27,6 +29,11 @@ export default function QuestionEditor({ question: q, index, questions, langs, e
   const usedIdentities = new Set(questions.filter(x => x.id !== q.id && x.identity).map(x => x.identity as Identity));
 
   function changeType(type: QuestionType) {
+    // Condiciones de otras preguntas que dependen de esta y dejarían de tener sentido
+    const dependents = questions.filter(x => x.id !== q.id && [
+      ...flattenConditions(x.showIf), ...(x.logic ?? []).flatMap(r => flattenConditions(r)), ...(x.options ?? []).flatMap(o => flattenConditions(o.showIf)),
+    ].some(c => c.questionId === q.id && !opsFor(type).includes(c.op)));
+    if (dependents.length && !confirm(`Al cambiar el tipo, ${dependents.length} condición(es) en otras preguntas (${dependents.map(d => `#${questions.indexOf(d) + 1}`).join(', ')}) dejarán de ser válidas y el linter las marcará. ¿Continuar?`)) return;
     const next: Question = { ...q, type };
     if (isChoice(type) && !next.options?.length) next.options = [newOption(langs, 'Opción 1', 'Option 1'), newOption(langs, 'Opción 2', 'Option 2')];
     if (!identityOptionsFor(type).includes(next.identity as Identity)) next.identity = null;
@@ -75,7 +82,7 @@ export default function QuestionEditor({ question: q, index, questions, langs, e
       )}
 
       {isChoice(q.type) && (
-        <OptionsEditor q={q} langs={langs} eventId={eventId} onChange={set} />
+        <OptionsEditor q={q} langs={langs} eventId={eventId} questions={questions} index={index} onChange={set} />
       )}
 
       {q.type === 'number' && (
@@ -121,7 +128,34 @@ export default function QuestionEditor({ question: q, index, questions, langs, e
         </div>
       )}
 
-      <LogicEditor question={q} index={index} questions={questions} lang={langs[0]} onChange={onChange} />
+      <div className="editor-section">
+        <h4>Avanzado</h4>
+        <div className="field-grid">
+          {q.type !== 'hidden' && (
+            <div className="input-group">
+              <label className="input-label">Prellenar desde la URL (parámetro)</label>
+              <input className="input-field" value={q.key ?? ''} onChange={e => set({ key: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') || undefined })} placeholder="ej. empresa" />
+              <div className="text-muted text-xs">registro.we.page/evento?<b>{q.key || 'empresa'}</b>=Acme</div>
+            </div>
+          )}
+          <div className="input-group">
+            <label className="input-label">Sección (solo para la vista de flujo)</label>
+            <input className="input-field" value={q.section ?? ''} onChange={e => set({ section: e.target.value || undefined })} placeholder="ej. Datos de contacto" list="section-names" />
+            <datalist id="section-names">{Array.from(new Set(questions.map(x => x.section).filter(Boolean))).map(sec => <option key={sec} value={sec} />)}</datalist>
+          </div>
+        </div>
+        {q.key && q.type !== 'hidden' && (
+          <Switch label="Saltar si llegó prellenada" hint="Si la URL ya trae el valor, el invitado no ve esta pregunta." checked={!!q.skipIfPrefilled} onChange={v => set({ skipIfPrefilled: v })} />
+        )}
+        {q.type === 'yes_no' && (
+          <div className="switch-row">
+            <div>Puntos si responde Sí<small>Suma al puntaje ($score) que puedes usar en condiciones.</small></div>
+            <input className="input-field" type="number" style={{ width: 80, padding: '6px 0' }} value={q.score ?? ''} onChange={e => set({ score: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          </div>
+        )}
+      </div>
+
+      <LogicEditor question={q} index={index} questions={questions} lang={langs[0]} endings={endings} onChange={onChange} />
     </div>
   );
 }
@@ -188,8 +222,10 @@ function ImageRow({ eventId, value, onChange }: { eventId: string; value: string
   );
 }
 
-function OptionsEditor({ q, langs, eventId, onChange }: { q: Question; langs: Lang[]; eventId: string; onChange: (p: Partial<Question>) => void }) {
+function OptionsEditor({ q, langs, eventId, questions, index, onChange }: { q: Question; langs: Lang[]; eventId: string; questions: Question[]; index: number; onChange: (p: Partial<Question>) => void }) {
   const options = q.options ?? [];
+  const [advanced, setAdvanced] = useState<string | null>(null);
+  const candidates = candidatesFor(questions, index, langs[0]);
   const setOpts = (o: ChoiceOption[]) => onChange({ options: o });
   const update = (i: number, patch: Partial<ChoiceOption>) => setOpts(options.map((o, k) => (k === i ? { ...o, ...patch } : o)));
   const move = (i: number, d: -1 | 1) => {
@@ -236,11 +272,30 @@ function OptionsEditor({ q, langs, eventId, onChange }: { q: Question; langs: La
               <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => upload(i, e.target.files?.[0])} />
             </label>
           )}
+          <button className={`btn btn-ghost btn-xs ${o.showIf?.conditions.length || o.score ? 'active' : ''}`} title="Puntos y condición" onClick={() => setAdvanced(advanced === o.id ? null : o.id)} style={o.showIf?.conditions.length || o.score ? { color: 'var(--color-primary-deep)' } : undefined}>⚙</button>
           <button className="btn btn-ghost btn-xs" onClick={() => move(i, -1)} disabled={i === 0}>↑</button>
           <button className="btn btn-ghost btn-xs" onClick={() => move(i, 1)} disabled={i === options.length - 1}>↓</button>
           <button className="btn btn-ghost btn-xs" onClick={() => setOpts(options.filter((_, k) => k !== i))}>✕</button>
         </div>
-      ))}
+      )).flatMap((row, i) => {
+        const o = options[i];
+        if (advanced !== o.id) return [row];
+        return [row, (
+          <div key={`${o.id}-adv`} className="rule-card" style={{ marginLeft: 26 }}>
+            <div className="rule-row">
+              <span>Puntos al elegirla</span>
+              <input className="input-field" type="number" style={{ minWidth: 70 }} value={o.score ?? ''} onChange={e => update(i, { score: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="0" />
+            </div>
+            <div className="text-muted text-xs" style={{ margin: '6px 0 4px' }}>Ofrecer esta opción solo si…</div>
+            <ConditionsEditor
+              group={o.showIf ?? { match: 'all', conditions: [] }}
+              candidates={candidates}
+              lang={langs[0]}
+              onChange={(g: ConditionGroup | null) => update(i, { showIf: g && g.conditions.length ? g : null })}
+            />
+          </div>
+        )];
+      })}
       <button className="btn btn-secondary btn-xs" onClick={add}>+ Opción</button>
 
       <div style={{ marginTop: 10 }}>

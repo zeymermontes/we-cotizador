@@ -3,7 +3,7 @@
 // para que navegador y edge function compartan exactamente el mismo código.
 
 export * from '../../supabase/functions/_shared/form-engine.ts';
-import type { Question, QuestionType, Identity, ConditionOp, Lang, Localized, ChoiceOption, AnswerError } from '../../supabase/functions/_shared/form-engine.ts';
+import { opsForType, type Question, type QuestionType, type Identity, type ConditionOp, type Lang, type Localized, type ChoiceOption, type AnswerError } from '../../supabase/functions/_shared/form-engine.ts';
 
 export interface QuestionTypeInfo {
   type: QuestionType;
@@ -63,20 +63,19 @@ export const OP_LABEL: Record<ConditionOp, string> = {
   lt: 'es menor que',
   gte: 'es mayor o igual que',
   lte: 'es menor o igual que',
+  between: 'está entre',
   empty: 'está vacía',
   not_empty: 'tiene respuesta',
+  count_eq: 'eligió exactamente',
+  count_gte: 'eligió al menos',
+  count_lte: 'eligió como máximo',
+  before: 'es antes de',
+  after: 'es después de',
+  age_gte: 'edad mayor o igual a',
+  age_lte: 'edad menor o igual a',
 };
 
-export function opsFor(type: QuestionType): ConditionOp[] {
-  switch (type) {
-    case 'single_choice': case 'dropdown': case 'yes_no': return ['eq', 'neq', 'empty', 'not_empty'];
-    case 'multiple_choice': return ['contains', 'not_contains', 'empty', 'not_empty'];
-    case 'number': case 'rating': return ['eq', 'neq', 'gt', 'lt', 'gte', 'lte', 'empty', 'not_empty'];
-    case 'legal': return ['eq', 'empty', 'not_empty'];
-    case 'statement': return [];
-    default: return ['eq', 'neq', 'contains', 'not_contains', 'empty', 'not_empty'];
-  }
-}
+export const opsFor = (type: QuestionType | 'choice' | 'number' | 'date'): ConditionOp[] => opsForType(type);
 
 export const ERROR_TEXT: Record<Lang, Record<AnswerError, string>> = {
   es: {

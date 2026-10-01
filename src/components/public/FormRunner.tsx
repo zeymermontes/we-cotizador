@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { PublicEvent } from '../../lib/events-types';
 import { pickLocalized } from '../../lib/events-types';
 import {
-  type FormSchema, type Answers, type AnswerValue, type Lang, type AnswerError,
-  resolveFlow, validateAnswer, extractIdentity, text, isEmpty,
+  type FormSchema, type Answers, type AnswerValue, type Lang, type AnswerError, type Question, type EvalContext,
+  resolveFlowDetailed, validateAnswer, extractIdentity, computeScore, text, isEmpty,
   ERROR_TEXT, RUNNER_TEXT,
 } from '../../lib/form-types';
 import QuestionInput from './QuestionInput';
@@ -24,6 +24,19 @@ interface Props {
 type Stage = 'welcome' | 'questions' | 'submitting' | 'done' | 'error';
 
 interface Saved { answers: Answers; step: number; stage: Stage; submissionId: string }
+
+/** Convierte un valor de la URL al tipo de la pregunta (opciones por id o por texto). */
+function coerceFromUrl(q: Question, raw: string): AnswerValue {
+  const v = raw.trim();
+  const findOpt = (s: string) => (q.options ?? []).find(o => o.id === s || Object.values(o.label).some(l => (l ?? '').trim().toLowerCase() === s.toLowerCase()))?.id;
+  switch (q.type) {
+    case 'number': case 'rating': { const n = Number(v); return Number.isFinite(n) ? n : null; }
+    case 'yes_no': case 'legal': return ['1', 'true', 'si', 'sí', 'yes'].includes(v.toLowerCase());
+    case 'single_choice': case 'dropdown': return findOpt(v) ?? (q.allowOther ? `other:${v}` : null);
+    case 'multiple_choice': return v.split(',').map(x => findOpt(x.trim())).filter((x): x is string => !!x);
+    default: return v.slice(0, 500);
+  }
+}
 
 const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
@@ -49,10 +62,17 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
   const saved = useMemo(() => load(storageKey), [storageKey]);
 
   const [stage, setStage] = useState<Stage>(saved?.stage === 'questions' ? 'questions' : 'welcome');
+  const prefilled = useMemo(() => {
+    const set = new Set<string>();
+    for (const q of schema.questions) if (q.key && hiddenValues?.[q.key] !== undefined && hiddenValues[q.key] !== '') set.add(q.id);
+    return set;
+  }, [schema, hiddenValues]);
   const [answers, setAnswers] = useState<Answers>(() => {
     const base: Answers = { ...(saved?.answers ?? {}) };
     for (const q of schema.questions) {
-      if (q.type === 'hidden' && q.key && hiddenValues?.[q.key] !== undefined) base[q.id] = hiddenValues[q.key];
+      if (q.key && hiddenValues?.[q.key] !== undefined && hiddenValues[q.key] !== '' && isEmpty(base[q.id])) {
+        base[q.id] = coerceFromUrl(q, hiddenValues[q.key]);
+      }
     }
     return base;
   });
@@ -63,7 +83,9 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
   const commitTimer = useRef<number | null>(null);
 
   const byId = useMemo(() => new Map(schema.questions.map(q => [q.id, q])), [schema]);
-  const path = useMemo(() => resolveFlow(schema, answers), [schema, answers]);
+  const flow = useMemo(() => resolveFlowDetailed(schema, answers, { lang, prefilled }), [schema, answers, lang, prefilled]);
+  const path = flow.path;
+  const ctx: EvalContext = useMemo(() => ({ lang, score: computeScore(schema, answers) }), [lang, schema, answers]);
   const safeStep = Math.min(step, Math.max(0, path.length - 1));
   const currentId = path[safeStep];
   const current = currentId ? byId.get(currentId) : undefined;
@@ -103,12 +125,12 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
   const goNext = useCallback((override?: Answers) => {
     if (!current) return;
     const a = override ?? answers;
-    const err = validateAnswer(current, a[current.id]);
+    const err = validateAnswer(current, a[current.id], a, ctx);
     if (err) { setError(err); return; }
     if (isLast) { submit(a); return; }
     setError(null);
     setStep(s => s + 1);
-  }, [current, answers, isLast, submit]);
+  }, [current, answers, isLast, submit, ctx]);
 
   const goBack = () => { if (safeStep > 0) { setError(null); setStep(safeStep - 1); } };
 
@@ -187,11 +209,14 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
 
   if (stage === 'done') {
     const th = event.screens?.thank_you;
+    const ending = flow.endingId ? (schema.settings.endings ?? []).find(e => e.id === flow.endingId) : undefined;
+    const title = ending ? fill(text(ending.title, lang, copy.thanks)) : fill(pickLocalized(th?.title, lang, copy.thanks));
+    const subtitle = ending ? fill(text(ending.subtitle, lang)) : fill(pickLocalized(th?.subtitle, lang, copy.thanksSub));
     return (
       <div className="reg-thanks animate-fade-in">
         <div className="reg-check">✓</div>
-        <h1>{fill(pickLocalized(th?.title, lang, copy.thanks)).replace(/, !$/, '!')}</h1>
-        <p>{fill(pickLocalized(th?.subtitle, lang, copy.thanksSub))}</p>
+        <h1>{title.replace(/, !$/, '!')}</h1>
+        {subtitle && <p>{subtitle}</p>}
       </div>
     );
   }
@@ -243,6 +268,8 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
               q={current}
               value={answers[current.id]}
               lang={lang}
+              answers={answers}
+              ctx={ctx}
               keyboard={schema.settings.keyboardShortcuts}
               onChange={setAnswer}
               onCommit={commit}
