@@ -55,7 +55,7 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
     <form className="section-card" onSubmit={save}>
       <h3>Textos de pantallas</h3>
       <p className="section-hint">
-        Desmarca un elemento para ocultarlo. En Estilo: negritas, cursiva, subrayado, mayúsculas, color (clic derecho lo quita), familia y tamaño en píxeles; lo que dejes vacío usa el branding. Textos vacíos usan el texto por defecto. Puedes usar <code>{'{{evento}}'}</code> y, en el mensaje de enviado, <code>{'{{nombre}}'}</code>.
+        Desmarca un elemento para ocultarlo. En Estilo: negritas, cursiva, subrayado, mayúsculas, color (clic derecho lo quita), familia, opacidad en % y tamaño en píxeles; lo que dejes vacío usa el branding. Textos vacíos usan el texto por defecto. Puedes usar <code>{'{{evento}}'}</code> y, en el mensaje de enviado, <code>{'{{nombre}}'}</code>.
       </p>
 
       {SCREENS.map(sc => (
@@ -112,8 +112,21 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
                           <option value="body">Texto</option>
                         </select>
                       </>
-                    ) : <span className="text-muted text-xs">solo tamaño</span>}
-                    <span className="screen-el-size">
+                    ) : null}
+                    <span className="screen-el-size" title="Opacidad (100 = sólido)">
+                      <input
+                        className="input-field"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={style?.opacity ?? ''}
+                        placeholder="100"
+                        onChange={e => setElement(sc.key, el.key, { opacity: e.target.value === '' ? undefined : Math.max(0, Math.min(100, Number(e.target.value))) })}
+                        disabled={!shown}
+                      />
+                      %
+                    </span>
+                    <span className="screen-el-size" title="Tamaño en píxeles">
                       <input
                         className="input-field"
                         type="number"

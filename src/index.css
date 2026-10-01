@@ -2787,7 +2787,7 @@ h6 {
 .screen-el-color.auto span { background: linear-gradient(135deg, transparent 45%, var(--border-default) 45%, var(--border-default) 55%, transparent 55%) !important; }
 .screen-el-font { padding: 4px 26px 4px 8px; font-size: 12px; background-position: right 8px center; }
 .screen-el-size { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--text-muted); }
-.screen-el-size .input-field { width: 64px; text-align: right; padding: 4px 6px; }
+.screen-el-size .input-field { width: 58px; text-align: right; padding: 4px 6px; }
 @media (max-width: 720px) {
   .screen-el-head { display: none; }
   .screen-el-row { grid-template-columns: 36px 1fr; }

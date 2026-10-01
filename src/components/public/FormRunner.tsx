@@ -199,7 +199,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     return (
       <div className="reg-welcome animate-fade-in">
         {elementShown(w, 'logo') && event.branding?.logo_url && (
-          <img src={event.branding.logo_url} alt="" className="branded-logo" style={logoSize ? { maxHeight: logoSize } : undefined} />
+          <img src={event.branding.logo_url} alt="" className="branded-logo" style={{ ...(logoSize ? { maxHeight: logoSize } : {}), ...elementFont(w, 'logo') }} />
         )}
         {elementShown(w, 'title') && <h1 style={elementFont(w, 'title')}>{fill(pickLocalized(w?.title, lang, copy.welcome))}</h1>}
         {(showDate || showVenue) && (
@@ -227,7 +227,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     return (
       <div className="reg-thanks animate-fade-in">
         {elementShown(th, 'check') && (
-          <div className="reg-check" style={checkSize ? { width: checkSize, height: checkSize, fontSize: checkSize * 0.45 } : undefined}>✓</div>
+          <div className="reg-check" style={{ ...(checkSize ? { width: checkSize, height: checkSize, fontSize: checkSize * 0.45 } : {}), ...elementFont(th, 'check') }}>✓</div>
         )}
         {elementShown(th, 'title') && <h1 style={elementFont(th, 'title')}>{title.replace(/, !$/, '!')}</h1>}
         {elementShown(th, 'subtitle') && subtitle && <p style={elementFont(th, 'subtitle')}>{subtitle}</p>}

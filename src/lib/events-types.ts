@@ -69,6 +69,8 @@ export interface ElementStyle {
   underline?: boolean;
   /** color hex; vacío usa el color de texto del branding */
   color?: string;
+  /** opacidad 0–100; vacío usa la del diseño */
+  opacity?: number;
   /** familia: la de títulos o la de texto del branding */
   font?: 'display' | 'body';
   uppercase?: boolean;
@@ -140,6 +142,7 @@ export function elementFont(copy: ScreenCopy | undefined, key: string): CSSPrope
   if (st.underline) out.textDecoration = 'underline';
   if (st.uppercase) out.textTransform = 'uppercase';
   if (st.color && /^#[0-9a-f]{6}$/i.test(st.color)) out.color = st.color;
+  if (typeof st.opacity === 'number' && st.opacity >= 0 && st.opacity <= 100) out.opacity = st.opacity / 100;
   if (st.font === 'display') out.fontFamily = "var(--brand-font-display, 'Playfair Display'), serif";
   if (st.font === 'body') out.fontFamily = "var(--brand-font-body, 'Inter'), sans-serif";
   return Object.keys(out).length ? out : undefined;
