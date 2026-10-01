@@ -134,7 +134,12 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     setStep(s => s + 1);
   }, [current, answers, isLast, submit, ctx]);
 
-  const goBack = () => { if (safeStep > 0) { setError(null); setStep(safeStep - 1); } };
+  /** Atrás: pregunta anterior o, desde la primera, la bienvenida (las respuestas se conservan). */
+  const goBack = () => {
+    setError(null);
+    if (safeStep > 0) setStep(safeStep - 1);
+    else setStage('welcome');
+  };
 
   /** Opción cerrada: pequeña pausa para que se vea la selección y avanza. */
   const commit = () => {
@@ -296,9 +301,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
 
       <div className="reg-footer">
         <div>
-          {safeStep > 0 ? (
-            <button className="btn btn-secondary btn-sm" onClick={goBack} disabled={submitting}>← {t.back}</button>
-          ) : <span />}
+          <button className="btn btn-secondary btn-sm" onClick={goBack} disabled={submitting}>← {t.back}</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="reg-hint no-mobile">{isLongText ? t.press_cmd_enter : t.press_enter}</span>
