@@ -21,6 +21,8 @@ export interface EventBranding {
   logo_url?: string | null;
   background_url?: string | null;
   primary?: string;
+  /** Texto del botón principal (por defecto, el color de texto) */
+  button_text?: string | null;
   background?: string;
   surface?: string;
   text?: string;
@@ -33,6 +35,7 @@ export const DEFAULT_BRANDING: Required<EventBranding> = {
   logo_url: null,
   background_url: null,
   primary: '#BBEBE8',
+  button_text: null,
   background: '#f0eeeb',
   surface: '#ffffff',
   text: '#1a1a1a',
@@ -43,6 +46,9 @@ export const DEFAULT_BRANDING: Required<EventBranding> = {
 
 export const FONT_OPTIONS = [
   'Playfair Display',
+  'Caudex',
+  'Cinzel',
+  'EB Garamond',
   'Cormorant Garamond',
   'DM Serif Display',
   'Inter',

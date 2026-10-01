@@ -2133,7 +2133,7 @@ h6 {
   justify-content: center;
   gap: 8px;
   background: var(--brand-primary, #BBEBE8);
-  color: var(--brand-text, #1a1a1a);
+  color: var(--brand-button-text, var(--brand-text, #1a1a1a));
   border: none;
   border-radius: var(--brand-radius, 12px);
   padding: 14px 28px;
@@ -2201,7 +2201,7 @@ h6 {
   --font-display: var(--brand-font-display), Georgia, serif;
   --font-sans: var(--brand-font-body), -apple-system, sans-serif;
 }
-.branded-page .btn-primary { color: var(--brand-text); border-radius: var(--brand-radius); }
+.branded-page .btn-primary { color: var(--brand-button-text, var(--brand-text)); border-radius: var(--brand-radius); }
 .branded-page .btn-secondary { border-radius: var(--brand-radius); }
 .branded-page .option-card { border-radius: var(--brand-radius); }
 .branded-page .option-card.selected { box-shadow: 0 8px 24px var(--color-primary-glow); }

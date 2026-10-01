@@ -9,6 +9,7 @@ export function brandingStyle(b: EventBranding | undefined): CSSProperties {
     '--brand-bg': m.background,
     '--brand-surface': m.surface,
     '--brand-text': m.text,
+    '--brand-button-text': m.button_text || m.text,
     '--brand-font-display': `'${m.font_display}'`,
     '--brand-font-body': `'${m.font_body}'`,
     '--brand-radius': `${m.button_radius}px`,

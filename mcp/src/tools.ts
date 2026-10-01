@@ -198,6 +198,44 @@ export function registerTools(server: McpServer) {
     return data;
   }));
 
+  server.registerTool('set_event_image', {
+    title: 'Poner logo o fondo del evento',
+    description: 'Descarga una imagen desde una URL (o la lee de un archivo local), la sube al bucket del evento y la deja como logo o fondo del branding. Máximo 3 MB; jpg, png, webp o svg.',
+    inputSchema: {
+      event: z.string(),
+      kind: z.enum(['logo', 'background']),
+      source_url: z.string().optional().describe('URL pública de la imagen'),
+      file_path: z.string().optional().describe('Ruta local absoluta (alternativa a source_url)'),
+    },
+  }, wrap('set_event_image', async (a) => {
+    const c = await getClient();
+    const ev = await findEvent(a.event);
+    let bytes: Uint8Array; let contentType = '';
+    if (a.source_url) {
+      const res = await fetch(a.source_url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!res.ok) throw new McpError(`No pude descargar la imagen (${res.status})`);
+      contentType = res.headers.get('content-type')?.split(';')[0] ?? '';
+      bytes = new Uint8Array(await res.arrayBuffer());
+    } else if (a.file_path) {
+      const { readFile } = await import('node:fs/promises');
+      bytes = new Uint8Array(await readFile(a.file_path));
+      const ext = a.file_path.split('.').pop()?.toLowerCase();
+      contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'svg' ? 'image/svg+xml' : 'image/jpeg';
+    } else throw new McpError('Indica source_url o file_path.');
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'].includes(contentType)) throw new McpError(`Tipo no permitido: ${contentType || 'desconocido'}`);
+    if (bytes.byteLength > 3 * 1024 * 1024) throw new McpError('La imagen pesa más de 3 MB; comprímela primero.');
+    const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : contentType === 'image/svg+xml' ? 'svg' : 'jpg';
+    const path = `${ev.id}/${a.kind}/${a.kind}-${Date.now()}.${ext}`;
+    const { error } = await c.storage.from('event-assets').upload(path, bytes, { contentType, cacheControl: '31536000', upsert: false });
+    if (error) throw new McpError(error.message);
+    const { data: pub } = c.storage.from('event-assets').getPublicUrl(path);
+    const key = a.kind === 'logo' ? 'logo_url' : 'background_url';
+    const branding = { ...(ev.branding ?? {}), [key]: pub.publicUrl };
+    const { error: uErr } = await c.from('events').update({ branding }).eq('id', ev.id);
+    if (uErr) throw new McpError(uErr.message);
+    return { [key]: pub.publicUrl, bytes: bytes.byteLength, contentType };
+  }));
+
   // ─── Formulario ──────────────────────────────────────────
   server.registerTool('get_form', {
     title: 'Ver formulario',

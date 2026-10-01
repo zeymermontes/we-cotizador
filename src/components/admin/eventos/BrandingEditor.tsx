@@ -59,7 +59,8 @@ export default function BrandingEditor({ event, onSave }: Props) {
           </div>
 
           <div className="field-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 16 }}>
-            <ColorField label="Color principal" value={b.primary} onChange={v => set('primary', v)} />
+            <ColorField label="Botón" value={b.primary} onChange={v => set('primary', v)} />
+            <ColorField label="Texto del botón" value={b.button_text || b.text} onChange={v => set('button_text', v)} />
             <ColorField label="Fondo" value={b.background} onChange={v => set('background', v)} />
             <ColorField label="Tarjeta" value={b.surface} onChange={v => set('surface', v)} />
             <ColorField label="Texto" value={b.text} onChange={v => set('text', v)} />
@@ -68,15 +69,11 @@ export default function BrandingEditor({ event, onSave }: Props) {
           <div className="field-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 16 }}>
             <div className="input-group">
               <label className="input-label">Fuente de títulos</label>
-              <select className="glass-select" value={b.font_display} onChange={e => set('font_display', e.target.value)}>
-                {FONT_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+              <FontSelect value={b.font_display} onChange={v => set('font_display', v)} />
             </div>
             <div className="input-group">
               <label className="input-label">Fuente de texto</label>
-              <select className="glass-select" value={b.font_body} onChange={e => set('font_body', e.target.value)}>
-                {FONT_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+              <FontSelect value={b.font_body} onChange={v => set('font_body', v)} />
             </div>
           </div>
 
@@ -101,7 +98,7 @@ export default function BrandingEditor({ event, onSave }: Props) {
               {b.logo_url && <img src={b.logo_url} alt="" className="branded-logo" />}
               <h2 style={{ fontFamily: `'${b.font_display}', serif`, fontWeight: 500, marginBottom: 6 }}>{event.name}</h2>
               <p style={{ fontSize: 14, opacity: 0.7, marginBottom: 16 }}>Regístrate para recibir tu invitación.</p>
-              <button type="button" className="branded-btn" style={{ background: b.primary, color: b.text, borderRadius: b.button_radius }}>
+              <button type="button" className="branded-btn" style={{ background: b.primary, color: b.button_text || b.text, borderRadius: b.button_radius }}>
                 Comenzar →
               </button>
             </div>
@@ -121,6 +118,24 @@ export default function BrandingEditor({ event, onSave }: Props) {
 }
 
 // ─── Campos ──────────────────────────────────────────────────
+
+/** Lista de fuentes conocidas + cualquier familia de Google Fonts escrita a mano. */
+function FontSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const known = (FONT_OPTIONS as readonly string[]).includes(value);
+  const [custom, setCustom] = useState(!known);
+  return custom ? (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <input className="input-field" value={value} onChange={e => onChange(e.target.value)} placeholder="Nombre en Google Fonts" />
+      <button type="button" className="btn btn-ghost btn-xs" onClick={() => { setCustom(false); if (!known) onChange(FONT_OPTIONS[0]); }}>Lista</button>
+    </div>
+  ) : (
+    <select className="glass-select" value={value} onChange={e => { if (e.target.value === '__custom') setCustom(true); else onChange(e.target.value); }}>
+      {FONT_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+      <option value="__custom">Otra de Google Fonts…</option>
+    </select>
+  );
+}
+
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [text, setText] = useState(value);
