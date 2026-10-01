@@ -2287,7 +2287,9 @@ h6 {
 .reg-welcome { text-align: center; padding: 48px 32px; margin: auto; }
 .reg-welcome h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); margin-bottom: 12px; }
 .reg-welcome p { opacity: 0.75; margin-bottom: 28px; white-space: pre-line; }
-.reg-welcome .reg-meta { font-size: var(--text-sm); opacity: 0.6; margin-bottom: 20px; }
+.reg-welcome .reg-meta { font-size: var(--text-sm); margin-bottom: 20px; }
+/* La atenuación va en cada texto, no en la fila: así la opacidad por elemento sí puede llegar a 100 % */
+.reg-welcome .reg-meta > span { opacity: 0.6; }
 .reg-thanks { text-align: center; padding: 56px 32px; margin: auto; }
 .reg-thanks .reg-check {
   width: 64px; height: 64px; border-radius: 50%;

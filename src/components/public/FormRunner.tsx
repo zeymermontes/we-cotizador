@@ -205,7 +205,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
         {(showDate || showVenue) && (
           <div className="reg-meta">
             {showDate && <span style={elementFont(w, 'date')}>{dateStr}</span>}
-            {showDate && showVenue && ' · '}
+            {showDate && showVenue && <span className="reg-meta-sep"> · </span>}
             {showVenue && <span style={elementFont(w, 'venue')}>{event.venue}</span>}
           </div>
         )}
