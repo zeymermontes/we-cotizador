@@ -103,36 +103,80 @@ function buildGraph(schema: FormSchema, lang: Lang, selectedId: string | null): 
   });
   nodes.push({ id: 'end', type: 'q', position: { x: 0, y: 0 }, data: { kind: 'end', title: 'Enviar · Gracias' } });
 
-  const nextOf = (i: number) => (i + 1 < steps.length ? steps[i + 1].id : 'end');
-  if (steps.length) edges.push({ id: 'e-start', source: 'start', target: steps[0].id, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } });
+  const MULTI = new Set(['multiple_choice']);
+
+  /** Dos grupos "solo si" que no pueden cumplirse a la vez (misma pregunta, valores distintos). */
+  const exclusive = (a: ConditionGroup, b: ConditionGroup): boolean => {
+    if (a.match === 'any' && a.conditions.length > 1) return false;
+    if (b.match === 'any' && b.conditions.length > 1) return false;
+    for (const ca of a.conditions) for (const cb of b.conditions) {
+      if (ca.questionId !== cb.questionId) continue;
+      const q = byId.get(ca.questionId);
+      if (!q || MULTI.has(q.type)) continue;
+      const va = String(ca.value); const vb = String(cb.value);
+      if (ca.op === 'eq' && cb.op === 'eq' && va !== vb) return true;
+      if ((ca.op === 'eq' && cb.op === 'neq' && va === vb) || (ca.op === 'neq' && cb.op === 'eq' && va === vb)) return true;
+      if ((ca.op === 'empty' && cb.op === 'not_empty') || (ca.op === 'not_empty' && cb.op === 'empty')) return true;
+    }
+    return false;
+  };
+
+  /**
+   * Salidas de la pregunta i: cada pregunta posterior con "solo si" es una
+   * rama etiquetada (hasta topar con una pregunta incondicional, que es la
+   * salida por defecto). Las ramas hermanas excluyentes no se enlazan.
+   */
+  const successors = (i: number): { target: string; label?: string }[] => {
+    const from = steps[i];
+    const out: { target: string; label?: string }[] = [];
+    for (let j = i + 1; j < steps.length; j++) {
+      const q = steps[j];
+      if (q.showIf?.conditions.length) {
+        if (from.showIf?.conditions.length && exclusive(from.showIf, q.showIf)) continue;
+        out.push({ target: q.id, label: `si ${groupText(q.showIf, byId, lang)}` });
+        continue;
+      }
+      out.push({ target: q.id });
+      return out;
+    }
+    out.push({ target: 'end' });
+    return out;
+  };
+
+  const firstTargets = steps.length ? [steps[0]] : [];
+  if (firstTargets.length) edges.push({ id: 'e-start', source: 'start', target: steps[0].id, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } });
   else edges.push({ id: 'e-start-end', source: 'start', target: 'end', type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } });
 
   steps.forEach((q, i) => {
+    let colorIdx = 0;
     const rules = (q.logic ?? []).filter(r => r.conditions.length > 0);
-    rules.forEach((r, ri) => {
-      const color = COLORS[ri % COLORS.length];
+    rules.forEach(r => {
+      const color = COLORS[colorIdx++ % COLORS.length];
       edges.push({
         id: `j-${q.id}-${r.id}`, source: q.id, target: byId.has(r.jumpTo) || r.jumpTo === 'end' ? r.jumpTo : 'end',
-        type: 'smoothstep', label: `si ${groupText(r, byId, lang)}`, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 },
+        type: 'smoothstep', label: `salta si ${groupText(r, byId, lang)}`, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 },
         labelBgStyle: { fill: '#fff', fillOpacity: 0.9 }, style: { stroke: color, strokeWidth: 1.6 },
         markerEnd: { type: MarkerType.ArrowClosed, color },
       });
     });
-    edges.push({
-      id: `n-${q.id}`, source: q.id, target: nextOf(i), type: 'smoothstep',
-      label: rules.length ? 'si no' : undefined, labelStyle: { fill: '#999', fontSize: 10 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
-      style: { stroke: '#b5b5b5' }, markerEnd: { type: MarkerType.ArrowClosed, color: '#b5b5b5' },
+    const outs = successors(i);
+    const branching = rules.length > 0 || outs.some(o => o.label);
+    outs.forEach(o => {
+      if (o.label) {
+        const color = COLORS[colorIdx++ % COLORS.length];
+        edges.push({
+          id: `b-${q.id}-${o.target}`, source: q.id, target: o.target, type: 'smoothstep',
+          label: o.label, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
+          style: { stroke: color, strokeWidth: 1.6 }, markerEnd: { type: MarkerType.ArrowClosed, color },
+        });
+      } else {
+        edges.push({
+          id: `n-${q.id}-${o.target}`, source: q.id, target: o.target, type: 'smoothstep',
+          label: branching ? 'si no' : undefined, labelStyle: { fill: '#999', fontSize: 10 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
+          style: { stroke: '#b5b5b5' }, markerEnd: { type: MarkerType.ArrowClosed, color: '#b5b5b5' },
+        });
+      }
     });
-    // showIf: línea punteada desde la pregunta que condiciona
-    for (const c of q.showIf?.conditions ?? []) {
-      if (!byId.has(c.questionId)) continue;
-      edges.push({
-        id: `s-${c.questionId}-${q.id}-${c.op}-${String(c.value)}`, source: c.questionId, target: q.id, type: 'smoothstep',
-        style: { stroke: '#d97706', strokeDasharray: '5 4', strokeWidth: 1.4 }, animated: true,
-        label: condText(c, byId, lang), labelStyle: { fill: '#b45309', fontSize: 10 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#d97706' },
-      });
-    }
   });
 
   // Acomodo automático
@@ -145,8 +189,7 @@ function buildGraph(schema: FormSchema, lang: Lang, selectedId: string | null): 
     const h = d.kind === 'question' || d.kind === 'hidden' ? 56 + lines * 18 : 44;
     g.setNode(n.id, { width: NODE_W, height: h });
   }
-  // Solo las aristas de secuencia y salto definen el orden; las de showIf no
-  for (const e of edges) if (!e.id.startsWith('s-')) g.setEdge(e.source, e.target);
+  for (const e of edges) g.setEdge(e.source, e.target);
   dagre.layout(g);
   for (const n of nodes) {
     const p = g.node(n.id);
@@ -160,9 +203,8 @@ export default function FormFlow({ schema, lang, selectedId, onSelect }: Props) 
   return (
     <div className="flow-wrap">
       <div className="flow-legend">
-        <span><i className="leg solid" /> orden normal</span>
-        <span><i className="leg jump" /> salto condicional ("si …")</span>
-        <span><i className="leg showif" /> se muestra solo si …</span>
+        <span><i className="leg solid" /> siguiente (o "si no")</span>
+        <span><i className="leg jump" /> rama condicional: solo una salida se cumple</span>
         <span className="text-muted">Clic en una pregunta para editarla. Pronto: editable aquí mismo.</span>
       </div>
       <div className="flow-canvas">
