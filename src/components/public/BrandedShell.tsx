@@ -11,10 +11,12 @@ interface ShellProps {
   variant?: 'card' | 'form';
   /** Dentro del builder: sin document.title ni fuentes duplicadas. */
   embedded?: boolean;
-  children: ReactNode;
+  /** Cargando: solo fondo, logo si ya se conoce y un indicador suave. */
+  loading?: boolean;
+  children?: ReactNode;
 }
 
-export default function BrandedShell({ event, lang, onLang, title, variant = 'card', embedded, children }: ShellProps) {
+export default function BrandedShell({ event, lang, onLang, title, variant = 'card', embedded, loading, children }: ShellProps) {
   const b = event?.branding;
   const m = { ...DEFAULT_BRANDING, ...(b ?? {}) };
 
@@ -38,6 +40,15 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
       ))}
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="branded-page branded-loading" style={style} aria-busy="true">
+        {m.logo_url && <img src={m.logo_url} alt="" className="branded-logo" />}
+        <div className="branded-spinner" />
+      </div>
+    );
+  }
 
   return (
     <div className="branded-page" style={style}>

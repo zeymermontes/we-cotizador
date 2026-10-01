@@ -107,7 +107,7 @@ export default function RegistroPage() {
   }, [slug, lang, params]);
 
   if (state.status === 'loading' || (state.status === 'ready' && form.status === 'loading')) {
-    return <BrandedShell event={event}><ShellMessage title="…" /></BrandedShell>;
+    return <BrandedShell event={event ?? (state.status === 'loading' ? state.cached : null)} loading />;
   }
 
   if (state.status === 'missing' || !event) {

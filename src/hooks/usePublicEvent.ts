@@ -3,16 +3,30 @@ import { supabase } from '../lib/supabase';
 import type { PublicEvent, EventLanguage } from '../lib/events-types';
 
 export type PublicEventState =
-  | { status: 'loading' }
+  | { status: 'loading'; cached: PublicEvent | null }
   | { status: 'missing' }
   | { status: 'ready'; event: PublicEvent };
+
+const cacheKey = (slug: string) => `we-event-${slug}`;
+
+/** Última versión vista del evento (solo lo que pinta la pantalla de carga). */
+function readCache(slug: string): PublicEvent | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(slug));
+    return raw ? (JSON.parse(raw) as PublicEvent) : null;
+  } catch { return null; }
+}
+
+function writeCache(e: PublicEvent) {
+  try { localStorage.setItem(cacheKey(e.slug), JSON.stringify({ ...e, screens: undefined })); } catch { /* sin storage */ }
+}
 
 const PUBLIC_COLUMNS = 'id, slug, name, description, event_date, timezone, venue, status, languages, default_language, registration_closes_at, branding, screens';
 
 /** Carga un evento publicado por su slug (vista events_public).
  *  En vista previa (admin con sesión) lee la tabla events, así se ve aunque esté en borrador. */
 export function usePublicEvent(slug: string | undefined, preview = false): PublicEventState {
-  const [state, setState] = useState<PublicEventState>(() => (slug ? { status: 'loading' } : { status: 'missing' }));
+  const [state, setState] = useState<PublicEventState>(() => (slug ? { status: 'loading', cached: readCache(slug) } : { status: 'missing' }));
 
   useEffect(() => {
     if (!slug) return;
@@ -21,6 +35,7 @@ export function usePublicEvent(slug: string | undefined, preview = false): Publi
     const fromTable = () => supabase.from('events').select(PUBLIC_COLUMNS).eq('slug', slug).maybeSingle().then(r => r.data as PublicEvent | null);
     (preview ? fromTable().then(d => d ?? fromPublic()) : fromPublic()).then(data => {
       if (cancelled) return;
+      if (data && !preview) writeCache(data);
       setState(data ? { status: 'ready', event: data } : { status: 'missing' });
     });
     return () => { cancelled = true; };

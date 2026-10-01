@@ -2814,3 +2814,23 @@ h6 {
   z-index: 20;
 }
 .save-bar.show { color: var(--text-primary); border-color: var(--color-primary-dark); }
+
+/* ─── Pantalla de carga de los sitios públicos ─── */
+.branded-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.branded-loading .branded-logo { margin: 0; animation: brandedFade 0.4s ease; }
+.branded-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid color-mix(in srgb, var(--brand-text, #1a1a1a) 18%, transparent);
+  border-top-color: var(--brand-text, #1a1a1a);
+  animation: brandedSpin 0.8s linear infinite;
+}
+@keyframes brandedSpin { to { transform: rotate(360deg); } }
+@keyframes brandedFade { from { opacity: 0; } to { opacity: 1; } }

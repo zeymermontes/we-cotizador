@@ -17,7 +17,7 @@ export default function AccesoPage() {
   const [session, setSession] = useState<ScannerSession | null>(() => (slug ? loadSession(slug) : null));
   const t = SCANNER_TEXT[lang];
 
-  if (state.status === 'loading') return <BrandedShell event={null}><ShellMessage title="…" /></BrandedShell>;
+  if (state.status === 'loading') return <BrandedShell event={state.cached} loading />;
   if (state.status === 'missing' || !event) return <BrandedShell event={null} title="We.Page"><ShellMessage title={lang === 'es' ? 'Este evento no está disponible' : 'This event is not available'} /></BrandedShell>;
 
   if (!session) {
