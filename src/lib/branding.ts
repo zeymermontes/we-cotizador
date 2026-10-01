@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { type EventBranding, DEFAULT_BRANDING } from './events-types';
+import { type EventBranding, DEFAULT_BRANDING, fontStack } from './events-types';
 
 /** Variables CSS que consumen .branded-page / .branded-btn. */
 export function brandingStyle(b: EventBranding | undefined): CSSProperties {
@@ -10,8 +10,8 @@ export function brandingStyle(b: EventBranding | undefined): CSSProperties {
     '--brand-surface': m.surface,
     '--brand-text': m.text,
     '--brand-button-text': m.button_text || m.text,
-    '--brand-font-display': `'${m.font_display}'`,
-    '--brand-font-body': `'${m.font_body}'`,
+    '--brand-font-display': fontStack(m.font_display),
+    '--brand-font-body': fontStack(m.font_body),
     '--brand-radius': `${m.button_radius}px`,
   } as CSSProperties;
 }

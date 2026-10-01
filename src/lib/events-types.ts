@@ -131,6 +131,13 @@ export function screenFonts(screens: EventScreens | null | undefined): string[] 
   return [...out];
 }
 
+/** Pila CSS para una familia. Caudex dibuja ¿ y ¡ colgando bajo la línea base, así que se
+ *  antepone 'Caudex Punct' (dos glifos, subidos; ver index.css) solo para esos caracteres. */
+export function fontStack(name: string | undefined): string {
+  if (!name) return '';
+  return name === 'Caudex' ? "'Caudex Punct', 'Caudex'" : `'${name}'`;
+}
+
 export function elementShown(copy: ScreenCopy | undefined, key: string): boolean {
   return copy?.elements?.[key]?.show !== false;
 }
@@ -156,7 +163,7 @@ export function elementFont(copy: ScreenCopy | undefined, key: string): CSSPrope
   if (typeof st.opacity === 'number' && st.opacity >= 0 && st.opacity <= 100) out.opacity = st.opacity / 100;
   if (st.font === 'display') out.fontFamily = "var(--brand-font-display, 'Playfair Display'), serif";
   else if (st.font === 'body') out.fontFamily = "var(--brand-font-body, 'Inter'), sans-serif";
-  else if (st.font) out.fontFamily = `'${st.font}', sans-serif`;
+  else if (st.font) out.fontFamily = `${fontStack(st.font)}, sans-serif`;
   return Object.keys(out).length ? out : undefined;
 }
 

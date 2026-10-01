@@ -2834,3 +2834,14 @@ h6 {
 }
 @keyframes brandedSpin { to { transform: rotate(360deg); } }
 @keyframes brandedFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ─── Caudex: ¿ y ¡ sobre la línea base ───
+   La fuente original los cuelga por debajo; public/fonts/caudex-punct.woff2 trae solo esos
+   dos glifos subidos y se antepone a Caudex (ver fontStack en events-types). */
+@font-face {
+  font-family: 'Caudex Punct';
+  src: url('/fonts/caudex-punct.woff2') format('woff2');
+  unicode-range: U+00BF, U+00A1;
+  font-weight: 400 700;
+  font-display: swap;
+}
