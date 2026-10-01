@@ -8,7 +8,7 @@
 //  - Secciones: carriles agrupados. Diff: contra la versión publicada.
 //  - Tráfico: grosor de cada rama según cuánta gente pasó por ahí.
 import { useMemo, useState } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, Handle, Position, MarkerType, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Node, type Edge, type NodeProps, type EdgeProps } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, Handle, Position, MarkerType, BaseEdge, EdgeLabelRenderer, type Node, type Edge, type NodeProps, type EdgeProps } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import '@xyflow/react/dist/style.css';
 import type { FormSchema, Question, Lang, Condition, ConditionGroup, SchemaIssue, Answers, AnswerValue, FlowEdge } from '../../../../lib/form-types';
@@ -130,11 +130,27 @@ function QuestionNode({ data }: NodeProps<Node<QNodeData>>) {
   );
 }
 
-type ExitEdgeData = { label: string; color: string; kind: Exit['kind']; count?: number | null; hidden?: boolean };
+type ExitEdgeData = { label: string; color: string; kind: Exit['kind']; count?: number | null; hidden?: boolean; index?: number };
 
-function ExitEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }: EdgeProps<Edge<ExitEdgeData>>) {
-  const [path] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 14, offset: 28 });
+/** Cable: baja del chip, cruza en horizontal justo debajo (antes de la fila de destinos) y baja al destino. */
+function wirePath(sx: number, sy: number, tx: number, ty: number, jogY: number): string {
+  const r = 12;
+  if (Math.abs(tx - sx) < 1) return `M ${sx},${sy} L ${tx},${ty}`;
+  const dir = tx > sx ? 1 : -1;
+  const jy = Math.min(jogY, ty - r - 4);
+  return [
+    `M ${sx},${sy}`,
+    `L ${sx},${jy - r}`,
+    `Q ${sx},${jy} ${sx + dir * r},${jy}`,
+    `L ${tx - dir * r},${jy}`,
+    `Q ${tx},${jy} ${tx},${jy + r}`,
+    `L ${tx},${ty}`,
+  ].join(' ');
+}
+
+function ExitEdge({ sourceX, sourceY, targetX, targetY, markerEnd, style, data }: EdgeProps<Edge<ExitEdgeData>>) {
   const d = data!;
+  const path = wirePath(sourceX, sourceY, targetX, targetY, sourceY + 48 + (d.index ?? 0) * 8);
   return (
     <>
       <BaseEdge path={path} markerEnd={markerEnd} style={style} />
@@ -268,7 +284,7 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
     const color = ex ? ex.color : '#b5b5b5';
     edges.push({
       id: fe.id, source: fe.source, target: fe.target, sourceHandle: ex?.id, type: ex ? 'exit' : 'smoothstep',
-      data: ex ? { label: ex.label, color, kind: ex.kind, count: n, hidden } : undefined,
+      data: ex ? { label: ex.label, color, kind: ex.kind, count: n, hidden, index: (exitsByNode.get(fe.source) ?? []).indexOf(ex) } : undefined,
       label: !ex && n != null ? String(n) : undefined, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
       style: { opacity: hidden ? 0.12 : 1, stroke: color, strokeWidth: width ?? (ex && ex.kind !== 'else' ? 1.6 : 1) },
       markerEnd: { type: MarkerType.ArrowClosed, color },
@@ -309,9 +325,10 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
       data: { kind: 'section', title: name }, selectable: false, draggable: false, zIndex: -1,
     });
   }
+  const centerY = new Map<string, number>();
   for (const n of nodes) {
     const p = g.node(n.id);
-    if (p) n.position = { x: p.x - p.width / 2, y: p.y - p.height / 2 };
+    if (p) { n.position = { x: p.x - p.width / 2, y: p.y - p.height / 2 }; centerY.set(n.id, p.y); }
   }
 
   // ── Simetría: los destinos de una misma pregunta se ordenan como sus chips
@@ -326,9 +343,9 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
     }
     const siblings = targetsInOrder.map(id => posOf.get(id)).filter((n): n is Node<QNodeData> => !!n && byId.has(n.id));
     if (siblings.length < 2) continue;
-    // Solo reordenamos los que están en el mismo renglón (misma y)
-    const y = siblings[0].position.y;
-    const sameRow = siblings.filter(n => Math.abs(n.position.y - y) < 2);
+    // Solo reordenamos los que están en el mismo renglón de dagre
+    const y = centerY.get(siblings[0].id) ?? 0;
+    const sameRow = siblings.filter(n => Math.abs((centerY.get(n.id) ?? 0) - y) < 2);
     if (sameRow.length < 2) continue;
     const slots = sameRow.map(n => n.position.x + (n.data.width ?? NODE_W) / 2).sort((a, b) => a - b);
     sameRow.forEach((n, i) => { n.position = { ...n.position, x: slots[i] - (n.data.width ?? NODE_W) / 2 }; });
