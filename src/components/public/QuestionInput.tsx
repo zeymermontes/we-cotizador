@@ -3,6 +3,7 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import type { Question, AnswerValue, Lang, Answers, EvalContext } from '../../lib/form-types';
 import { text, RUNNER_TEXT, letterFor, visibleOptions } from '../../lib/form-types';
+import DateField from './DateField';
 
 interface Props {
   q: Question;
@@ -106,13 +107,12 @@ export default function QuestionInput({ q, value, lang, keyboard, answers, ctx, 
 
     case 'date':
       return (
-        <input
-          ref={firstRef as React.RefObject<HTMLInputElement>}
-          className="input-field"
-          type="date"
+        <DateField
           value={typeof value === 'string' ? value : ''}
-          onChange={e => onChange(e.target.value)}
-          onKeyDown={enterKey}
+          lang={lang}
+          placeholder={ph}
+          onChange={onChange}
+          onEnter={onEnter}
         />
       );
 
