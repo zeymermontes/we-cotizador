@@ -2758,3 +2758,27 @@ h6 {
   .ajustes-live { grid-template-columns: 1fr; }
   .device-preview { position: static; }
 }
+
+/* ─── Textos de pantallas: filas por elemento ─── */
+.screen-elements { display: flex; flex-direction: column; gap: 6px; }
+.screen-el-head, .screen-el-row {
+  display: grid;
+  grid-template-columns: 36px 170px minmax(0, 1fr) 110px;
+  gap: 10px;
+  align-items: center;
+}
+.screen-el-head { font-size: var(--text-xs); color: var(--text-muted); padding: 0 0 2px; }
+.screen-el-row { padding: 6px 0; border-top: 1px solid var(--border-subtle); }
+.screen-el-row.hidden .screen-el-label { opacity: 0.45; text-decoration: line-through; }
+.screen-el-toggle { display: flex; justify-content: center; }
+.screen-el-toggle input { width: 18px; height: 18px; accent-color: var(--color-primary-dark); cursor: pointer; }
+.screen-el-label { font-size: var(--text-sm); line-height: 1.2; }
+.screen-el-label small { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.screen-el-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.screen-el-size { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); }
+.screen-el-size .input-field { width: 72px; text-align: right; }
+@media (max-width: 720px) {
+  .screen-el-head { display: none; }
+  .screen-el-row { grid-template-columns: 36px 1fr; }
+  .screen-el-text, .screen-el-size { grid-column: 2; }
+}

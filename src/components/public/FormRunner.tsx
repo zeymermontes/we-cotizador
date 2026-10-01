@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { PublicEvent } from '../../lib/events-types';
-import { pickLocalized } from '../../lib/events-types';
+import { pickLocalized, elementShown, elementSize, elementFont } from '../../lib/events-types';
 import {
   type FormSchema, type Answers, type AnswerValue, type Lang, type AnswerError, type Question, type EvalContext,
   resolveFlowDetailed, validateAnswer, extractIdentity, computeScore, text, isEmpty,
@@ -193,18 +193,27 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     const dateStr = event.event_date
       ? new Date(event.event_date).toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
       : null;
+    const showDate = elementShown(w, 'date') && !!dateStr;
+    const showVenue = elementShown(w, 'venue') && !!event.venue;
+    const logoSize = elementSize(w, 'logo');
     return (
       <div className="reg-welcome animate-fade-in">
-        {event.branding?.logo_url && <img src={event.branding.logo_url} alt="" className="branded-logo" />}
-        <h1>{fill(pickLocalized(w?.title, lang, copy.welcome))}</h1>
-        {(dateStr || event.venue) && (
-          <div className="reg-meta">{[dateStr, event.venue].filter(Boolean).join(' · ')}</div>
+        {elementShown(w, 'logo') && event.branding?.logo_url && (
+          <img src={event.branding.logo_url} alt="" className="branded-logo" style={logoSize ? { maxHeight: logoSize } : undefined} />
         )}
-        <p>{fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))}</p>
-        <button className="btn btn-primary" onClick={() => setStage('questions')} autoFocus>
+        {elementShown(w, 'title') && <h1 style={elementFont(w, 'title')}>{fill(pickLocalized(w?.title, lang, copy.welcome))}</h1>}
+        {(showDate || showVenue) && (
+          <div className="reg-meta">
+            {showDate && <span style={elementFont(w, 'date')}>{dateStr}</span>}
+            {showDate && showVenue && ' · '}
+            {showVenue && <span style={elementFont(w, 'venue')}>{event.venue}</span>}
+          </div>
+        )}
+        {elementShown(w, 'subtitle') && <p style={elementFont(w, 'subtitle')}>{fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))}</p>}
+        <button className="btn btn-primary" style={elementFont(w, 'button')} onClick={() => setStage('questions')} autoFocus>
           {pickLocalized(w?.button, lang, copy.start)} →
         </button>
-        <div className="reg-hint" style={{ marginTop: 12 }}>{t.press_enter}</div>
+        {elementShown(w, 'hint') && <div className="reg-hint" style={{ marginTop: 12, ...elementFont(w, 'hint') }}>{t.press_enter}</div>}
       </div>
     );
   }
@@ -214,11 +223,14 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     const ending = flow.endingId ? (schema.settings.endings ?? []).find(e => e.id === flow.endingId) : undefined;
     const title = ending ? fill(text(ending.title, lang, copy.thanks)) : fill(pickLocalized(th?.title, lang, copy.thanks));
     const subtitle = ending ? fill(text(ending.subtitle, lang)) : fill(pickLocalized(th?.subtitle, lang, copy.thanksSub));
+    const checkSize = elementSize(th, 'check');
     return (
       <div className="reg-thanks animate-fade-in">
-        <div className="reg-check">✓</div>
-        <h1>{title.replace(/, !$/, '!')}</h1>
-        {subtitle && <p>{subtitle}</p>}
+        {elementShown(th, 'check') && (
+          <div className="reg-check" style={checkSize ? { width: checkSize, height: checkSize, fontSize: checkSize * 0.45 } : undefined}>✓</div>
+        )}
+        {elementShown(th, 'title') && <h1 style={elementFont(th, 'title')}>{title.replace(/, !$/, '!')}</h1>}
+        {elementShown(th, 'subtitle') && subtitle && <p style={elementFont(th, 'subtitle')}>{subtitle}</p>}
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import BrandedShell, { ShellMessage } from '../../components/public/BrandedShell';
 import { usePublicEvent, useEventLanguage } from '../../hooks/usePublicEvent';
-import { pickLocalized, type PublicEvent } from '../../lib/events-types';
+import { pickLocalized, type PublicEvent, elementShown, elementFont } from '../../lib/events-types';
 import {
   type ScannerSession, type ScanResult, type ScannerGuest, type ScannerStats, type RecentCheckIn,
   loadSession, saveSession, openSession, scanCode, manualCheckIn, searchGuests, scannerStats, undoCheckIn, isFail, SCANNER_TEXT,
@@ -43,8 +43,9 @@ function PinScreen({ event, slug, lang, onOpen }: { event: PublicEvent; slug: st
   const [device, setDevice] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const title = pickLocalized(event.screens?.scanner?.title, lang, t.title);
-  const subtitle = pickLocalized(event.screens?.scanner?.subtitle, lang, t.subtitle);
+  const sc = event.screens?.scanner;
+  const title = pickLocalized(sc?.title, lang, t.title);
+  const subtitle = pickLocalized(sc?.subtitle, lang, t.subtitle);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,9 +58,9 @@ function PinScreen({ event, slug, lang, onOpen }: { event: PublicEvent; slug: st
 
   return (
     <>
-      <h1 style={{ fontSize: '1.6rem', marginBottom: 4 }}>{title}</h1>
-      <p style={{ opacity: 0.7 }}>{event.name}</p>
-      <p style={{ opacity: 0.7, marginTop: 8 }}>{subtitle}</p>
+      {elementShown(sc, 'title') && <h1 style={{ fontSize: '1.6rem', marginBottom: 4, ...elementFont(sc, 'title') }}>{title}</h1>}
+      {elementShown(sc, 'name') && <p style={{ opacity: 0.7, ...elementFont(sc, 'name') }}>{event.name}</p>}
+      {elementShown(sc, 'subtitle') && <p style={{ opacity: 0.7, marginTop: 8, ...elementFont(sc, 'subtitle') }}>{subtitle}</p>}
       <form onSubmit={submit}>
         <input className="pin-input" inputMode="numeric" pattern="[0-9]*" maxLength={8} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" autoFocus />
         <input className="input-field" style={{ fontSize: 'var(--text-sm)', textAlign: 'center', marginBottom: 16 }} value={device} onChange={e => setDevice(e.target.value)} placeholder={t.device} />

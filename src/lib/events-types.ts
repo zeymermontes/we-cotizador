@@ -58,10 +58,70 @@ export const FONT_OPTIONS = [
   'Lora',
 ] as const;
 
+/** Ajuste visual de un elemento de pantalla: visible o no, y tamaño en px. */
+export interface ElementStyle {
+  show?: boolean;
+  size?: number;
+}
+
 export interface ScreenCopy {
   title?: Localized;
   subtitle?: Localized;
   button?: Localized;
+  /** Por elemento (ver SCREEN_ELEMENTS): mostrar/ocultar y tamaño. */
+  elements?: Record<string, ElementStyle>;
+}
+
+export interface ScreenElementDef {
+  key: string;
+  label: string;
+  /** Campo de texto editable que representa, si lo hay. */
+  text?: 'title' | 'subtitle' | 'button';
+  placeholder?: Localized;
+  /** Tamaño por defecto en px (alto para imágenes e iconos). */
+  defaultSize: number;
+  /** No se puede ocultar. */
+  required?: boolean;
+  hint?: string;
+}
+
+/** Todo lo que se dibuja en cada pantalla pública, en el orden en que aparece. */
+export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner', ScreenElementDef[]> = {
+  welcome: [
+    { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto' },
+    { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Regístrate a {{evento}}', en: 'Register for {{evento}}' }, defaultSize: 36 },
+    { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales' },
+    { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales' },
+    { key: 'subtitle', label: 'Subtítulo', text: 'subtitle', placeholder: { es: 'Te tomará menos de un minuto.', en: 'It takes less than a minute.' }, defaultSize: 16 },
+    { key: 'button', label: 'Botón', text: 'button', placeholder: { es: 'Comenzar', en: 'Start' }, defaultSize: 16, required: true },
+    { key: 'hint', label: 'Pista "presiona Enter"', defaultSize: 12 },
+  ],
+  thank_you: [
+    { key: 'check', label: 'Palomita', defaultSize: 64 },
+    { key: 'title', label: 'Título', text: 'title', placeholder: { es: '¡Listo, {{nombre}}!', en: 'All set, {{nombre}}!' }, defaultSize: 32 },
+    { key: 'subtitle', label: 'Mensaje', text: 'subtitle', placeholder: { es: 'Recibirás tu invitación por correo o WhatsApp.', en: 'You will receive your invitation by email or WhatsApp.' }, defaultSize: 16 },
+  ],
+  scanner: [
+    { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Control de acceso', en: 'Check-in' }, defaultSize: 26 },
+    { key: 'name', label: 'Nombre del evento', defaultSize: 16 },
+    { key: 'subtitle', label: 'Instrucción', text: 'subtitle', placeholder: { es: 'Escanea el QR de la invitación.', en: 'Scan the invitation QR.' }, defaultSize: 16 },
+  ],
+};
+
+export function elementShown(copy: ScreenCopy | undefined, key: string): boolean {
+  return copy?.elements?.[key]?.show !== false;
+}
+
+/** Tamaño configurado en px, o undefined para usar el del CSS. */
+export function elementSize(copy: ScreenCopy | undefined, key: string): number | undefined {
+  const s = copy?.elements?.[key]?.size;
+  return typeof s === 'number' && s > 0 ? s : undefined;
+}
+
+/** Estilo inline de fuente para un elemento de texto. */
+export function elementFont(copy: ScreenCopy | undefined, key: string): { fontSize: number } | undefined {
+  const s = elementSize(copy, key);
+  return s ? { fontSize: s } : undefined;
 }
 
 export interface EventScreens {
