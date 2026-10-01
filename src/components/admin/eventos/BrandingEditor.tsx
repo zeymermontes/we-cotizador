@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { EventRow, EventBranding } from '../../../lib/events-types';
 import { DEFAULT_BRANDING, FONT_OPTIONS } from '../../../lib/events-types';
 import { uploadEventImage, removeEventImage, formatBytes, type ImageKind, type ImageStage } from '../../../lib/images';
@@ -122,20 +122,101 @@ export default function BrandingEditor({ event, onSave }: Props) {
 
 // ─── Campos ──────────────────────────────────────────────────
 
-/** Lista de fuentes conocidas + cualquier familia de Google Fonts escrita a mano. */
+/** Lista de fuentes conocidas + cualquier familia de Google Fonts escrita a mano.
+ *  Es un menú propio (no un <select>) para que cada opción se vea en su tipografía. */
 function FontSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const known = (FONT_OPTIONS as readonly string[]).includes(value);
   const [custom, setCustom] = useState(!known);
-  return custom ? (
-    <div style={{ display: 'flex', gap: 6 }}>
-      <input className="input-field" value={value} onChange={e => onChange(e.target.value)} placeholder="Nombre en Google Fonts" />
-      <button type="button" className="btn btn-ghost btn-xs" onClick={() => { setCustom(false); if (!known) onChange(FONT_OPTIONS[0]); }}>Lista</button>
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [loadAll, setLoadAll] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const items: string[] = [...FONT_OPTIONS, '__custom'];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!rootRef.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelectorAll<HTMLElement>('[role="option"]')[active]?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  const show = () => {
+    setLoadAll(true);
+    setActive(Math.max(0, items.indexOf(value)));
+    setOpen(true);
+  };
+  const pick = (v: string) => {
+    setOpen(false);
+    if (v === '__custom') setCustom(true);
+    else onChange(v);
+  };
+  const onKey = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(); }
+      return;
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(items.length - 1, a + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(0, a - 1)); }
+    else if (e.key === 'Home') { e.preventDefault(); setActive(0); }
+    else if (e.key === 'End') { e.preventDefault(); setActive(items.length - 1); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(items[active]); }
+    else if (e.key === 'Escape' || e.key === 'Tab') { setOpen(false); }
+  };
+
+  if (custom) {
+    return (
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input className="input-field" value={value} onChange={e => onChange(e.target.value)} placeholder="Nombre en Google Fonts" style={{ fontFamily: value ? `'${value}', sans-serif` : undefined }} />
+        <button type="button" className="btn btn-ghost btn-xs" onClick={() => { setCustom(false); if (!known) onChange(FONT_OPTIONS[0]); }}>Lista</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="font-select" ref={rootRef} onKeyDown={onKey}>
+      {loadAll && <FontLoader fonts={[...FONT_OPTIONS]} />}
+      <button
+        type="button"
+        className="glass-select font-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        style={{ fontFamily: `'${value}', sans-serif` }}
+        onClick={() => (open ? setOpen(false) : show())}
+      >
+        {value}
+      </button>
+      {open && (
+        <ul className="font-select-menu" role="listbox" ref={listRef} aria-activedescendant={`font-opt-${active}`}>
+          {items.map((f, i) => {
+            const isCustom = f === '__custom';
+            return (
+              <li
+                key={f}
+                id={`font-opt-${i}`}
+                role="option"
+                aria-selected={f === value}
+                className={`font-select-option ${i === active ? 'active' : ''} ${f === value ? 'selected' : ''} ${isCustom ? 'custom' : ''}`}
+                style={isCustom ? undefined : { fontFamily: `'${f}', sans-serif` }}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => pick(f)}
+              >
+                <span className="font-select-check">{f === value ? '✓' : ''}</span>
+                <span className="font-select-name">{isCustom ? 'Otra de Google Fonts…' : f}</span>
+                {!isCustom && <span className="font-select-sample" aria-hidden>Aa Bb 123</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
-  ) : (
-    <select className="glass-select" value={value} onChange={e => { if (e.target.value === '__custom') setCustom(true); else onChange(e.target.value); }}>
-      {FONT_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-      <option value="__custom">Otra de Google Fonts…</option>
-    </select>
   );
 }
 
