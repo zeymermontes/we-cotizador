@@ -8,7 +8,7 @@
 //  - Secciones: carriles agrupados. Diff: contra la versión publicada.
 //  - Tráfico: grosor de cada rama según cuánta gente pasó por ahí.
 import { useMemo, useState } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, Handle, Position, MarkerType, type Node, type Edge, type NodeProps } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, Handle, Position, MarkerType, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Node, type Edge, type NodeProps, type EdgeProps } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import '@xyflow/react/dist/style.css';
 import type { FormSchema, Question, Lang, Condition, ConditionGroup, SchemaIssue, Answers, AnswerValue, FlowEdge } from '../../../../lib/form-types';
@@ -28,9 +28,13 @@ interface Props {
 
 interface Exit { id: string; label: string; color: string; kind: 'option' | 'cond' | 'else' }
 
+/** Ancho del nodo: crece con el número de salidas para que los chips no se encimen. */
+const widthFor = (exits: number) => Math.max(NODE_W, exits * 104);
+
 type QNodeData = {
   kind: 'start' | 'end' | 'question' | 'hidden' | 'section';
   exits?: Exit[];
+  width?: number;
   n?: number;
   title: string;
   type?: string;
@@ -95,7 +99,7 @@ function QuestionNode({ data }: NodeProps<Node<QNodeData>>) {
     d.diff ? `diff-${d.diff}` : '',
   ].join(' ');
   return (
-    <div className={cls} style={{ width: NODE_W }} title={d.issue?.message}>
+    <div className={cls} style={{ width: d.width ?? NODE_W }} title={d.issue?.message}>
       {d.kind !== 'start' && <Handle type="target" position={Position.Top} />}
       {d.kind === 'question' || d.kind === 'hidden' ? (
         <>
@@ -111,16 +115,9 @@ function QuestionNode({ data }: NodeProps<Node<QNodeData>>) {
           {d.showIf && <div className="flow-node-showif">Solo si {d.showIf}</div>}
           {d.issue && <div className={`flow-node-issue ${d.issue.level}`}>{d.issue.level === 'error' ? '⛔' : '⚠️'} {d.issue.message.replace(/^Pregunta \d+: /, '')}</div>}
           {d.traffic != null && d.trafficTotal ? <div className="flow-node-traffic"><b>{d.traffic}</b> de {d.trafficTotal} pasaron ({Math.round((d.traffic / d.trafficTotal) * 100)}%)</div> : null}
-          {d.exits && d.exits.length > 0 && (
-            <div className="flow-exits">
-              {d.exits.map(ex => (
-                <div key={ex.id} className={`flow-exit ${ex.kind}`} style={{ borderColor: ex.color, color: ex.color }} title={ex.label}>
-                  {ex.label}
-                  <Handle type="source" position={Position.Bottom} id={ex.id} style={{ background: ex.color }} />
-                </div>
-              ))}
-            </div>
-          )}
+          {d.exits && d.exits.length > 0 && d.exits.map((ex, i) => (
+            <Handle key={ex.id} type="source" position={Position.Bottom} id={ex.id} style={{ left: `${((i + 1) / (d.exits!.length + 1)) * 100}%`, background: ex.color }} />
+          ))}
         </>
       ) : (
         <>
@@ -133,7 +130,29 @@ function QuestionNode({ data }: NodeProps<Node<QNodeData>>) {
   );
 }
 
+type ExitEdgeData = { label: string; color: string; kind: Exit['kind']; count?: number | null; hidden?: boolean };
+
+function ExitEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }: EdgeProps<Edge<ExitEdgeData>>) {
+  const [path] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: 14, offset: 28 });
+  const d = data!;
+  return (
+    <>
+      <BaseEdge path={path} markerEnd={markerEnd} style={style} />
+      <EdgeLabelRenderer>
+        <div
+          className={`flow-exit on-wire ${d.kind}`}
+          style={{ transform: `translate(-50%, 0) translate(${sourceX}px, ${sourceY + 12}px)`, borderColor: d.color, color: d.color, opacity: d.hidden ? 0.15 : 1 }}
+          title={d.label}
+        >
+          {d.label}{d.count != null ? <span className="flow-exit-count">{d.count}</span> : null}
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
 const nodeTypes = { q: QuestionNode };
+const edgeTypes = { exit: ExitEdge };
 
 // ─── Construcción del grafo ──────────────────────────────────
 
@@ -248,8 +267,9 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
     }) : undefined;
     const color = ex ? ex.color : '#b5b5b5';
     edges.push({
-      id: fe.id, source: fe.source, target: fe.target, sourceHandle: ex?.id, type: 'smoothstep',
-      label: n != null ? String(n) : undefined, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
+      id: fe.id, source: fe.source, target: fe.target, sourceHandle: ex?.id, type: ex ? 'exit' : 'smoothstep',
+      data: ex ? { label: ex.label, color, kind: ex.kind, count: n, hidden } : undefined,
+      label: !ex && n != null ? String(n) : undefined, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
       style: { opacity: hidden ? 0.12 : 1, stroke: color, strokeWidth: width ?? (ex && ex.kind !== 'else' ? 1.6 : 1) },
       markerEnd: { type: MarkerType.ArrowClosed, color },
     });
@@ -267,11 +287,12 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
   }
   for (const n of nodes) {
     const d = n.data;
-    const chipChars = (d.exits ?? []).reduce((acc, e) => acc + Math.min(e.label.length, 30) + 4, 0);
-    const chipRows = d.exits?.length ? Math.ceil(chipChars / 34) : 0;
-    const lines = Math.ceil((d.title?.length ?? 10) / 32) + (d.showIf ? Math.ceil(d.showIf.length / 36) : 0) + (d.identity ? 1 : 0) + (d.issue ? 2 : 0) + (d.traffic != null ? 1 : 0);
-    const h = (d.kind === 'question' || d.kind === 'hidden' ? 56 + lines * 18 : 44 + (d.traffic != null ? 16 : 0)) + chipRows * 30;
-    g.setNode(n.id, { width: NODE_W, height: h });
+    const w = widthFor(d.exits?.length ?? 0);
+    d.width = w;
+    const lines = Math.ceil((d.title?.length ?? 10) / (w / 7.5)) + (d.showIf ? Math.ceil(d.showIf.length / 36) : 0) + (d.identity ? 1 : 0) + (d.issue ? 2 : 0) + (d.traffic != null ? 1 : 0);
+    // Espacio extra bajo el nodo para los chips sobre el cable
+    const h = (d.kind === 'question' || d.kind === 'hidden' ? 56 + lines * 18 : 44 + (d.traffic != null ? 16 : 0)) + (d.exits?.length ? 30 : 0);
+    g.setNode(n.id, { width: w, height: h });
     const q = byId.get(n.id);
     if (q?.section && isStep(q)) g.setParent(n.id, `sec:${q.section}`);
   }
@@ -290,7 +311,27 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
   }
   for (const n of nodes) {
     const p = g.node(n.id);
-    if (p) n.position = { x: p.x - NODE_W / 2, y: p.y - p.height / 2 };
+    if (p) n.position = { x: p.x - p.width / 2, y: p.y - p.height / 2 };
+  }
+
+  // ── Simetría: los destinos de una misma pregunta se ordenan como sus chips
+  const posOf = new Map(nodes.map(n => [n.id, n]));
+  for (const q of steps) {
+    const exits = exitsByNode.get(q.id);
+    if (!exits || exits.length < 2) continue;
+    const targetsInOrder: string[] = [];
+    for (const ex of exits) {
+      const e = flowEdges.find(fe => fe.source === q.id && (fe.kind === 'else' ? ex.id === 'else' : (singleOptionCondition(fe.group, q.id) !== null ? ex.id === `opt:${singleOptionCondition(fe.group, q.id)}` : ex.id === `cond:${fe.id}`)));
+      if (e && !targetsInOrder.includes(e.target)) targetsInOrder.push(e.target);
+    }
+    const siblings = targetsInOrder.map(id => posOf.get(id)).filter((n): n is Node<QNodeData> => !!n && byId.has(n.id));
+    if (siblings.length < 2) continue;
+    // Solo reordenamos los que están en el mismo renglón (misma y)
+    const y = siblings[0].position.y;
+    const sameRow = siblings.filter(n => Math.abs(n.position.y - y) < 2);
+    if (sameRow.length < 2) continue;
+    const slots = sameRow.map(n => n.position.x + (n.data.width ?? NODE_W) / 2).sort((a, b) => a - b);
+    sameRow.forEach((n, i) => { n.position = { ...n.position, x: slots[i] - (n.data.width ?? NODE_W) / 2 }; });
   }
   return { nodes: [...sectionNodes, ...nodes], edges };
 }
@@ -429,6 +470,7 @@ export default function FormFlow({ schema, lang, selectedId, issues, published, 
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             nodesDraggable={false}

@@ -2643,3 +2643,6 @@ h6 {
 .flow-exit.else { border-style: dashed; font-weight: 500; }
 .flow-exit .react-flow__handle { bottom: -6px; left: 50%; }
 .flow-legend .leg.showif { border-top: 2px dashed #9a9a9a; }
+
+.flow-exit.on-wire { position: absolute; pointer-events: all; max-width: 96px; font-size: 10.5px; padding: 2px 8px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); z-index: 5; }
+.flow-exit-count { margin-left: 5px; background: rgba(0,0,0,0.08); border-radius: 999px; padding: 0 5px; font-size: 9px; }
