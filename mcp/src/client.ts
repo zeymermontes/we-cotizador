@@ -1,9 +1,12 @@
-// Sesión de Supabase del usuario que corre el MCP. Entra con correo y
-// contraseña (variables de entorno) y RLS decide qué eventos ve y edita.
+// Sesión de Supabase del usuario que corre el MCP. RLS decide qué
+// eventos ve y edita. Orden de credenciales:
+//   1. ~/.we-eventos-mcp/credentials.json (lo crea `node bin.js setup`)
+//   2. variables de entorno SUPABASE_EMAIL + SUPABASE_PASSWORD (mcp/.env)
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config as loadEnv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { loadCredentials, saveCredentials } from './credentials.ts';
 
 loadEnv({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
@@ -14,20 +17,51 @@ export class McpError extends Error {
 let client: SupabaseClient | null = null;
 let profile: { id: string; email: string; role: 'super' | 'event_admin' } | null = null;
 
+export function projectConfig(): { url: string; anon: string } {
+  const stored = loadCredentials();
+  const url = process.env.SUPABASE_URL || stored?.url;
+  const anon = process.env.SUPABASE_ANON_KEY || stored?.anon_key;
+  if (!url || !anon) throw new McpError('Faltan SUPABASE_URL y SUPABASE_ANON_KEY (mcp/.env) o corre `node bin.js setup`.', 'config');
+  return { url, anon };
+}
+
 export async function getClient(): Promise<SupabaseClient> {
   if (client) return client;
-  const url = process.env.SUPABASE_URL;
-  const anon = process.env.SUPABASE_ANON_KEY;
+  const { url, anon } = projectConfig();
+  const c = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: true } });
+
+  const stored = loadCredentials();
   const email = process.env.SUPABASE_EMAIL;
   const password = process.env.SUPABASE_PASSWORD;
-  if (!url || !anon) throw new McpError('Faltan SUPABASE_URL y SUPABASE_ANON_KEY en mcp/.env', 'config');
-  if (!email || !password) throw new McpError('Faltan SUPABASE_EMAIL y SUPABASE_PASSWORD en mcp/.env (el MCP entra como ese usuario)', 'config');
 
-  const c = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: true } });
-  const { data, error } = await c.auth.signInWithPassword({ email, password });
-  if (error || !data.user) throw new McpError(`No se pudo iniciar sesión en Supabase: ${error?.message ?? 'sin usuario'}`, 'auth');
-  const { data: p } = await c.from('profiles').select('id, email, role').eq('id', data.user.id).maybeSingle();
-  profile = { id: data.user.id, email: data.user.email ?? email, role: (p?.role as 'super' | 'event_admin') ?? 'event_admin' };
+  let userEmail = '';
+  let userId = '';
+
+  if (stored?.refresh_token) {
+    const { data, error } = await c.auth.refreshSession({ refresh_token: stored.refresh_token });
+    if (error || !data.session || !data.user) {
+      throw new McpError(`La sesión guardada ya no sirve (${error?.message ?? 'sin sesión'}). Vuelve a correr: node bin.js setup`, 'auth');
+    }
+    userEmail = data.user.email ?? stored.email;
+    userId = data.user.id;
+    saveCredentials({ ...stored, refresh_token: data.session.refresh_token, email: userEmail, saved_at: new Date().toISOString() });
+    // Supabase rota el refresh token: guardamos siempre el último
+    c.auth.onAuthStateChange((event, session) => {
+      if (event === 'TOKEN_REFRESHED' && session?.refresh_token) {
+        saveCredentials({ url, anon_key: anon, refresh_token: session.refresh_token, email: userEmail, saved_at: new Date().toISOString() });
+      }
+    });
+  } else if (email && password) {
+    const { data, error } = await c.auth.signInWithPassword({ email, password });
+    if (error || !data.user) throw new McpError(`No se pudo iniciar sesión en Supabase: ${error?.message ?? 'sin usuario'}`, 'auth');
+    userEmail = data.user.email ?? email;
+    userId = data.user.id;
+  } else {
+    throw new McpError('No hay sesión. Corre `node bin.js setup` para iniciar sesión (o pon SUPABASE_EMAIL y SUPABASE_PASSWORD en mcp/.env).', 'auth');
+  }
+
+  const { data: p } = await c.from('profiles').select('id, email, role').eq('id', userId).maybeSingle();
+  profile = { id: userId, email: userEmail, role: (p?.role as 'super' | 'event_admin') ?? 'event_admin' };
   client = c;
   return c;
 }

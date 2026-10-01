@@ -8,39 +8,27 @@ Corre en tu máquina por stdio y entra a Supabase **como tú**: RLS decide qué 
 Las acciones con consecuencias (publicar, enviar correos, cambios masivos) piden
 `confirm: true`. Todo queda en la tabla `mcp_audit` (migración 014).
 
-## Instalación
+## Instalación (una vez)
 
 ```bash
 cd cotizador-app/mcp
 npm install
-cp .env.example .env   # y llena SUPABASE_ANON_KEY, SUPABASE_EMAIL, SUPABASE_PASSWORD
-npm run check          # typecheck
+node bin.js setup
 ```
 
-## Conectar a Claude Code
+`setup` te pregunta cómo iniciar sesión:
 
-```bash
-claude mcp add we-eventos -- node /ruta/absoluta/cotizador-app/mcp/bin.js
-```
+1. **En el navegador**: abre una pestaña en `http://localhost:4879` donde entras con tu
+   contraseña o pides un enlace mágico. Para el enlace mágico, esa URL debe estar en
+   Supabase → Authentication → URL Configuration → Redirect URLs (`http://localhost:4879/**`).
+2. **En la terminal**: correo y contraseña (no se muestra al escribir).
 
-(o con alcance de proyecto: `claude mcp add --scope project we-eventos -- node ./mcp/bin.js`)
+Solo se guarda el **refresh token** en `~/.we-eventos-mcp/credentials.json` (permisos 600),
+nunca la contraseña. Al terminar te imprime el comando de Claude Code y ofrece ejecutarlo,
+el bloque para Claude Desktop y un prompt para empezar. Para cambiar de usuario, vuelve a
+correr `node bin.js setup`.
 
-## Conectar a Claude Desktop
-
-En `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "we-eventos": {
-      "command": "node",
-      "args": ["/ruta/absoluta/cotizador-app/mcp/bin.js"]
-    }
-  }
-}
-```
-
-Las credenciales se leen de `mcp/.env`; también puedes pasarlas en `env` dentro de esa config.
+Alternativa sin setup: credenciales fijas en `mcp/.env` (ver `.env.example`).
 
 ## Herramientas
 
