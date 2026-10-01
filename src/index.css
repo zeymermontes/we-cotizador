@@ -2636,3 +2636,10 @@ h6 {
 .dep-list li button { margin-left: auto; }
 .ending-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); }
 .conflict-banner { background: rgba(251,191,36,0.2); color: #92400e; padding: 10px 14px; border-radius: var(--radius-md); font-size: var(--text-sm); margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* chips de salida en los nodos del flujo */
+.flow-exits { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.flow-exit { position: relative; font-size: 11px; font-weight: 600; padding: 3px 9px 5px; border-radius: 999px; border: 1.5px solid; background: var(--bg-elevated); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flow-exit.else { border-style: dashed; font-weight: 500; }
+.flow-exit .react-flow__handle { bottom: -6px; left: 50%; }
+.flow-legend .leg.showif { border-top: 2px dashed #9a9a9a; }

@@ -12,7 +12,7 @@ import { ReactFlow, Background, Controls, MiniMap, Handle, Position, MarkerType,
 import dagre from '@dagrejs/dagre';
 import '@xyflow/react/dist/style.css';
 import type { FormSchema, Question, Lang, Condition, ConditionGroup, SchemaIssue, Answers, AnswerValue, FlowEdge } from '../../../../lib/form-types';
-import { TYPE_INFO, OP_LABEL, SPECIAL_VARS, text, isStep, isGroup, buildFlowGraph, enumeratePaths, resolveFlowDetailed, visibleOptions, computeScore } from '../../../../lib/form-types';
+import { TYPE_INFO, OP_LABEL, SPECIAL_VARS, text, isStep, isGroup, buildFlowGraph, enumeratePaths, resolveFlowDetailed, visibleOptions, computeScore, singleOptionCondition, exitValues } from '../../../../lib/form-types';
 
 interface Props {
   schema: FormSchema;
@@ -26,8 +26,11 @@ interface Props {
   onLoadTraffic: () => Promise<void>;
 }
 
+interface Exit { id: string; label: string; color: string; kind: 'option' | 'cond' | 'else' }
+
 type QNodeData = {
   kind: 'start' | 'end' | 'question' | 'hidden' | 'section';
+  exits?: Exit[];
   n?: number;
   title: string;
   type?: string;
@@ -108,6 +111,16 @@ function QuestionNode({ data }: NodeProps<Node<QNodeData>>) {
           {d.showIf && <div className="flow-node-showif">Solo si {d.showIf}</div>}
           {d.issue && <div className={`flow-node-issue ${d.issue.level}`}>{d.issue.level === 'error' ? '⛔' : '⚠️'} {d.issue.message.replace(/^Pregunta \d+: /, '')}</div>}
           {d.traffic != null && d.trafficTotal ? <div className="flow-node-traffic"><b>{d.traffic}</b> de {d.trafficTotal} pasaron ({Math.round((d.traffic / d.trafficTotal) * 100)}%)</div> : null}
+          {d.exits && d.exits.length > 0 && (
+            <div className="flow-exits">
+              {d.exits.map(ex => (
+                <div key={ex.id} className={`flow-exit ${ex.kind}`} style={{ borderColor: ex.color, color: ex.color }} title={ex.label}>
+                  {ex.label}
+                  <Handle type="source" position={Position.Bottom} id={ex.id} style={{ background: ex.color }} />
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -115,7 +128,7 @@ function QuestionNode({ data }: NodeProps<Node<QNodeData>>) {
           {d.traffic != null && d.trafficTotal ? <div className="flow-node-traffic" style={{ textAlign: 'center' }}><b>{d.traffic}</b> de {d.trafficTotal}</div> : null}
         </>
       )}
-      {d.kind !== 'end' && <Handle type="source" position={Position.Bottom} />}
+      {d.kind !== 'end' && !(d.exits && d.exits.length > 0) && <Handle type="source" position={Position.Bottom} />}
     </div>
   );
 }
@@ -155,7 +168,7 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
       data: {
         kind: 'question', n: i + 1, title: text(q.title, lang), type: TYPE_INFO[q.type].label, icon: TYPE_INFO[q.type].icon,
         required: q.required, identity: q.identity ?? null,
-        showIf: q.showIf?.conditions.length ? groupText(q.showIf, byId, lang) : null,
+        showIf: q.showIf?.conditions.length && !flowEdges.some(e => e.target === q.id && e.group && singleOptionCondition(e.group, e.source) !== null) ? groupText(q.showIf, byId, lang) : null,
         selected: q.id === o.selectedId, issue: issueOf.get(q.id) ?? null, dimmed: dim(q.id),
         diff: o.diff?.get(q.id) ?? null, traffic: tr(q.id), trafficTotal: o.trafficTotal,
       },
@@ -174,31 +187,78 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
   }
 
   const edges: Edge[] = [];
-  const colorIdx = new Map<string, number>();
-  const nextColor = (src: string) => { const i = colorIdx.get(src) ?? 0; colorIdx.set(src, i + 1); return COLORS[i % COLORS.length]; };
   const maxTraffic = o.edgeTraffic ? Math.max(1, ...Array.from(o.edgeTraffic.values())) : 1;
+  const exitsByNode = new Map<string, Exit[]>();
+
+  /** Salida (chip) por la que sale cada arista de una pregunta. */
+  const exitFor = (q: Question, fe: FlowEdge, allFrom: FlowEdge[]): Exit | null => {
+    const list = exitsByNode.get(q.id) ?? [];
+    const pick = (id: string, label: string, kind: Exit['kind']) => {
+      let ex = list.find(e => e.id === id);
+      if (!ex) { ex = { id, label, color: kind === 'else' ? '#9a9a9a' : COLORS[list.filter(e => e.kind !== 'else').length % COLORS.length], kind }; list.push(ex); exitsByNode.set(q.id, list); }
+      return ex;
+    };
+    if (fe.kind === 'branch' || fe.kind === 'jump') {
+      const v = singleOptionCondition(fe.group, q.id);
+      if (v !== null) {
+        const opt = q.options?.find(x => x.id === v);
+        const label = opt ? text(opt.label, lang) : (q.type === 'yes_no' || q.type === 'legal') ? (v === 'true' ? 'Sí' : 'No') : v;
+        return pick(`opt:${v}`, label, 'option');
+      }
+      return pick(`cond:${fe.id}`, (fe.kind === 'jump' ? 'salta si ' : 'si ') + (fe.group ? groupText(fe.group, byId, lang) : ''), 'cond');
+    }
+    if (fe.kind === 'else') {
+      const values = exitValues(q);
+      const covered = new Set(allFrom.filter(e => e.group).map(e => singleOptionCondition(e.group, q.id)).filter((x): x is string => x !== null));
+      const uncovered = values ? values.filter(x => !covered.has(x)) : [];
+      let label = 'si no';
+      if (values && uncovered.length > 0 && uncovered.length <= 3 && covered.size > 0) {
+        label = uncovered.map(x => { const opt = q.options?.find(y => y.id === x); return opt ? text(opt.label, lang) : (x === 'true' ? 'Sí' : x === 'false' ? 'No' : x); }).join(' / ');
+        if (!q.required) label += ' / sin respuesta';
+      } else if (!q.required && values && uncovered.length === 0) label = 'sin respuesta';
+      else if (!q.required) label = 'sin respuesta / si no';
+      return pick('else', label, 'else');
+    }
+    return null;
+  };
+
+  for (const q of steps) {
+    const from = flowEdges.filter(e => e.source === q.id);
+    for (const fe of from) exitFor(q, fe, from);
+  }
+  // Orden de chips: opciones en el orden de la pregunta, luego condiciones, luego "si no"
+  for (const q of steps) {
+    const list = exitsByNode.get(q.id);
+    if (!list) continue;
+    const order = (ex: Exit) => ex.kind === 'option' ? (exitValues(q)?.indexOf(ex.id.slice(4)) ?? 0) : ex.kind === 'cond' ? 100 : 200;
+    list.sort((a, b) => order(a) - order(b));
+    const node = nodes.find(n => n.id === q.id);
+    if (node) node.data.exits = list;
+  }
 
   for (const fe of flowEdges) {
     const n = o.edgeTraffic ? (o.edgeTraffic.get(`${fe.source}>${fe.target}`) ?? 0) : null;
     const width = n != null ? 1 + (n / maxTraffic) * 5 : undefined;
     const hidden = o.highlightEdges ? !o.highlightEdges.has(fe.id) : false;
-    const base = { id: fe.id, source: fe.source, target: fe.target, type: 'smoothstep' as const, style: { opacity: hidden ? 0.12 : 1 } as Record<string, unknown> };
-    const trafficLabel = n != null ? ` · ${n}` : '';
-    if (fe.kind === 'branch' || fe.kind === 'jump') {
-      const color = nextColor(fe.source);
-      const label = (fe.kind === 'jump' ? 'salta si ' : 'si ') + (fe.group ? groupText(fe.group, byId, lang) : '');
-      edges.push({ ...base, label: label + trafficLabel, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
-        style: { ...base.style, stroke: color, strokeWidth: width ?? 1.6 }, markerEnd: { type: MarkerType.ArrowClosed, color } });
-    } else {
-      edges.push({ ...base, label: fe.kind === 'else' ? 'si no' + trafficLabel : (n != null ? String(n) : undefined), labelStyle: { fill: '#999', fontSize: 10 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
-        style: { ...base.style, stroke: '#b5b5b5', strokeWidth: width ?? 1 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#b5b5b5' } });
-    }
+    const q = byId.get(fe.source);
+    const ex = q ? (exitsByNode.get(q.id) ?? []).find(e => {
+      if (fe.kind === 'else') return e.id === 'else';
+      const v = singleOptionCondition(fe.group, q.id);
+      return v !== null ? e.id === `opt:${v}` : e.id === `cond:${fe.id}`;
+    }) : undefined;
+    const color = ex ? ex.color : '#b5b5b5';
+    edges.push({
+      id: fe.id, source: fe.source, target: fe.target, sourceHandle: ex?.id, type: 'smoothstep',
+      label: n != null ? String(n) : undefined, labelStyle: { fill: color, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: '#fff', fillOpacity: 0.9 },
+      style: { opacity: hidden ? 0.12 : 1, stroke: color, strokeWidth: width ?? (ex && ex.kind !== 'else' ? 1.6 : 1) },
+      markerEnd: { type: MarkerType.ArrowClosed, color },
+    });
   }
 
   // ── Acomodo automático (con secciones como clusters)
   const g = new dagre.graphlib.Graph({ compound: true });
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 70, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: 'TB', nodesep: 90, ranksep: 80, marginx: 20, marginy: 20 });
   const sections = new Map<string, string[]>();
   for (const q of steps) if (q.section) { if (!sections.has(q.section)) sections.set(q.section, []); sections.get(q.section)!.push(q.id); }
   for (const [name, ids] of sections) {
@@ -207,8 +267,10 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
   }
   for (const n of nodes) {
     const d = n.data;
+    const chipChars = (d.exits ?? []).reduce((acc, e) => acc + Math.min(e.label.length, 30) + 4, 0);
+    const chipRows = d.exits?.length ? Math.ceil(chipChars / 34) : 0;
     const lines = Math.ceil((d.title?.length ?? 10) / 32) + (d.showIf ? Math.ceil(d.showIf.length / 36) : 0) + (d.identity ? 1 : 0) + (d.issue ? 2 : 0) + (d.traffic != null ? 1 : 0);
-    const h = d.kind === 'question' || d.kind === 'hidden' ? 56 + lines * 18 : 44 + (d.traffic != null ? 16 : 0);
+    const h = (d.kind === 'question' || d.kind === 'hidden' ? 56 + lines * 18 : 44 + (d.traffic != null ? 16 : 0)) + chipRows * 30;
     g.setNode(n.id, { width: NODE_W, height: h });
     const q = byId.get(n.id);
     if (q?.section && isStep(q)) g.setParent(n.id, `sec:${q.section}`);
@@ -356,8 +418,9 @@ export default function FormFlow({ schema, lang, selectedId, issues, published, 
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={trafficMode} onChange={e => toggleTraffic(e.target.checked)} /> Tráfico real{loadingTraffic ? '…' : trafficData ? ` (${trafficData.total})` : ''}</label>
       </div>
       <div className="flow-legend">
-        <span><i className="leg solid" /> siguiente (o "si no")</span>
-        <span><i className="leg jump" /> rama condicional: solo una salida se cumple</span>
+        <span><i className="leg solid" /> siguiente</span>
+        <span><i className="leg jump" /> cada chip es una salida; solo una se cumple</span>
+        <span><i className="leg showif" /> "sin respuesta": la pregunta es opcional</span>
         <span className="text-muted">Clic: resalta sus caminos · Doble clic: editar</span>
       </div>
       <div className={`flow-body ${showSim ? '' : 'no-sim'}`}>

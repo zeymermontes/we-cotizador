@@ -529,6 +529,23 @@ export interface FlowEdge {
   group?: ConditionGroup;
 }
 
+/** Si el grupo es "la pregunta `qid` es <valor>" (una sola condición eq), devuelve ese valor. */
+export function singleOptionCondition(g: ConditionGroup | null | undefined, qid: string): string | null {
+  if (!g) return null;
+  const leaves = flattenConditions(g);
+  if (leaves.length !== 1 || g.conditions.length !== 1) return null;
+  const c = leaves[0];
+  if (c.questionId !== qid || c.op !== 'eq' || c.value === undefined) return null;
+  return String(c.value);
+}
+
+/** Valores que una pregunta puede tomar como "salida": ids de opción, o true/false. */
+export function exitValues(q: Question): string[] | null {
+  if (isChoice(q.type) && q.type !== 'multiple_choice') return (q.options ?? []).map(o => o.id);
+  if (q.type === 'yes_no' || q.type === 'legal') return ['true', 'false'];
+  return null;
+}
+
 const SINGLE_ANSWER = new Set<QuestionType>(['single_choice', 'dropdown', 'yes_no', 'legal', 'short_text', 'long_text', 'email', 'phone', 'number', 'date', 'rating', 'hidden']);
 
 /** Dos grupos "solo si" que no pueden cumplirse a la vez (misma pregunta, valores distintos). */
@@ -593,7 +610,13 @@ export function buildFlowGraph(schema: FormSchema): FlowEdge[] {
       defaultTarget = n.id;
       break;
     }
-    edges.push({ id: `n-${q.id}-${defaultTarget}`, source: q.id, target: defaultTarget, kind: hasBranch || rules.length ? 'else' : 'next' });
+    // Si es obligatoria y cada valor posible ya tiene su rama, la salida por defecto nunca ocurre
+    const values = exitValues(q);
+    const covered = new Set(edges.filter(e => e.source === q.id && e.group).map(e => singleOptionCondition(e.group, q.id)).filter((v): v is string => v !== null));
+    const exhaustive = q.required && values !== null && values.length > 0 && values.every(v => covered.has(v));
+    if (!exhaustive) {
+      edges.push({ id: `n-${q.id}-${defaultTarget}`, source: q.id, target: defaultTarget, kind: hasBranch || rules.length ? 'else' : 'next' });
+    }
   });
   return edges;
 }
