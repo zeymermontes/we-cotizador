@@ -2763,7 +2763,7 @@ h6 {
 .screen-elements { display: flex; flex-direction: column; gap: 6px; }
 .screen-el-head, .screen-el-row {
   display: grid;
-  grid-template-columns: 36px 170px minmax(0, 1fr) 110px;
+  grid-template-columns: 36px 150px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
@@ -2775,10 +2775,20 @@ h6 {
 .screen-el-label { font-size: var(--text-sm); line-height: 1.2; }
 .screen-el-label small { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
 .screen-el-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.screen-el-size { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--text-muted); }
-.screen-el-size .input-field { width: 72px; text-align: right; }
+.screen-el-style { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.screen-el-style .seg { display: inline-flex; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; padding: 2px; }
+.screen-el-style .seg-btn { border: 0; background: transparent; color: var(--text-muted); font-size: 12px; width: 26px; height: 24px; border-radius: 6px; cursor: pointer; }
+.screen-el-style .seg-btn.active { background: var(--bg-elevated); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.screen-el-style .seg-btn:disabled { opacity: 0.4; cursor: default; }
+.screen-el-color { position: relative; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border-default); overflow: hidden; cursor: pointer; }
+.screen-el-color input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.screen-el-color span { display: block; width: 100%; height: 100%; }
+.screen-el-color.auto span { background: linear-gradient(135deg, transparent 45%, var(--border-default) 45%, var(--border-default) 55%, transparent 55%) !important; }
+.screen-el-font { padding: 4px 26px 4px 8px; font-size: 12px; background-position: right 8px center; }
+.screen-el-size { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--text-muted); }
+.screen-el-size .input-field { width: 64px; text-align: right; padding: 4px 6px; }
 @media (max-width: 720px) {
   .screen-el-head { display: none; }
   .screen-el-row { grid-template-columns: 36px 1fr; }
-  .screen-el-text, .screen-el-size { grid-column: 2; }
+  .screen-el-text, .screen-el-style { grid-column: 2; justify-content: flex-start; }
 }

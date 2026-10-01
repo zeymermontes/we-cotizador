@@ -52,7 +52,7 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
     <form className="section-card" onSubmit={save}>
       <h3>Textos de pantallas</h3>
       <p className="section-hint">
-        Desmarca un elemento para ocultarlo y ajusta su tamaño en píxeles; vacío usa el tamaño de siempre. Textos vacíos usan el texto por defecto. Puedes usar <code>{'{{evento}}'}</code> y, en el mensaje de enviado, <code>{'{{nombre}}'}</code>.
+        Desmarca un elemento para ocultarlo. En Estilo: negritas, cursiva, subrayado, mayúsculas, color (clic derecho lo quita), familia y tamaño en píxeles; lo que dejes vacío usa el branding. Textos vacíos usan el texto por defecto. Puedes usar <code>{'{{evento}}'}</code> y, en el mensaje de enviado, <code>{'{{nombre}}'}</code>.
       </p>
 
       {SCREENS.map(sc => (
@@ -60,7 +60,7 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
           <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{sc.label}</div>
           <div className="text-muted text-xs" style={{ marginBottom: 8 }}>{sc.hint}</div>
           <div className="screen-elements">
-            <div className="screen-el-head"><span>Ver</span><span>Elemento</span><span>Texto</span><span>Tamaño</span></div>
+            <div className="screen-el-head"><span>Ver</span><span>Elemento</span><span>Texto</span><span>Estilo</span></div>
             {SCREEN_ELEMENTS[sc.key].map(el => {
               const style = screens[sc.key]?.elements?.[el.key];
               const shown = style?.show !== false;
@@ -90,18 +90,39 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
                       />
                     )) : <span className="text-muted text-xs">automático</span>}
                   </div>
-                  <div className="screen-el-size">
-                    <input
-                      className="input-field"
-                      type="number"
-                      min={8}
-                      max={240}
-                      value={style?.size ?? ''}
-                      placeholder={String(el.defaultSize)}
-                      onChange={e => setElement(sc.key, el.key, { size: e.target.value === '' ? undefined : Number(e.target.value) })}
-                      disabled={!shown}
-                    />
-                    <span>px</span>
+                  <div className="screen-el-style">
+                    {el.text || !['logo', 'check'].includes(el.key) ? (
+                      <>
+                        <div className="seg">
+                          <button type="button" className={`seg-btn ${style?.bold ? 'active' : ''}`} title="Negritas" disabled={!shown} onClick={() => setElement(sc.key, el.key, { bold: style?.bold ? undefined : true })}><b>B</b></button>
+                          <button type="button" className={`seg-btn ${style?.italic ? 'active' : ''}`} title="Cursiva" disabled={!shown} onClick={() => setElement(sc.key, el.key, { italic: style?.italic ? undefined : true })}><i>I</i></button>
+                          <button type="button" className={`seg-btn ${style?.underline ? 'active' : ''}`} title="Subrayado" disabled={!shown} onClick={() => setElement(sc.key, el.key, { underline: style?.underline ? undefined : true })}><u>S</u></button>
+                          <button type="button" className={`seg-btn ${style?.uppercase ? 'active' : ''}`} title="Mayúsculas" disabled={!shown} onClick={() => setElement(sc.key, el.key, { uppercase: style?.uppercase ? undefined : true })}>AA</button>
+                        </div>
+                        <label className={`screen-el-color ${style?.color ? '' : 'auto'}`} title={style?.color ? 'Color del texto (clic derecho para quitar)' : 'Color del texto: el del branding'} onContextMenu={e => { e.preventDefault(); setElement(sc.key, el.key, { color: undefined }); }}>
+                          <input type="color" value={style?.color ?? '#000000'} disabled={!shown} onChange={e => setElement(sc.key, el.key, { color: e.target.value })} />
+                          <span style={{ background: style?.color ?? 'transparent' }} />
+                        </label>
+                        <select className="glass-select screen-el-font" value={style?.font ?? ''} disabled={!shown} title="Familia tipográfica" onChange={e => setElement(sc.key, el.key, { font: (e.target.value || undefined) as ElementStyle['font'] })}>
+                          <option value="">Auto</option>
+                          <option value="display">Títulos</option>
+                          <option value="body">Texto</option>
+                        </select>
+                      </>
+                    ) : <span className="text-muted text-xs">solo tamaño</span>}
+                    <span className="screen-el-size">
+                      <input
+                        className="input-field"
+                        type="number"
+                        min={8}
+                        max={240}
+                        value={style?.size ?? ''}
+                        placeholder={String(el.defaultSize)}
+                        onChange={e => setElement(sc.key, el.key, { size: e.target.value === '' ? undefined : Number(e.target.value) })}
+                        disabled={!shown}
+                      />
+                      px
+                    </span>
                   </div>
                 </div>
               );

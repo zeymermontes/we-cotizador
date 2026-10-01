@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 // Tipos del producto "Registro de eventos" (ver supabase/migrations/008_eventos_base.sql)
 
 export type ProfileRole = 'super' | 'event_admin';
@@ -58,10 +59,19 @@ export const FONT_OPTIONS = [
   'Lora',
 ] as const;
 
-/** Ajuste visual de un elemento de pantalla: visible o no, y tamaño en px. */
+/** Ajuste visual de un elemento de pantalla. Todo opcional: lo que falta usa el estilo del branding. */
 export interface ElementStyle {
   show?: boolean;
+  /** px; alto para imágenes e iconos */
   size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** color hex; vacío usa el color de texto del branding */
+  color?: string;
+  /** familia: la de títulos o la de texto del branding */
+  font?: 'display' | 'body';
+  uppercase?: boolean;
 }
 
 export interface ScreenCopy {
@@ -118,10 +128,21 @@ export function elementSize(copy: ScreenCopy | undefined, key: string): number |
   return typeof s === 'number' && s > 0 ? s : undefined;
 }
 
-/** Estilo inline de fuente para un elemento de texto. */
-export function elementFont(copy: ScreenCopy | undefined, key: string): { fontSize: number } | undefined {
-  const s = elementSize(copy, key);
-  return s ? { fontSize: s } : undefined;
+/** Estilo inline para un elemento de texto (tamaño, peso, cursiva, subrayado, color, familia). */
+export function elementFont(copy: ScreenCopy | undefined, key: string): CSSProperties | undefined {
+  const st = copy?.elements?.[key];
+  if (!st) return undefined;
+  const out: CSSProperties = {};
+  const size = elementSize(copy, key);
+  if (size) out.fontSize = size;
+  if (st.bold !== undefined) out.fontWeight = st.bold ? 700 : 400;
+  if (st.italic) out.fontStyle = 'italic';
+  if (st.underline) out.textDecoration = 'underline';
+  if (st.uppercase) out.textTransform = 'uppercase';
+  if (st.color && /^#[0-9a-f]{6}$/i.test(st.color)) out.color = st.color;
+  if (st.font === 'display') out.fontFamily = "var(--brand-font-display, 'Playfair Display'), serif";
+  if (st.font === 'body') out.fontFamily = "var(--brand-font-body, 'Inter'), sans-serif";
+  return Object.keys(out).length ? out : undefined;
 }
 
 export interface EventScreens {
