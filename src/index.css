@@ -884,7 +884,8 @@ h6 {
   display: flex;
   min-height: 100vh;
   max-width: 100vw;
-  overflow-x: hidden;
+  /* clip y no hidden: hidden convierte al layout en contenedor de scroll y rompe position: sticky */
+  overflow-x: clip;
 }
 
 .admin-sidebar {

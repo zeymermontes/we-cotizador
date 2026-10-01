@@ -61,14 +61,17 @@ export default function DevicePreview({ slug, languages, branding, screens }: Pr
     const el = stageRef.current;
     if (!el) return;
     const fit = () => {
-      const { w } = DEVICES[device];
-      const available = el.clientWidth;
-      setScale(Math.min(1, available / w));
+      const { w, h } = DEVICES[device];
+      // Cabe a lo ancho de la columna y a lo alto de la ventana (barra y pista aparte).
+      const availableW = el.clientWidth;
+      const availableH = window.innerHeight - 150;
+      setScale(Math.min(1, availableW / w, Math.max(0.3, availableH / h)));
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', fit);
+    return () => { ro.disconnect(); window.removeEventListener('resize', fit); };
   }, [device]);
 
   const { w, h } = DEVICES[device];
