@@ -11,6 +11,7 @@ import QuestionList from './QuestionList';
 import QuestionEditor, { Switch } from './QuestionEditor';
 import TypePalette from './TypePalette';
 import FormPreview from './FormPreview';
+import FormFlow from './FormFlow';
 
 interface Props {
   event: EventRow;
@@ -28,6 +29,7 @@ export default function FormBuilder({ event }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [view, setView] = useState<'editor' | 'flow'>('editor');
   const [saveState, setSaveState] = useState<SaveState>('loading');
   const [issues, setIssues] = useState<SchemaIssue[] | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -176,6 +178,10 @@ export default function FormBuilder({ event }: Props) {
           {publishedVersion ? `Publicada v${publishedVersion}${hasUnpublished ? ' · hay cambios sin publicar' : ''}` : 'Nunca publicado'}
         </span>
         <span className="spacer" />
+        <div className="segmented">
+          <button type="button" className={view === 'editor' ? 'active' : ''} onClick={() => setView('editor')}>✎ Editor</button>
+          <button type="button" className={view === 'flow' ? 'active' : ''} onClick={() => setView('flow')}>⤳ Flujo</button>
+        </div>
         <button className="btn btn-ghost btn-sm" onClick={() => setShowSettings(true)}>⚙ Ajustes</button>
         {publishedVersion && event.status === 'published' && (
           <a className="btn btn-secondary btn-sm" href={urls.registro} target="_blank" rel="noopener noreferrer">Ver en vivo ↗</a>
@@ -203,6 +209,14 @@ export default function FormBuilder({ event }: Props) {
         </div>
       )}
 
+      {view === 'flow' ? (
+        <FormFlow
+          schema={schema}
+          lang={langs[0]}
+          selectedId={selectedId}
+          onSelect={id => { setSelectedId(id); setAdding(false); setView('editor'); }}
+        />
+      ) : (
       <div className="builder">
         <QuestionList
           questions={questions}
@@ -233,6 +247,7 @@ export default function FormBuilder({ event }: Props) {
 
         <FormPreview schema={schema} event={event} />
       </div>
+      )}
 
       {showSettings && (
         <div className="modal-backdrop" onClick={() => setShowSettings(false)}>

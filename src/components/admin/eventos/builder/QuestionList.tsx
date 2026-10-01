@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -58,6 +59,22 @@ function Item({ q, index, lang, active, onSelect }: { q: Question; index: number
   const title = text(q.title, lang) || (q.type === 'hidden' ? `oculto: ${q.key ?? ''}` : '');
   const info = TYPE_INFO[q.type];
   const hasLogic = (q.logic?.length ?? 0) > 0 || (q.showIf?.conditions.length ?? 0) > 0;
+  const titleRef = useRef<HTMLSpanElement>(null);
+
+  // Si el título no cabe, al pasar el mouse se desliza a la izquierda para leerlo completo
+  const slideIn = () => {
+    const el = titleRef.current; if (!el) return;
+    const inner = el.firstElementChild as HTMLElement | null; if (!inner) return;
+    const overflow = inner.scrollWidth - el.clientWidth;
+    if (overflow <= 0) return;
+    inner.style.transition = `transform ${Math.max(0.8, overflow / 40)}s linear 0.3s`;
+    inner.style.transform = `translateX(-${overflow + 4}px)`;
+  };
+  const slideOut = () => {
+    const inner = titleRef.current?.firstElementChild as HTMLElement | null; if (!inner) return;
+    inner.style.transition = 'transform 0.25s ease';
+    inner.style.transform = 'translateX(0)';
+  };
 
   return (
     <div
@@ -65,11 +82,13 @@ function Item({ q, index, lang, active, onSelect }: { q: Question; index: number
       style={style}
       className={`builder-item ${active ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
       onClick={onSelect}
+      onMouseEnter={slideIn}
+      onMouseLeave={slideOut}
     >
       <span className="drag-handle" {...attributes} {...listeners} title="Arrastra para reordenar">⋮⋮</span>
       <span className="item-num">{index + 1}</span>
       <span className="item-icon" title={info.label}>{info.icon}</span>
-      <span className={`item-title ${title ? '' : 'empty'}`}>{title || 'Sin título'}</span>
+      <span ref={titleRef} className={`item-title ${title ? '' : 'empty'}`}><span className="item-title-inner">{title || 'Sin título'}</span></span>
       <span className="item-flags">
         {q.required && q.type !== 'statement' && q.type !== 'hidden' && <span title="Obligatoria">*</span>}
         {hasLogic && <span title="Tiene lógica">⤳</span>}

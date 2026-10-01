@@ -2362,7 +2362,9 @@ h6 {
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700; color: var(--text-secondary);
 }
-.builder-item .item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.builder-item .item-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+.builder-item .item-title-inner { display: inline-block; will-change: transform; }
+.builder-item:not(:hover) .item-title { text-overflow: ellipsis; }
 .builder-item .item-title.empty { color: var(--text-muted); font-style: italic; }
 .builder-item .item-flags { display: flex; gap: 4px; font-size: 10px; color: var(--text-muted); }
 .builder-item .item-flags span { background: var(--bg-input); padding: 1px 5px; border-radius: 4px; }
@@ -2569,3 +2571,25 @@ h6 {
 .reg-card.no-card, .branded-card.no-card { box-shadow: none; }
 .reg-card.no-card .reg-footer { border-top: none; }
 .reg-card.no-card .option-card, .branded-page .no-card .rating-btn { background: color-mix(in srgb, var(--brand-text) 8%, transparent); backdrop-filter: blur(4px); }
+
+/* ─── Vista de flujo del formulario ─────────────────────────── */
+.flow-wrap { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.flow-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 14px; font-size: var(--text-xs); color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle); align-items: center; }
+.flow-legend .leg { display: inline-block; width: 22px; height: 0; border-top: 2px solid #b5b5b5; vertical-align: middle; margin-right: 6px; }
+.flow-legend .leg.jump { border-top-color: #2d5a57; }
+.flow-legend .leg.showif { border-top: 2px dashed #d97706; }
+.flow-canvas { height: min(78vh, 900px); }
+.flow-node { background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 10px 12px; font-size: var(--text-sm); box-shadow: var(--shadow-sm); cursor: pointer; transition: box-shadow 0.15s ease, border-color 0.15s ease; }
+.flow-node:hover { border-color: var(--border-active); box-shadow: var(--shadow-md); }
+.flow-node.selected { border-color: var(--color-primary-dark); box-shadow: 0 0 0 3px var(--color-primary-glow); }
+.flow-node.start, .flow-node.end { background: var(--bg-selected); border-color: var(--border-active); font-weight: 600; cursor: default; border-radius: var(--radius-full); padding: 10px 16px; }
+.flow-node.hidden { border-style: dashed; opacity: 0.85; }
+.flow-node-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 11px; color: var(--text-muted); }
+.flow-node-head .item-icon { width: 22px; height: 22px; font-size: 11px; }
+.flow-node-n { font-weight: 700; color: var(--text-secondary); }
+.flow-node-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-node-title { font-weight: 500; line-height: 1.3; word-break: break-word; }
+.flow-node-tag { margin-top: 6px; font-size: 10px; color: var(--text-muted); background: var(--bg-input); display: inline-block; padding: 1px 6px; border-radius: 4px; }
+.flow-node-showif { margin-top: 6px; font-size: 11px; color: #b45309; background: rgba(217,119,6,0.1); padding: 4px 6px; border-radius: 4px; line-height: 1.3; }
+.react-flow__handle { width: 8px; height: 8px; background: var(--color-primary-dark); border: 2px solid var(--bg-elevated); }
+.react-flow__edge-textbg { rx: 4; }
