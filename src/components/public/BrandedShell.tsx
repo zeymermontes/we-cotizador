@@ -1,5 +1,5 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
-import { type PublicEvent, type EventLanguage, DEFAULT_BRANDING, LANGUAGE_LABEL } from '../../lib/events-types';
+import { type PublicEvent, type EventLanguage, DEFAULT_BRANDING, LANGUAGE_LABEL, screenFonts } from '../../lib/events-types';
 import { brandingStyle, fontsHref } from '../../lib/branding';
 
 interface ShellProps {
@@ -41,7 +41,7 @@ export default function BrandedShell({ event, lang, onLang, title, variant = 'ca
 
   return (
     <div className="branded-page" style={style}>
-      <link rel="stylesheet" href={fontsHref([m.font_display, m.font_body])} />
+      <link rel="stylesheet" href={fontsHref([m.font_display, m.font_body, ...screenFonts(event?.screens)])} />
       {variant === 'form' ? (
         <div className={`reg-card animate-fade-in ${noCard ? 'no-card' : ''}`}>
           {langToggle && <div style={{ padding: '12px 16px 0', textAlign: 'right' }}>{langToggle}</div>}

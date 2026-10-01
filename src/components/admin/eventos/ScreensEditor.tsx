@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EventRow, EventScreens, EventLanguage, ScreenCopy, ElementStyle } from '../../../lib/events-types';
-import { LANGUAGE_LABEL, SCREEN_ELEMENTS } from '../../../lib/events-types';
+import { LANGUAGE_LABEL, SCREEN_ELEMENTS, FONT_OPTIONS } from '../../../lib/events-types';
 
 interface Props {
   event: EventRow;
@@ -106,10 +106,13 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
                           <input type="color" value={style?.color ?? '#000000'} disabled={!shown} onChange={e => setElement(sc.key, el.key, { color: e.target.value })} />
                           <span style={{ background: style?.color ?? 'transparent' }} />
                         </label>
-                        <select className="glass-select screen-el-font" value={style?.font ?? ''} disabled={!shown} title="Familia tipográfica" onChange={e => setElement(sc.key, el.key, { font: (e.target.value || undefined) as ElementStyle['font'] })}>
+                        <select className="glass-select screen-el-font" value={style?.font ?? ''} disabled={!shown} title="Familia tipográfica" style={style?.font && style.font !== 'display' && style.font !== 'body' ? { fontFamily: `'${style.font}', sans-serif` } : undefined} onChange={e => setElement(sc.key, el.key, { font: (e.target.value || undefined) as ElementStyle['font'] })}>
                           <option value="">Auto</option>
-                          <option value="display">Títulos</option>
-                          <option value="body">Texto</option>
+                          <option value="display">Títulos ({event.branding?.font_display ?? 'branding'})</option>
+                          <option value="body">Texto ({event.branding?.font_body ?? 'branding'})</option>
+                          <optgroup label="Otra fuente">
+                            {FONT_OPTIONS.map(f => <option key={f} value={f} style={{ fontFamily: `'${f}', sans-serif` }}>{f}</option>)}
+                          </optgroup>
                         </select>
                       </>
                     ) : null}

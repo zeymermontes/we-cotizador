@@ -71,8 +71,8 @@ export interface ElementStyle {
   color?: string;
   /** opacidad 0–100; vacío usa la del diseño */
   opacity?: number;
-  /** familia: la de títulos o la de texto del branding */
-  font?: 'display' | 'body';
+  /** familia: 'display' o 'body' del branding, o el nombre de una fuente de Google */
+  font?: 'display' | 'body' | string;
   uppercase?: boolean;
 }
 
@@ -120,6 +120,17 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner', Screen
   ],
 };
 
+/** Fuentes de Google que piden los elementos de las pantallas (además de las del branding). */
+export function screenFonts(screens: EventScreens | null | undefined): string[] {
+  const out = new Set<string>();
+  for (const copy of Object.values(screens ?? {})) {
+    for (const st of Object.values((copy as ScreenCopy | undefined)?.elements ?? {})) {
+      if (st.font && st.font !== 'display' && st.font !== 'body') out.add(st.font);
+    }
+  }
+  return [...out];
+}
+
 export function elementShown(copy: ScreenCopy | undefined, key: string): boolean {
   return copy?.elements?.[key]?.show !== false;
 }
@@ -144,7 +155,8 @@ export function elementFont(copy: ScreenCopy | undefined, key: string): CSSPrope
   if (st.color && /^#[0-9a-f]{6}$/i.test(st.color)) out.color = st.color;
   if (typeof st.opacity === 'number' && st.opacity >= 0 && st.opacity <= 100) out.opacity = st.opacity / 100;
   if (st.font === 'display') out.fontFamily = "var(--brand-font-display, 'Playfair Display'), serif";
-  if (st.font === 'body') out.fontFamily = "var(--brand-font-body, 'Inter'), sans-serif";
+  else if (st.font === 'body') out.fontFamily = "var(--brand-font-body, 'Inter'), sans-serif";
+  else if (st.font) out.fontFamily = `'${st.font}', sans-serif`;
   return Object.keys(out).length ? out : undefined;
 }
 
