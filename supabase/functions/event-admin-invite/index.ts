@@ -3,9 +3,9 @@
 //
 // Solo un usuario `super` puede llamarla. Según el método de acceso
 // del evento:
-//   magic_link → si el usuario no existe se le manda la invitación de
-//                Supabase; si ya existe, entra con "enlace mágico" en
-//                el login. En ambos casos queda como miembro.
+//   magic_link → Supabase genera el enlace (invitación si no existe,
+//                enlace mágico si ya existe) y el correo lo manda
+//                Resend con nuestra plantilla. Queda como miembro.
 //   password   → se crea el usuario con la contraseña indicada (o se
 //                actualiza la contraseña si ya existe) y queda como
 //                miembro. El super le comparte la contraseña.
@@ -15,6 +15,43 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders, json, fail } from "../_shared/cors.ts";
+import { sendEmail } from "../_shared/messaging.ts";
+import { emailHtml, textToHtml } from "../_shared/messaging-core.ts";
+
+const FROM_LOCAL = Deno.env.get('RESEND_FROM_LOCAL') ?? 'no-reply';
+const FROM_DOMAIN = Deno.env.get('RESEND_FROM_DOMAIN') ?? 'eventos.we.page';
+
+/** Correo de acceso al panel: enlace de entrada directo cuando lo hay. */
+async function sendAccessEmail(a: {
+  to: string; name: string; eventName: string; loginMethod: string;
+  actionLink: string | null; landing: string; loginUrl: string;
+  outcome: 'invited' | 'created' | 'existing' | 'password_updated';
+}): Promise<void> {
+  const hola = a.name ? `Hola ${a.name.split(/\s+/)[0]},` : 'Hola,';
+  const lines: string[] = [hola, '', `Ya tienes acceso para administrar **${a.eventName}** en We.Page.`, ''];
+  if (a.loginMethod === 'password') {
+    lines.push(`Entra en ${a.loginUrl} con este correo (${a.to}).`);
+    lines.push(a.outcome === 'created' || a.outcome === 'password_updated'
+      ? 'La contraseña te la comparte directamente quien te dio el acceso.'
+      : 'Usa la contraseña que ya tienes.');
+  } else if (a.actionLink) {
+    lines.push(`[Entrar al panel](${a.actionLink})`);
+    lines.push('');
+    lines.push(`Ese enlace es personal y de un solo uso. Si caduca, entra en ${a.loginUrl} y pide un nuevo enlace de acceso con este correo.`);
+  } else {
+    lines.push(`Entra en ${a.loginUrl} con este correo y pide tu enlace de acceso.`);
+  }
+  lines.push('', `Panel de eventos: ${a.landing}`);
+  const text = lines.join('\n');
+  await sendEmail({
+    from: `We.Page Eventos <${FROM_LOCAL}@${FROM_DOMAIN}>`,
+    to: a.to,
+    subject: `Acceso para administrar ${a.eventName}`,
+    html: emailHtml(textToHtml(text), { eventName: a.eventName }),
+    text: text.replace(/\*\*/g, '').replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1: $2'),
+    tags: { kind: 'admin_access' },
+  });
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -64,6 +101,10 @@ serve(async (req) => {
     const { data: existingId } = await admin.rpc('get_user_id_by_email', { p_email: email });
     let userId: string | null = existingId ?? null;
     let outcome: 'invited' | 'created' | 'existing' | 'password_updated' = 'existing';
+    const landing = `${ADMIN_URL}/admin/eventos`;
+    // Enlace de un solo uso que inicia sesión y aterriza en Eventos (lo
+    // genera Supabase; el correo lo mandamos nosotros por Resend).
+    let actionLink: string | null = null;
 
     if (event.login_method === 'password') {
       if (!userId) {
@@ -84,13 +125,22 @@ serve(async (req) => {
       }
     } else {
       if (!userId) {
-        const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-          data: { full_name },
-          redirectTo: `${ADMIN_URL}/admin/eventos`,
+        const { data, error } = await admin.auth.admin.generateLink({
+          type: 'invite',
+          email,
+          options: { data: { full_name }, redirectTo: landing },
         });
         if (error) return fail('auth_error', error.message);
         userId = data.user.id;
+        actionLink = data.properties?.action_link ?? null;
         outcome = 'invited';
+      } else {
+        const { data, error } = await admin.auth.admin.generateLink({
+          type: 'magiclink',
+          email,
+          options: { redirectTo: landing },
+        });
+        if (!error) actionLink = data.properties?.action_link ?? null;
       }
     }
 
@@ -107,7 +157,25 @@ serve(async (req) => {
       .upsert({ event_id, user_id: userId, role: member_role }, { onConflict: 'event_id,user_id' });
     if (memberErr) return fail('db_error', memberErr.message);
 
-    return json({ ok: true, user_id: userId, outcome });
+    // 6. Aviso por correo (Resend). Si falla, el acceso ya quedó dado: se
+    //    informa, no se revierte.
+    let emailError: string | null = null;
+    try {
+      await sendAccessEmail({
+        to: email,
+        name: full_name,
+        eventName: event.name,
+        loginMethod: event.login_method,
+        actionLink,
+        landing,
+        loginUrl: `${ADMIN_URL}/admin/login`,
+        outcome,
+      });
+    } catch (e) {
+      emailError = (e as Error).message ?? 'No se pudo enviar el correo';
+    }
+
+    return json({ ok: true, user_id: userId, outcome, email_sent: !emailError, email_error: emailError });
   } catch (e) {
     return fail('unexpected', (e as Error).message ?? 'Error inesperado');
   }

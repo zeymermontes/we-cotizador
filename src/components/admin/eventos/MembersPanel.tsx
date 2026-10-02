@@ -14,14 +14,16 @@ const ROLE_LABEL: Record<MemberRole, string> = { owner: 'Dueño', admin: 'Admini
 interface InviteResult {
   ok: boolean;
   outcome?: 'invited' | 'created' | 'existing' | 'password_updated';
+  email_sent?: boolean;
+  email_error?: string | null;
   message?: string;
 }
 
 const OUTCOME_TEXT: Record<NonNullable<InviteResult['outcome']>, string> = {
-  invited: 'Invitación enviada por correo.',
-  created: 'Usuario creado con la contraseña indicada. Compártesela.',
-  existing: 'El usuario ya existía; ahora tiene acceso a este evento.',
-  password_updated: 'Contraseña actualizada y acceso otorgado.',
+  invited: 'Invitación enviada por correo con su enlace de entrada.',
+  created: 'Usuario creado; le avisamos por correo. La contraseña se la compartes tú.',
+  existing: 'Ya tenía cuenta; le enviamos por correo un enlace de entrada.',
+  password_updated: 'Contraseña actualizada; le avisamos por correo.',
 };
 
 export default function MembersPanel({ event, isSuper, onFlash }: Props) {
@@ -54,7 +56,11 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
       onFlash({ kind: 'error', text: data?.message || error?.message || 'No se pudo invitar' });
       return;
     }
-    onFlash({ kind: 'success', text: OUTCOME_TEXT[data.outcome ?? 'existing'] });
+    if (data.email_sent === false) {
+      onFlash({ kind: 'error', text: `Acceso otorgado, pero el correo no salió: ${data.email_error ?? 'error desconocido'}` });
+    } else {
+      onFlash({ kind: 'success', text: OUTCOME_TEXT[data.outcome ?? 'existing'] });
+    }
     setEmail(''); setFullName(''); setPassword('');
     load();
   }
