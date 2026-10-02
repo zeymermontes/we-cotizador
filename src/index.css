@@ -2933,3 +2933,31 @@ h6 {
 
 /* Páginas públicas: el documento no mide más que la ventana visible (ver BrandedShell). */
 html.we-public body, html.we-public #root { min-height: 100svh; }
+
+/* ─── Panel de clientes (panel.we.page) ─── */
+.panel-layout { min-height: 100vh; background: var(--bg-base); display: flex; flex-direction: column; }
+.panel-splash { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  background: rgba(244, 242, 239, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.panel-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text-primary); font-family: var(--font-display); font-size: var(--text-lg); }
+.panel-brand img { height: 28px; }
+.panel-user { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); color: var(--text-muted); }
+.panel-user-name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-main { flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+@media (max-width: 720px) {
+  .panel-header { padding: 10px 16px; }
+  .panel-brand span { display: none; }
+  .panel-main { padding: 16px; }
+}

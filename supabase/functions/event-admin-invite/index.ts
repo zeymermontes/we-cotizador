@@ -46,8 +46,8 @@ async function sendAccessEmail(a: {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-// A dónde aterriza el administrador después de entrar.
-const ADMIN_URL = Deno.env.get('ADMIN_APP_URL') ?? 'https://we-cotizador.onrender.com';
+// Panel de clientes: ahí entran los administradores de evento.
+const PANEL_URL = Deno.env.get('PANEL_APP_URL') ?? 'https://panel.we.page';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -128,7 +128,7 @@ serve(async (req) => {
         to: email,
         name: full_name,
         eventName: event.name,
-        loginUrl: `${ADMIN_URL}/admin/login`,
+        loginUrl: `${PANEL_URL}/login`,
         outcome,
       });
     } catch (e) {

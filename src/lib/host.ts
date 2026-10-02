@@ -1,23 +1,26 @@
-// Un solo build sirve tres sitios. El hostname decide cuál se monta:
+// Un solo build sirve cuatro sitios. El hostname decide cuál se monta:
 //   registro.we.page/<slug>  → formulario público de registro
 //   acceso.we.page/<slug>    → scanner de asistencia (con PIN)
-//   cualquier otro           → cotizador + admin (lo de siempre)
+//   panel.we.page            → panel de eventos para los clientes
+//   cualquier otro           → cotizador + admin global del equipo
 //
 // En local no hay subdominios, así que el modo admin también monta
-// /r/<slug> y /s/<slug> para poder probar los sitios públicos.
+// /r/<slug>, /s/<slug> y /panel/* para poder probar los otros sitios.
 
-export type AppMode = 'admin' | 'registro' | 'acceso';
+export type AppMode = 'admin' | 'registro' | 'acceso' | 'panel';
 
 const REGISTRO_HOST = import.meta.env.VITE_REGISTRO_HOST || 'registro.we.page';
 const ACCESO_HOST = import.meta.env.VITE_ACCESO_HOST || 'acceso.we.page';
+const PANEL_HOST = import.meta.env.VITE_PANEL_HOST || 'panel.we.page';
 
 export function getAppMode(): AppMode {
   const forced = import.meta.env.VITE_APP_MODE as AppMode | undefined;
-  if (forced === 'registro' || forced === 'acceso') return forced;
+  if (forced === 'registro' || forced === 'acceso' || forced === 'panel') return forced;
 
   const host = window.location.hostname.toLowerCase();
   if (host === REGISTRO_HOST || host.startsWith('registro.')) return 'registro';
   if (host === ACCESO_HOST || host.startsWith('acceso.')) return 'acceso';
+  if (host === PANEL_HOST || host.startsWith('panel.')) return 'panel';
   return 'admin';
 }
 
@@ -36,4 +39,9 @@ export function publicUrls(slug: string): { registro: string; acceso: string } {
     registro: `https://${REGISTRO_HOST}/${slug}`,
     acceso: `https://${ACCESO_HOST}/${slug}`,
   };
+}
+
+/** Raíz del panel de clientes (sitio aparte; en local, /panel). */
+export function panelUrl(): string {
+  return isLocal() ? `${window.location.origin}/panel` : `https://${PANEL_HOST}`;
 }

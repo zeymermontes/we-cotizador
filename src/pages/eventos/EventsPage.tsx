@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { eventPath } from '../../lib/paths';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -88,7 +89,7 @@ export default function EventsPage() {
       setError(insErr.message.includes('events_slug_key') ? 'Ese enlace ya está en uso, elige otro.' : insErr.message);
       return;
     }
-    navigate(`/admin/eventos/${data.id}/ajustes`);
+    navigate(eventPath(data.id, 'ajustes'));
   }
 
   const formatDate = (d: string | null) =>
@@ -140,7 +141,7 @@ export default function EventsPage() {
               </tr>
             )}
             {visible.map(ev => (
-              <tr key={ev.id} onClick={() => navigate(`/admin/eventos/${ev.id}`)} style={{ cursor: 'pointer' }}>
+              <tr key={ev.id} onClick={() => navigate(eventPath(ev.id))} style={{ cursor: 'pointer' }}>
                 <td style={{ fontWeight: 600 }}>
                   {ev.name}
                   {ev.venue && <div className="text-muted text-xs">{ev.venue}</div>}

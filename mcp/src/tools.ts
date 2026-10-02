@@ -128,7 +128,7 @@ export function registerTools(server: McpServer) {
     const { scanner_pin_hash: _pin, ...safe } = ev;
     return {
       ...safe,
-      urls: { registro: `https://registro.we.page/${ev.slug}`, acceso: `https://acceso.we.page/${ev.slug}` },
+      urls: { registro: `https://registro.we.page/${ev.slug}`, acceso: `https://acceso.we.page/${ev.slug}`, panel: `https://panel.we.page/eventos/${ev.id}` },
       form: { published_version: version, draft_questions: draft?.questions.length ?? 0, published_questions: published?.questions.length ?? 0, has_unpublished_changes: !!draft && JSON.stringify(draft) !== JSON.stringify(published) },
       stats: { registrations: (regs ?? []).filter(r => r.status !== 'cancelled').length, people, by_status: byStatus },
     };

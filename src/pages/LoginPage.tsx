@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import logo from '../assets/logo.png';
+import { eventsBase } from '../lib/paths';
 
-export default function LoginPage() {
+/** admin: equipo We.Page (/admin). panel: clientes (panel.we.page). */
+export default function LoginPage({ variant = 'admin' }: { variant?: 'admin' | 'panel' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -22,7 +24,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    navigate('/admin');
+    navigate(variant === 'panel' ? eventsBase() : '/admin');
   };
 
   return (
@@ -31,7 +33,8 @@ export default function LoginPage() {
         <div className="form-logo" style={{ justifyContent: 'center', marginBottom: 'var(--space-md)' }}>
           <img src={logo} alt="We.Page Logo" style={{ height: 60 }} />
         </div>
-        <p className="text-muted" style={{ marginBottom: 'var(--space-lg)' }}>{t('admin.login')}</p>
+        {variant === 'panel' && <h1 style={{ fontSize: 'var(--text-xl)', marginBottom: 4 }}>Panel de eventos</h1>}
+        <p className="text-muted" style={{ marginBottom: 'var(--space-lg)' }}>{variant === 'panel' ? 'Entra con el correo y la contraseña que te dio el equipo We.Page.' : t('admin.login')}</p>
 
         <form className="login-form" onSubmit={handleLogin}>
           <div className="input-group">

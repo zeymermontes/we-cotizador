@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EventRow, EventScreens, EventLanguage, ScreenCopy, ElementStyle } from '../../../lib/events-types';
 import { LANGUAGE_LABEL, SCREEN_ELEMENTS, FONT_OPTIONS } from '../../../lib/events-types';
+import { eventPath } from '../../../lib/paths';
 
 interface Props {
   event: EventRow;
@@ -80,7 +81,7 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
                   </label>
                   <div className="screen-el-label">
                     {el.label}
-                    {el.hint && <small>{el.hint === 'se toma de Ajustes generales' ? <>se toma de <Link to={`/admin/eventos/${event.id}/ajustes`}>Ajustes</Link></> : el.hint}</small>}
+                    {el.hint && <small>{el.hint === 'se toma de Ajustes generales' ? <>se toma de <Link to={eventPath(event.id, 'ajustes')}>Ajustes</Link></> : el.hint}</small>}
                   </div>
                   <div className="screen-el-text">
                     {el.text ? langs.map(lang => (

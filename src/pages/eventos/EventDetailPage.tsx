@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { publicUrls } from '../../lib/host';
+import { eventsBase, eventPath } from '../../lib/paths';
 import {
   type EventRow, type EventStatus, type EventLanguage,
   EVENT_STATUS_BADGE, EVENT_STATUS_LABEL, LANGUAGE_LABEL, slugify,
@@ -84,7 +85,7 @@ export default function EventDetailPage() {
   if (notFound || !event) {
     return (
       <div style={{ textAlign: 'center', padding: 64, color: 'var(--text-muted)' }}>
-        Este evento no existe o no tienes acceso. <Link to="/admin/eventos">Volver</Link>
+        Este evento no existe o no tienes acceso. <Link to={eventsBase()}>Volver</Link>
       </div>
     );
   }
@@ -95,7 +96,7 @@ export default function EventDetailPage() {
     <div className="animate-fade-in">
       <div className="admin-topbar" style={{ marginBottom: 8, alignItems: 'flex-start' }}>
         <div>
-          <Link to="/admin/eventos" className="text-muted text-sm">← Eventos</Link>
+          <Link to={eventsBase()} className="text-muted text-sm">← Eventos</Link>
           <h1 className="admin-page-title" style={{ marginTop: 4 }}>{event.name}</h1>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
             <span className={`badge ${EVENT_STATUS_BADGE[event.status]}`}>{EVENT_STATUS_LABEL[event.status]}</span>
@@ -117,7 +118,7 @@ export default function EventDetailPage() {
           <button
             key={t.key}
             className={`tab ${tab === t.key ? 'active' : ''}`}
-            onClick={() => navigate(`/admin/eventos/${event.id}/${t.key}`)}
+            onClick={() => navigate(eventPath(event.id, t.key))}
           >
             {t.label}
           </button>
@@ -331,7 +332,7 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     if (!confirm('Última confirmación: ¿eliminar el evento?')) return;
     const { error } = await supabase.from('events').delete().eq('id', event.id);
     if (error) return onFlash({ kind: 'error', text: error.message });
-    navigate('/admin/eventos');
+    navigate(eventsBase());
   }
 
   return (
