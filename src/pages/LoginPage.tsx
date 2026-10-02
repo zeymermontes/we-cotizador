@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -13,6 +13,10 @@ export default function LoginPage({ variant = 'admin' }: { variant?: 'admin' | '
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (variant === 'panel') document.title = 'Panel de eventos · We.Page';
+  }, [variant]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +48,7 @@ export default function LoginPage({ variant = 'admin' }: { variant?: 'admin' | '
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@we.page"
+              placeholder={variant === 'panel' ? 'tu@correo.com' : 'admin@we.page'}
               required
               autoFocus
               autoComplete="username"

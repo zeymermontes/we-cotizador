@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { eventsBase, loginPath } from '../lib/paths';
@@ -7,6 +8,8 @@ import logo from '../assets/logo.png';
 export default function PanelLayout() {
   const { profile, session, signOut, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => { document.title = 'Panel de eventos · We.Page'; }, []);
 
   const logout = async () => {
     await signOut();
