@@ -21,7 +21,7 @@ interface InviteResult {
 
 const OUTCOME_TEXT: Record<NonNullable<InviteResult['outcome']>, string> = {
   created: 'Usuario creado; le avisamos por correo. La contraseña se la compartes tú.',
-  existing: 'Ya tenía cuenta; le enviamos por correo un enlace de entrada.',
+  existing: 'Ya tenía cuenta: se le dio acceso sin tocar su contraseña y le avisamos por correo.',
   password_updated: 'Contraseña actualizada; le avisamos por correo.',
 };
 
@@ -30,6 +30,7 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [resetPassword, setResetPassword] = useState(false);
   const [role, setRole] = useState<MemberRole>('admin');
   const [busy, setBusy] = useState(false);
 
@@ -48,7 +49,7 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
     e.preventDefault();
     setBusy(true);
     const { data, error } = await supabase.functions.invoke<InviteResult>('event-admin-invite', {
-      body: { event_id: event.id, email, full_name: fullName, password: password || undefined, member_role: role },
+      body: { event_id: event.id, email, full_name: fullName, password: password || undefined, member_role: role, reset_password: resetPassword },
     });
     setBusy(false);
     if (error || !data?.ok) {
@@ -60,7 +61,7 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
     } else {
       onFlash({ kind: 'success', text: OUTCOME_TEXT[data.outcome ?? 'existing'] });
     }
-    setEmail(''); setFullName(''); setPassword('');
+    setEmail(''); setFullName(''); setPassword(''); setResetPassword(false);
     load();
   }
 
@@ -111,7 +112,11 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
             <div className="input-group">
               <label className="input-label">Contraseña</label>
               <input className="input-field" type="text" value={password} onChange={e => setPassword(e.target.value)} minLength={8} placeholder="Mínimo 8 caracteres" autoComplete="off" />
-              <small className="text-muted text-xs">Obligatoria si la cuenta es nueva. Si ya existe, vacía la deja como está.</small>
+              <small className="text-muted text-xs">Solo se usa para cuentas nuevas. Una cuenta que ya existe conserva su contraseña.</small>
+              <label className="switch-row" style={{ marginTop: 8, gap: 8, alignItems: 'center' }}>
+                <input type="checkbox" checked={resetPassword} onChange={e => setResetPassword(e.target.checked)} disabled={!password} />
+                <span className="text-xs">Si la cuenta ya existe, cambiarle la contraseña por esta</span>
+              </label>
             </div>
             <div className="input-group">
               <label className="input-label">Permiso</label>

@@ -7,7 +7,10 @@
 // Queda como miembro y recibe por Resend un correo con cómo entrar; la
 // contraseña se la comparte el super por otro canal.
 //
-// Body: { event_id, email, full_name?, password?, member_role? }
+// Body: { event_id, email, full_name?, password?, member_role?, reset_password? }
+// La contraseña solo se aplica a cuentas nuevas. Para cambiar la de una
+// cuenta existente hay que mandar reset_password: true, y nunca se toca
+// la de una cuenta del equipo (profiles.role = super).
 // ─────────────────────────────────────────────────────────────
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -74,6 +77,7 @@ serve(async (req) => {
     const email = String(body.email ?? '').trim().toLowerCase();
     const full_name = String(body.full_name ?? '').trim();
     const password = body.password ? String(body.password) : '';
+    const resetPassword = body.reset_password === true;
     const member_role = ['owner', 'admin', 'viewer'].includes(body.member_role) ? body.member_role : 'admin';
 
     if (!event_id) return fail('bad_request', 'Falta event_id');
@@ -103,7 +107,11 @@ serve(async (req) => {
       if (error) return fail('auth_error', error.message);
       userId = data.user.id;
       outcome = 'created';
-    } else if (password) {
+    } else if (password && resetPassword) {
+      const { data: target } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle();
+      if (target?.role === 'super') {
+        return fail('forbidden', 'Esa cuenta es del equipo We.Page: su contraseña no se cambia desde aquí');
+      }
       const { error } = await admin.auth.admin.updateUserById(userId, { password });
       if (error) return fail('auth_error', error.message);
       outcome = 'password_updated';
