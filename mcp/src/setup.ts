@@ -64,7 +64,7 @@ button{width:100%;padding:12px;border:none;border-radius:999px;background:#BBEBE
 </style></head><body><div class="card">
 <h1>Conectar el MCP</h1><p>Entra con tu usuario del admin de We.Page</p>
 <form id="f"><input id="email" type="email" placeholder="correo" required autofocus><input id="pass" type="password" placeholder="contraseña">
-<button type="submit">Entrar →</button><button type="button" class="ghost" id="magic">Mandarme un enlace mágico</button></form>
+<button type="submit">Entrar →</button></form>
 <div class="msg" id="msg"></div></div>
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -82,9 +82,6 @@ sb.auth.onAuthStateChange((e,s)=>{ if(e==='SIGNED_IN'&&s) hand(s); });
 document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();msg.className='msg';msg.textContent='Entrando…';
   const {error}=await sb.auth.signInWithPassword({email:email.value,password:pass.value});
   if(error){msg.className='msg err';msg.textContent=error.message;}};
-document.getElementById('magic').onclick=async()=>{ if(!email.value){msg.className='msg err';msg.textContent='Escribe tu correo primero';return;}
-  const {error}=await sb.auth.signInWithOtp({email:email.value,options:{emailRedirectTo:location.origin+'/'}});
-  msg.className=error?'msg err':'msg ok';msg.textContent=error?error.message:'Revisa tu correo y abre el enlace: te regresa aquí.';};
 </script></body></html>`;
 }
 
@@ -115,7 +112,6 @@ async function loginInBrowser(url: string, anon: string): Promise<{ refresh_toke
     server.listen(PORT, '127.0.0.1', () => {
       const link = `http://localhost:${PORT}/`;
       console.log(`\nAbriendo ${bold(link)} en tu navegador…`);
-      console.log(dim(`Si usas enlace mágico, en Supabase → Authentication → URL Configuration debe estar permitido ${link}**`));
       openBrowser(link);
     });
     server.on('error', reject);
@@ -144,7 +140,7 @@ async function main() {
   }
 
   console.log('¿Cómo quieres iniciar sesión?');
-  console.log('  1) En el navegador (abre una pestaña; sirve con contraseña o enlace mágico)');
+  console.log('  1) En el navegador (abre una pestaña; correo y contraseña)');
   console.log('  2) Aquí en la terminal (correo y contraseña)');
   const choice = await ask('Opción [1]: ');
   const creds = choice.trim() === '2' ? await loginInTerminal(url, anon) : await loginInBrowser(url, anon);

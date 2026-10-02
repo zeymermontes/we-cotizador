@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { publicUrls } from '../../lib/host';
 import {
-  type EventRow, type EventStatus, type EventLanguage, type LoginMethod,
+  type EventRow, type EventStatus, type EventLanguage,
   EVENT_STATUS_BADGE, EVENT_STATUS_LABEL, LANGUAGE_LABEL, slugify,
 } from '../../lib/events-types';
 import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
@@ -295,7 +295,6 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     registration_closes_at: toLocalInput(event.registration_closes_at),
     languages: event.languages,
     default_language: event.default_language,
-    login_method: event.login_method,
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
 
@@ -323,7 +322,6 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
       registration_closes_at: general.registration_closes_at ? new Date(general.registration_closes_at).toISOString() : null,
       languages: general.languages,
       default_language: general.default_language,
-      login_method: general.login_method as LoginMethod,
     });
     setSavingGeneral(false);
   }
@@ -340,7 +338,7 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     <>
       <form className="section-card" onSubmit={saveGeneral}>
         <h3>General</h3>
-        <p className="section-hint">Nombre, fecha, lugar, idiomas y acceso de los administradores. El diseño y los textos de las pantallas están en la pestaña Diseño; el PIN del staff, en Scanner.</p>
+        <p className="section-hint">Nombre, fecha, lugar e idiomas. El diseño y los textos de las pantallas están en la pestaña Diseño; el PIN del staff, en Scanner.</p>
 
         <div className="field-grid">
           <div className="input-group">
@@ -391,15 +389,6 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
               )}
             </div>
           </div>
-          {isSuper && (
-            <div className="input-group">
-              <label className="input-label">Acceso de administradores del evento</label>
-              <div className="chip-row">
-                <button type="button" className={`chip ${general.login_method === 'magic_link' ? 'active' : ''}`} onClick={() => setGeneral(g => ({ ...g, login_method: 'magic_link' }))}>✉️ Enlace mágico</button>
-                <button type="button" className={`chip ${general.login_method === 'password' ? 'active' : ''}`} onClick={() => setGeneral(g => ({ ...g, login_method: 'password' }))}>🔑 Contraseña</button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="modal-actions">

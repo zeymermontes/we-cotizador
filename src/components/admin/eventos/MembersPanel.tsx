@@ -13,14 +13,13 @@ const ROLE_LABEL: Record<MemberRole, string> = { owner: 'Dueño', admin: 'Admini
 
 interface InviteResult {
   ok: boolean;
-  outcome?: 'invited' | 'created' | 'existing' | 'password_updated';
+  outcome?: 'created' | 'existing' | 'password_updated';
   email_sent?: boolean;
   email_error?: string | null;
   message?: string;
 }
 
 const OUTCOME_TEXT: Record<NonNullable<InviteResult['outcome']>, string> = {
-  invited: 'Invitación enviada por correo con su enlace de entrada.',
   created: 'Usuario creado; le avisamos por correo. La contraseña se la compartes tú.',
   existing: 'Ya tenía cuenta; le enviamos por correo un enlace de entrada.',
   password_updated: 'Contraseña actualizada; le avisamos por correo.',
@@ -72,14 +71,11 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
     load();
   }
 
-  const usesPassword = event.login_method === 'password';
-
   return (
     <div className="section-card">
       <h3>Administradores del evento</h3>
       <p className="section-hint">
-        Ven los registros y ajustes de este evento, nada más. Este evento usa{' '}
-        <b>{usesPassword ? 'usuario y contraseña' : 'enlace mágico por correo'}</b>.
+        Ven los registros y ajustes de este evento, nada más. Entran con su correo y contraseña; al darles acceso reciben un correo con las instrucciones.
       </p>
 
       {members.length === 0 ? (
@@ -112,12 +108,11 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
               <label className="input-label">Nombre</label>
               <input className="input-field" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Ana Pérez" />
             </div>
-            {usesPassword && (
-              <div className="input-group">
-                <label className="input-label">Contraseña {members.length ? '(vacía = no cambiar)' : '*'}</label>
-                <input className="input-field" type="text" value={password} onChange={e => setPassword(e.target.value)} minLength={8} placeholder="Mínimo 8 caracteres" autoComplete="off" />
-              </div>
-            )}
+            <div className="input-group">
+              <label className="input-label">Contraseña</label>
+              <input className="input-field" type="text" value={password} onChange={e => setPassword(e.target.value)} minLength={8} placeholder="Mínimo 8 caracteres" autoComplete="off" />
+              <small className="text-muted text-xs">Obligatoria si la cuenta es nueva. Si ya existe, vacía la deja como está.</small>
+            </div>
             <div className="input-group">
               <label className="input-label">Permiso</label>
               <select className="glass-select" value={role} onChange={e => setRole(e.target.value as MemberRole)}>
@@ -129,7 +124,7 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
           </div>
           <div className="modal-actions">
             <button type="submit" className="btn btn-secondary btn-sm" disabled={busy || !email}>
-              {busy ? 'Enviando...' : usesPassword ? 'Crear acceso' : 'Enviar invitación'}
+              {busy ? 'Enviando...' : 'Dar acceso'}
             </button>
           </div>
         </form>

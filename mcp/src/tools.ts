@@ -144,7 +144,6 @@ export function registerTools(server: McpServer) {
       venue: z.string().optional(),
       languages: z.array(z.enum(['es', 'en'])).min(1).default(['es']),
       default_language: z.enum(['es', 'en']).optional(),
-      login_method: z.enum(['magic_link', 'password']).default('magic_link'),
       capacity: z.number().int().positive().optional(),
       description: z.string().optional(),
     },
@@ -156,7 +155,7 @@ export function registerTools(server: McpServer) {
     const { data, error } = await c.from('events').insert({
       name: a.name.trim(), slug, event_date: a.event_date ?? null, venue: a.venue ?? null, description: a.description ?? null,
       languages: a.languages, default_language: a.default_language && a.languages.includes(a.default_language) ? a.default_language : a.languages[0],
-      login_method: a.login_method, capacity: a.capacity ?? null, created_by: p.id,
+      login_method: 'password', capacity: a.capacity ?? null, created_by: p.id,
     }).select(EVENT_FIELDS).single();
     if (error) throw new McpError(error.message.includes('events_slug_key') ? `El enlace "${slug}" ya está en uso.` : error.message);
     return data;

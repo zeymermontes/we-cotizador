@@ -12,7 +12,8 @@ export interface Profile {
 
 export type EventStatus = 'draft' | 'published' | 'closed' | 'archived';
 export type EventLanguage = 'es' | 'en';
-export type LoginMethod = 'magic_link' | 'password';
+/** Los administradores entran siempre con correo y contraseña. */
+export type LoginMethod = 'password';
 export type MemberRole = 'owner' | 'admin' | 'viewer';
 
 /** Texto por idioma. Si el evento es bilingüe, ambas claves vienen llenas. */

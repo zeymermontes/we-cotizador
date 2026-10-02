@@ -1,14 +1,11 @@
 // ─────────────────────────────────────────────────────────────
 // event-admin-invite — da acceso a un evento a un admin externo.
 //
-// Solo un usuario `super` puede llamarla. Según el método de acceso
-// del evento:
-//   magic_link → Supabase genera el enlace (invitación si no existe,
-//                enlace mágico si ya existe) y el correo lo manda
-//                Resend con nuestra plantilla. Queda como miembro.
-//   password   → se crea el usuario con la contraseña indicada (o se
-//                actualiza la contraseña si ya existe) y queda como
-//                miembro. El super le comparte la contraseña.
+// Solo un usuario `super` puede llamarla. Los administradores entran
+// siempre con correo y contraseña: si la cuenta no existe se crea con la
+// contraseña indicada; si existe, se actualiza solo cuando se manda una.
+// Queda como miembro y recibe por Resend un correo con cómo entrar; la
+// contraseña se la comparte el super por otro canal.
 //
 // Body: { event_id, email, full_name?, password?, member_role? }
 // ─────────────────────────────────────────────────────────────
@@ -21,34 +18,27 @@ import { emailHtml, textToHtml } from "../_shared/messaging-core.ts";
 const FROM_LOCAL = Deno.env.get('RESEND_FROM_LOCAL') ?? 'no-reply';
 const FROM_DOMAIN = Deno.env.get('RESEND_FROM_DOMAIN') ?? 'eventos.we.page';
 
-/** Correo de acceso al panel: enlace de entrada directo cuando lo hay. */
+/** Correo de acceso al panel. Nunca lleva la contraseña. */
 async function sendAccessEmail(a: {
-  to: string; name: string; eventName: string; loginMethod: string;
-  actionLink: string | null; landing: string; loginUrl: string;
-  outcome: 'invited' | 'created' | 'existing' | 'password_updated';
+  to: string; name: string; eventName: string; loginUrl: string;
+  outcome: 'created' | 'existing' | 'password_updated';
 }): Promise<void> {
   const hola = a.name ? `Hola ${a.name.split(/\s+/)[0]},` : 'Hola,';
-  const lines: string[] = [hola, '', `Ya tienes acceso para administrar **${a.eventName}** en We.Page.`, ''];
-  if (a.loginMethod === 'password') {
-    lines.push(`Entra en ${a.loginUrl} con este correo (${a.to}).`);
-    lines.push(a.outcome === 'created' || a.outcome === 'password_updated'
-      ? 'La contraseña te la comparte directamente quien te dio el acceso.'
-      : 'Usa la contraseña que ya tienes.');
-  } else if (a.actionLink) {
-    lines.push(`[Entrar al panel](${a.actionLink})`);
-    lines.push('');
-    lines.push(`Ese enlace es personal y de un solo uso. Si caduca, entra en ${a.loginUrl} y pide un nuevo enlace de acceso con este correo.`);
-  } else {
-    lines.push(`Entra en ${a.loginUrl} con este correo y pide tu enlace de acceso.`);
-  }
-  lines.push('', `Panel de eventos: ${a.landing}`);
+  const lines: string[] = [
+    hola, '',
+    `Ya tienes acceso para administrar **${a.eventName}** en We.Page.`, '',
+    `Entra en ${a.loginUrl} con este correo (${a.to}).`,
+    a.outcome === 'existing'
+      ? 'Usa la contraseña que ya tienes.'
+      : 'La contraseña te la comparte directamente quien te dio el acceso.',
+  ];
   const text = lines.join('\n');
   await sendEmail({
     from: `We.Page Eventos <${FROM_LOCAL}@${FROM_DOMAIN}>`,
     to: a.to,
     subject: `Acceso para administrar ${a.eventName}`,
     html: emailHtml(textToHtml(text), { eventName: a.eventName }),
-    text: text.replace(/\*\*/g, '').replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1: $2'),
+    text: text.replace(/\*\*/g, ''),
     tags: { kind: 'admin_access' },
   });
 }
@@ -56,7 +46,7 @@ async function sendAccessEmail(a: {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-// A dónde aterriza el invitado después del enlace mágico.
+// A dónde aterriza el administrador después de entrar.
 const ADMIN_URL = Deno.env.get('ADMIN_APP_URL') ?? 'https://we-cotizador.onrender.com';
 
 serve(async (req) => {
@@ -90,61 +80,34 @@ serve(async (req) => {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail('bad_request', 'Correo inválido');
 
     const { data: event, error: eventErr } = await admin
-      .from('events').select('id, name, login_method').eq('id', event_id).maybeSingle();
+      .from('events').select('id, name').eq('id', event_id).maybeSingle();
     if (eventErr || !event) return fail('not_found', 'El evento no existe');
 
-    if (event.login_method === 'password' && password && password.length < 8) {
+    if (password && password.length < 8) {
       return fail('bad_request', 'La contraseña debe tener al menos 8 caracteres');
     }
 
-    // 3. Usuario existente o nuevo
+    // 3. Usuario existente o nuevo (siempre con contraseña)
     const { data: existingId } = await admin.rpc('get_user_id_by_email', { p_email: email });
     let userId: string | null = existingId ?? null;
-    let outcome: 'invited' | 'created' | 'existing' | 'password_updated' = 'existing';
-    const landing = `${ADMIN_URL}/admin/eventos`;
-    // Enlace de un solo uso que inicia sesión y aterriza en Eventos (lo
-    // genera Supabase; el correo lo mandamos nosotros por Resend).
-    let actionLink: string | null = null;
+    let outcome: 'created' | 'existing' | 'password_updated' = 'existing';
 
-    if (event.login_method === 'password') {
-      if (!userId) {
-        if (!password) return fail('bad_request', 'Este evento usa contraseña: indica una');
-        const { data, error } = await admin.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { full_name },
-        });
-        if (error) return fail('auth_error', error.message);
-        userId = data.user.id;
-        outcome = 'created';
-      } else if (password) {
-        const { error } = await admin.auth.admin.updateUserById(userId, { password });
-        if (error) return fail('auth_error', error.message);
-        outcome = 'password_updated';
-      }
-    } else {
-      if (!userId) {
-        const { data, error } = await admin.auth.admin.generateLink({
-          type: 'invite',
-          email,
-          options: { data: { full_name }, redirectTo: landing },
-        });
-        if (error) return fail('auth_error', error.message);
-        userId = data.user.id;
-        actionLink = data.properties?.action_link ?? null;
-        outcome = 'invited';
-      } else {
-        const { data, error } = await admin.auth.admin.generateLink({
-          type: 'magiclink',
-          email,
-          options: { redirectTo: landing },
-        });
-        if (!error) actionLink = data.properties?.action_link ?? null;
-      }
+    if (!userId) {
+      if (!password) return fail('bad_request', 'La cuenta es nueva: indica una contraseña');
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name },
+      });
+      if (error) return fail('auth_error', error.message);
+      userId = data.user.id;
+      outcome = 'created';
+    } else if (password) {
+      const { error } = await admin.auth.admin.updateUserById(userId, { password });
+      if (error) return fail('auth_error', error.message);
+      outcome = 'password_updated';
     }
-
-    if (!userId) return fail('auth_error', 'No se pudo resolver el usuario');
 
     // 4. Perfil (el trigger ya lo crea; aquí solo completamos el nombre)
     await admin.from('profiles')
@@ -165,9 +128,6 @@ serve(async (req) => {
         to: email,
         name: full_name,
         eventName: event.name,
-        loginMethod: event.login_method,
-        actionLink,
-        landing,
         loginUrl: `${ADMIN_URL}/admin/login`,
         outcome,
       });

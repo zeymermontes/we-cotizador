@@ -26,7 +26,7 @@ const EMPTY: NewEventForm = {
   venue: '',
   languages: ['es'],
   default_language: 'es',
-  login_method: 'magic_link',
+  login_method: 'password',
 };
 
 export default function EventsPage() {
@@ -240,26 +240,6 @@ export default function EventsPage() {
                   </select>
                 </div>
               )}
-            </div>
-
-            <div className="input-group">
-              <label className="input-label">Acceso de los administradores del evento</label>
-              <div className="chip-row">
-                <button
-                  type="button"
-                  className={`chip ${form.login_method === 'magic_link' ? 'active' : ''}`}
-                  onClick={() => setForm(f => ({ ...f, login_method: 'magic_link' }))}
-                >
-                  ✉️ Enlace mágico por correo
-                </button>
-                <button
-                  type="button"
-                  className={`chip ${form.login_method === 'password' ? 'active' : ''}`}
-                  onClick={() => setForm(f => ({ ...f, login_method: 'password' }))}
-                >
-                  🔑 Usuario y contraseña
-                </button>
-              </div>
             </div>
 
             <div className="modal-actions">
