@@ -26,6 +26,9 @@ export interface Registration {
   qr_token: string | null;
   qr_url: string | null;
   invitation_url: string | null;
+  /** Copia en Drive (solo invitación genérica) */
+  invitation_drive_id: string | null;
+  invitation_drive_url: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -304,7 +304,7 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
       )}
 
       {openReg && (
-        <RegistrationDrawer
+        <RegistrationDrawer event={event}
           registration={openReg}
           schema={schema}
           lang={lang}

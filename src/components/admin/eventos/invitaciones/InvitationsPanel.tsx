@@ -6,7 +6,7 @@ import type { Registration } from '../../../../lib/registrations';
 import {
   type InvitationConfig, type InvitationJob, type InspectResult, type PlaceholderMapping,
   FIELD_OPTIONS, JOB_STATUS_LABEL, JOB_STATUS_BADGE, generateQrs, inspectInvitationTemplate, runInvitationBatch,
-  slidesConfig, genericSettings, generateGenericInvitations, type GenericProgress,
+  slidesConfig, genericSettings, generateGenericInvitations, type GenericProgress, syncInvitationsToDrive, type DriveSyncError,
 } from '../../../../lib/invitations';
 import { DEFAULT_GENERIC, defaultSubtitle, drawGenericInvitation, type GenericInvitationSettings } from '../../../../lib/invitation-canvas';
 import { ExcelModal } from './InvitationActions';
@@ -148,6 +148,22 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
   }
 
   const busy = !!progress && progress.done + progress.failed < progress.total;
+  const [driveMsg, setDriveMsg] = useState('');
+  const [driveBusy, setDriveBusy] = useState(false);
+  const withoutDrive = regs.filter(r => r.invitation_url && !r.invitation_drive_id).length;
+
+  async function copyToDrive() {
+    setDriveBusy(true); setDriveMsg('Copiando…');
+    try {
+      const res = await syncInvitationsToDrive(event.id, null, p => setDriveMsg(`Drive ${p.done}${p.remaining ? ` (faltan ${p.remaining})` : ''}`));
+      setDriveMsg(`Copiadas: ${res.done}${res.failed ? ` · fallidas: ${res.failed}` : ''}`);
+      await onReload();
+    } catch (e) {
+      const err = e as DriveSyncError;
+      setDriveMsg(err.code === 'CONFIG' ? `${err.message}` : err.message);
+    }
+    setDriveBusy(false);
+  }
 
   return (
     <div className="section-card">
@@ -190,6 +206,17 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
             )}
           </div>
           {error && <div className="inline-alert error" style={{ marginTop: 8 }}>{error}</div>}
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Copia en Google Drive</div>
+            <p className="text-muted text-xs" style={{ margin: '4px 0 8px' }}>
+              Cada invitación se guarda también en Drive, en una carpeta por evento, para que el equipo las tenga ordenadas. La URL que viaja al bot y al correo sigue siendo la del archivo directo.
+              {event.drive_folder_url && <> Carpeta: <a href={event.drive_folder_url} target="_blank" rel="noopener noreferrer">abrir en Drive ↗</a>.</>}
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-secondary btn-xs" onClick={copyToDrive} disabled={driveBusy || withoutDrive === 0}>{driveBusy ? 'Copiando…' : `Copiar a Drive las ${withoutDrive} que faltan`}</button>
+              {driveMsg && <span className="text-muted text-xs">{driveMsg}</span>}
+            </div>
+          </div>
         </div>
         <div className="invite-generic-preview">
           {preview ? <img src={preview} alt="Vista previa de la invitación" /> : <div className="text-muted text-sm">Dibujando vista previa…</div>}

@@ -4,14 +4,14 @@ import { useAuth } from '../../../../hooks/useAuth';
 import type { BulkContext } from '../registros/RegistrationsPanel';
 import {
   generateQrs, buildBotExcelName, buildBotRows, downloadBotExcel, logWhatsappExport,
-  runInvitationBatch, type InvitationConfig,
+  runInvitationBatch, type InvitationConfig, generateGenericInvitations, genericSettings,
 } from '../../../../lib/invitations';
 import { text } from '../../../../lib/form-types';
 
 /** Acciones de la barra de selección reservadas al equipo: QR, invitación PDF y Excel WhatsApp. */
 export default function InvitationActions({ ctx }: { ctx: BulkContext }) {
   const { isSuper, session } = useAuth();
-  const [busy, setBusy] = useState<'' | 'qr' | 'pdf' | 'xlsx'>('');
+  const [busy, setBusy] = useState<'' | 'qr' | 'pdf' | 'img' | 'xlsx'>('');
   const [progress, setProgress] = useState('');
   const [excelOpen, setExcelOpen] = useState(false);
   if (!isSuper) return null;
@@ -25,6 +25,19 @@ export default function InvitationActions({ ctx }: { ctx: BulkContext }) {
       const p = await generateQrs(ctx.event.id, { ids }, s => setProgress(`QR ${s.done}${s.remaining ? ` (faltan ${s.remaining})` : ''}`));
       await ctx.refresh();
       alert(`QR generados: ${p.done}${p.failed ? ` · fallidos: ${p.failed}` : ''}`);
+    } catch (e) { alert((e as Error).message); }
+    setBusy(''); setProgress('');
+  }
+
+  async function img() {
+    const force = ctx.selected.some(r => r.invitation_url) && confirm('Algunos ya tienen invitación. ¿Regenerarlas? (Cancelar = solo los que no tienen)');
+    const targets = ctx.selected.filter(r => force || !r.invitation_url);
+    if (targets.length === 0) return alert('Todos los seleccionados ya tienen invitación.');
+    setBusy('img');
+    try {
+      const res = await generateGenericInvitations(ctx.event, targets, genericSettings(ctx.event.invitation_config), ctx.event.default_language, p => setProgress(`Invitación ${p.done + p.failed}/${p.total}${p.current ? ` · ${p.current}` : ''}`));
+      await ctx.refresh();
+      alert(`Invitaciones generadas: ${res.done}${res.failed ? ` · fallidas: ${res.failed}` : ''}${res.drive_error ? `\nCopia a Drive pendiente: ${res.drive_error}` : ''}`);
     } catch (e) { alert((e as Error).message); }
     setBusy(''); setProgress('');
   }
@@ -70,7 +83,8 @@ export default function InvitationActions({ ctx }: { ctx: BulkContext }) {
   return (
     <>
       <button className="btn btn-secondary btn-xs" onClick={qr} disabled={!!busy}>{busy === 'qr' ? progress : '▦ QR'}</button>
-      <button className="btn btn-secondary btn-xs" onClick={pdf} disabled={!!busy}>{busy === 'pdf' ? progress : '📄 Invitación'}</button>
+      <button className="btn btn-secondary btn-xs" onClick={img} disabled={!!busy}>{busy === 'img' ? progress : '🖼 Invitación'}</button>
+      {cfg?.template_id && <button className="btn btn-secondary btn-xs" onClick={pdf} disabled={!!busy}>{busy === 'pdf' ? progress : '📄 PDF Slides'}</button>}
       <button className="btn btn-secondary btn-xs" onClick={() => setExcelOpen(true)} disabled={!!busy}>💬 Excel WhatsApp</button>
       {excelOpen && <ExcelModal ctx={ctx} onClose={() => setExcelOpen(false)} />}
     </>

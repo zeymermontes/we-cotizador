@@ -117,7 +117,7 @@ export async function generateQrs(eventId: string, opts: { ids?: string[]; all?:
 
 // ─── Invitación genérica (imagen desde el branding) ──────────
 
-export interface GenericProgress { done: number; failed: number; total: number; current?: string }
+export interface GenericProgress { done: number; failed: number; total: number; current?: string; drive_error?: string }
 
 /**
  * Genera la invitación genérica de cada registro: asegura su QR, la dibuja
@@ -137,9 +137,9 @@ export async function generateGenericInvitations(
     await generateQrs(event.id, { ids: missingQr });
   }
   // Releer: los QR recién generados y la invitación anterior a reemplazar
-  const fresh = new Map<string, Pick<Registration, 'id' | 'name' | 'party_size' | 'qr_url' | 'invitation_url'>>();
+  const fresh = new Map<string, Pick<Registration, 'id' | 'name' | 'party_size' | 'qr_url' | 'invitation_url' | 'invitation_drive_id'>>();
   for (let i = 0; i < regs.length; i += 200) {
-    const { data } = await supabase.from('registrations').select('id, name, party_size, qr_url, invitation_url').in('id', regs.slice(i, i + 200).map(r => r.id));
+    const { data } = await supabase.from('registrations').select('id, name, party_size, qr_url, invitation_url, invitation_drive_id').in('id', regs.slice(i, i + 200).map(r => r.id));
     for (const r of (data ?? []) as Registration[]) fresh.set(r.id, r);
   }
   for (const reg of regs) {
@@ -154,13 +154,76 @@ export async function generateGenericInvitations(
       const { error: uErr } = await supabase.from('registrations').update({ invitation_url: data.publicUrl }).eq('id', r.id);
       if (uErr) throw new Error(uErr.message);
       if (r.invitation_url && r.invitation_url.includes('/event-assets/')) removeEventImage(r.invitation_url).catch(() => {});
+      // La copia anterior en Drive queda obsoleta: se vuelve a subir en el espejo
+      if (r.invitation_drive_id) await supabase.from('registrations').update({ invitation_drive_id: null, invitation_drive_url: null }).eq('id', r.id);
       p.done++;
     } catch {
       p.failed++;
     }
     onProgress?.({ ...p });
   }
+  // Espejo en Drive; si no está configurado no es un error de la generación
+  try {
+    onProgress?.({ ...p, current: 'Copiando a Drive…' });
+    await syncInvitationsToDrive(event.id, regs.map(r => r.id), s => onProgress?.({ ...p, current: `Drive ${s.done}${s.remaining ? ` (faltan ${s.remaining})` : ''}` }));
+  } catch (e) {
+    p.drive_error = (e as Error).message;
+  }
+  onProgress?.({ ...p, current: undefined });
   return p;
+}
+
+export interface DriveSyncProgress { done: number; failed: number; remaining: number; folder_url: string | null; errors: { id: string; message: string }[] }
+export interface DriveSyncError extends Error { code?: string; service_account_email?: string }
+
+/** Copia a Drive las invitaciones (de los ids dados o de todas) que aún no tienen copia; en lotes. */
+export async function syncInvitationsToDrive(eventId: string, ids: string[] | null, onProgress?: (p: DriveSyncProgress) => void, action: 'sync' | 'remove' = 'sync'): Promise<DriveSyncProgress> {
+  const total: DriveSyncProgress = { done: 0, failed: 0, remaining: 0, folder_url: null, errors: [] };
+  for (let i = 0; i < 200; i++) {
+    const { data, error } = await supabase.functions.invoke<{ ok: boolean; code?: string; message?: string; service_account_email?: string } & DriveSyncProgress>('invitations-drive-sync', {
+      body: { event_id: eventId, registration_ids: ids ?? undefined, action },
+    });
+    if (error || !data?.ok) {
+      const err: DriveSyncError = new Error(data?.message || error?.message || 'No se pudo copiar a Drive');
+      err.code = data?.code; err.service_account_email = data?.service_account_email;
+      throw err;
+    }
+    total.done += data.done; total.failed += data.failed; total.remaining = data.remaining;
+    total.folder_url = data.folder_url ?? total.folder_url;
+    total.errors.push(...(data.errors ?? []));
+    onProgress?.({ ...total });
+    if (data.remaining === 0 || (data.done === 0 && data.failed > 0)) break;
+  }
+  return total;
+}
+
+/** Vuelve a dibujar y subir la invitación de un solo registro. */
+export async function regenerateInvitation(event: EventRow, reg: Registration, settings: GenericInvitationSettings, lang: Lang): Promise<GenericProgress> {
+  return generateGenericInvitations(event, [reg], settings, lang);
+}
+
+/** Quita la invitación: archivo del bucket, copia en Drive y columnas. El QR se conserva. */
+export async function removeInvitation(reg: Registration): Promise<void> {
+  if (reg.invitation_drive_id) {
+    try { await syncInvitationsToDrive(reg.event_id, [reg.id], undefined, 'remove'); } catch { /* la copia se limpia abajo igual */ }
+  }
+  if (reg.invitation_url && reg.invitation_url.includes('/event-assets/')) await removeEventImage(reg.invitation_url).catch(() => {});
+  const { error } = await supabase.from('registrations').update({ invitation_url: null, invitation_drive_id: null, invitation_drive_url: null }).eq('id', reg.id);
+  if (error) throw new Error(error.message);
+}
+
+/** Descarga la invitación con un nombre legible (fetch → blob para forzar la descarga). */
+export async function downloadInvitation(reg: Registration): Promise<void> {
+  if (!reg.invitation_url) return;
+  const res = await fetch(reg.invitation_url);
+  if (!res.ok) throw new Error('No se pudo descargar la invitación');
+  const blob = await res.blob();
+  const ext = blob.type.includes('jpeg') ? 'jpg' : blob.type.includes('pdf') ? 'pdf' : 'png';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `invitacion-${(reg.name ?? reg.id).replace(/[^\p{L}\p{N} _-]+/gu, '').trim() || reg.id}.${ext}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }
 
 // ─── Invitaciones ────────────────────────────────────────────

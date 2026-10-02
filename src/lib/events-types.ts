@@ -215,6 +215,9 @@ export interface EventRow {
   reply_to: string | null;
   // Ver InvitationConfig en lib/invitations.ts
   invitation_config: object | null;
+  /** Carpeta del evento en Drive (espejo de invitaciones), creada al primer uso */
+  drive_folder_id: string | null;
+  drive_folder_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -6,17 +6,24 @@ import {
   type Registration, type RegistrationStatus,
   STATUS_ORDER, STATUS_LABEL, STATUS_BADGE, answerText,
 } from '../../../../lib/registrations';
+import { useAuth } from '../../../../hooks/useAuth';
+import type { EventRow } from '../../../../lib/events-types';
+import { genericSettings, regenerateInvitation, removeInvitation, downloadInvitation } from '../../../../lib/invitations';
 
 interface Props {
   registration: Registration;
   schema: FormSchema | null;
   lang: Lang;
+  /** Para regenerar la invitación con el diseño del evento */
+  event?: EventRow;
   onClose: () => void;
   onChanged: (r: Registration) => void;
   onDeleted: (id: string) => void;
 }
 
-export default function RegistrationDrawer({ registration: r, schema, lang, onClose, onChanged, onDeleted }: Props) {
+export default function RegistrationDrawer({ registration: r, schema, lang, event, onClose, onChanged, onDeleted }: Props) {
+  const { isSuper } = useAuth();
+  const [invBusy, setInvBusy] = useState('');
   const [notes, setNotes] = useState(r.notes ?? '');
   const [tagInput, setTagInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,6 +36,31 @@ export default function RegistrationDrawer({ registration: r, schema, lang, onCl
     setBusy(false);
     if (error) { alert(error.message); return; }
     onChanged({ ...r, ...p });
+  }
+
+  async function reloadInvitation() {
+    const { data } = await supabase.from('registrations').select('qr_url, invitation_url, invitation_drive_id, invitation_drive_url').eq('id', r.id).maybeSingle();
+    if (data) onChanged({ ...r, ...data });
+  }
+
+  async function invitationAction(kind: 'download' | 'regenerate' | 'remove') {
+    setInvBusy(kind);
+    try {
+      if (kind === 'download') await downloadInvitation(r);
+      if (kind === 'regenerate') {
+        if (!event) throw new Error('Abre la ficha desde el evento para regenerar');
+        const res = await regenerateInvitation(event, r, genericSettings(event.invitation_config), lang);
+        if (res.failed) throw new Error('No se pudo generar la invitación');
+        if (res.drive_error) alert(`Invitación lista. Copia a Drive pendiente: ${res.drive_error}`);
+        await reloadInvitation();
+      }
+      if (kind === 'remove') {
+        if (!confirm('¿Quitar la invitación de este registro? El QR se conserva; podrás generarla de nuevo.')) { setInvBusy(''); return; }
+        await removeInvitation(r);
+        onChanged({ ...r, invitation_url: null, invitation_drive_id: null, invitation_drive_url: null });
+      }
+    } catch (e) { alert((e as Error).message); }
+    setInvBusy('');
   }
 
   async function remove() {
@@ -123,6 +155,14 @@ export default function RegistrationDrawer({ registration: r, schema, lang, onCl
                     <span>{/\.(png|jpe?g|webp)(\?|$)/i.test(r.invitation_url) ? 'abrir imagen ↗' : 'abrir PDF ↗'}</span>
                   </a>
                 } />
+              )}
+              {r.invitation_drive_url && <Row label="En Drive" value={<a href={r.invitation_drive_url} target="_blank" rel="noopener noreferrer">abrir copia ↗</a>} />}
+              {isSuper && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingTop: 6 }}>
+                  {r.invitation_url && <button className="btn btn-secondary btn-xs" disabled={!!invBusy} onClick={() => invitationAction('download')}>{invBusy === 'download' ? '…' : '⬇ Descargar'}</button>}
+                  {event && <button className="btn btn-secondary btn-xs" disabled={!!invBusy} onClick={() => invitationAction('regenerate')}>{invBusy === 'regenerate' ? 'Generando…' : r.invitation_url ? '↻ Regenerar invitación' : '🖼 Generar invitación'}</button>}
+                  {r.invitation_url && <button className="btn btn-ghost btn-xs" disabled={!!invBusy} onClick={() => invitationAction('remove')} style={{ color: 'var(--color-error)' }}>Quitar invitación</button>}
+                </div>
               )}
             </div>
           )}
