@@ -20,6 +20,8 @@ export interface TemplateRow {
   name: string;
   subject: Localized;
   body: Localized;
+  attach_invitation?: boolean;
+  attach_qr?: boolean;
 }
 
 export interface EventRowLite {
@@ -47,7 +49,29 @@ export interface SendSummary {
   errors: { registration_id: string | null; message: string }[];
 }
 
-export async function sendEmail(args: { from: string; to: string; subject: string; html: string; text: string; replyTo?: string | null; tags?: Record<string, string> }): Promise<{ id: string }> {
+export interface EmailAttachment { filename: string; path: string }
+
+/** URL que devuelve el archivo en crudo (Drive comparte páginas, no archivos). */
+export function directFileUrl(url: string): string {
+  const m = url.match(/drive\.google\.com\/file\/d\/([^/]+)/) ?? url.match(/[?&]id=([^&]+)/);
+  if (m && url.includes('drive.google.com')) return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+  return url;
+}
+
+const safeFile = (s: string) => (s || 'invitado').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'invitado';
+
+/** Adjuntos que pide la plantilla y que el registro ya tiene. */
+export function attachmentsFor(template: TemplateRow, r: RegistrationLike): EmailAttachment[] {
+  const out: EmailAttachment[] = [];
+  if (template.attach_invitation && r.invitation_url) {
+    const ext = /\.pdf(\?|$)/i.test(r.invitation_url) || r.invitation_url.includes('drive.google.com') ? 'pdf' : /\.jpe?g(\?|$)/i.test(r.invitation_url) ? 'jpg' : 'png';
+    out.push({ filename: `invitacion-${safeFile(r.name ?? '')}.${ext}`, path: directFileUrl(r.invitation_url) });
+  }
+  if (template.attach_qr && r.qr_url) out.push({ filename: `qr-${safeFile(r.name ?? '')}.png`, path: r.qr_url });
+  return out;
+}
+
+export async function sendEmail(args: { from: string; to: string; subject: string; html: string; text: string; replyTo?: string | null; tags?: Record<string, string>; attachments?: EmailAttachment[] }): Promise<{ id: string }> {
   if (!RESEND_API_KEY) throw new Error('Falta RESEND_API_KEY en los secretos de las funciones');
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -59,6 +83,7 @@ export async function sendEmail(args: { from: string; to: string; subject: strin
       html: args.html,
       text: args.text,
       reply_to: args.replyTo || undefined,
+      attachments: args.attachments?.length ? args.attachments : undefined,
       tags: args.tags ? Object.entries(args.tags).map(([name, value]) => ({ name, value })) : undefined,
     }),
   });
@@ -127,7 +152,7 @@ export async function sendTemplate(db: Db, args: {
     }).select('id').single();
 
     try {
-      const { id } = await sendEmail({ from, to, subject, html, text: htmlToText(bodyTxt), replyTo: event.reply_to, tags: { event: event.slug, trigger } });
+      const { id } = await sendEmail({ from, to, subject, html, text: htmlToText(bodyTxt), replyTo: event.reply_to, tags: { event: event.slug, trigger }, attachments: attachmentsFor(template, r) });
       await db.from('messages').update({ status: 'sent', provider_id: id }).eq('id', row.id);
       summary.sent++;
     } catch (e) {

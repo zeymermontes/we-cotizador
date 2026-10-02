@@ -13,6 +13,9 @@ export interface MessageTemplate {
   name: string;
   subject: Localized;
   body: Localized;
+  /** Adjuntar como archivo la invitación / el QR del registro (si existen) */
+  attach_invitation: boolean;
+  attach_qr: boolean;
   created_at: string;
   updated_at: string;
 }

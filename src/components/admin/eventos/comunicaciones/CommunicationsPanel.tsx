@@ -90,7 +90,7 @@ function Templates({ event, templates, schema, sample, onChanged }: {
   const lastFocused = useRef<{ field: 'subject' | 'body'; lang: Lang }>({ field: 'body', lang: langs[0] });
 
   const saved = templates.find(t => t.id === selectedId) ?? null;
-  const dirty = draft && saved ? JSON.stringify({ n: draft.name, s: draft.subject, b: draft.body }) !== JSON.stringify({ n: saved.name, s: saved.subject, b: saved.body }) : false;
+  const dirty = draft && saved ? JSON.stringify({ n: draft.name, s: draft.subject, b: draft.body, ai: !!draft.attach_invitation, aq: !!draft.attach_qr }) !== JSON.stringify({ n: saved.name, s: saved.subject, b: saved.body, ai: !!saved.attach_invitation, aq: !!saved.attach_qr }) : false;
   const vars = useMemo(() => variablesFor(schema, langs[0]), [schema, langs]);
 
   useEffect(() => {
@@ -118,10 +118,10 @@ function Templates({ event, templates, schema, sample, onChanged }: {
   async function save() {
     if (!draft) return;
     setSaving(true);
-    const { error } = await supabase.from('message_templates').update({ name: draft.name, subject: draft.subject, body: draft.body }).eq('id', draft.id);
+    const { error } = await supabase.from('message_templates').update({ name: draft.name, subject: draft.subject, body: draft.body, attach_invitation: !!draft.attach_invitation, attach_qr: !!draft.attach_qr }).eq('id', draft.id);
     setSaving(false);
     if (error) return alert(error.message);
-    onChanged(templates.map(t => (t.id === draft.id ? { ...t, name: draft.name, subject: draft.subject, body: draft.body } : t)));
+    onChanged(templates.map(t => (t.id === draft.id ? { ...t, name: draft.name, subject: draft.subject, body: draft.body, attach_invitation: !!draft.attach_invitation, attach_qr: !!draft.attach_qr } : t)));
     setFlash('Plantilla guardada');
   }
 
@@ -204,6 +204,21 @@ function Templates({ event, templates, schema, sample, onChanged }: {
             </div>
           </div>
 
+          <div className="input-group" style={{ marginBottom: 12 }}>
+            <label className="input-label">Adjuntos</label>
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+              <label className="switch-row" style={{ gap: 8, alignItems: 'center' }}>
+                <input type="checkbox" checked={!!draft.attach_invitation} onChange={e => setDraft({ ...draft, attach_invitation: e.target.checked })} />
+                <span className="text-sm">Adjuntar la invitación</span>
+              </label>
+              <label className="switch-row" style={{ gap: 8, alignItems: 'center' }}>
+                <input type="checkbox" checked={!!draft.attach_qr} onChange={e => setDraft({ ...draft, attach_qr: e.target.checked })} />
+                <span className="text-sm">Adjuntar el QR</span>
+              </label>
+            </div>
+            <small className="text-muted text-xs">Van como archivo en el correo, además de lo que escribas. Si el registro aún no tiene invitación o QR, el correo sale sin ese adjunto.</small>
+          </div>
+
           <div className="field-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
             <div>
               {langs.map(l => (
@@ -228,6 +243,12 @@ function Templates({ event, templates, schema, sample, onChanged }: {
                 )}
               </div>
               <div className="text-sm" style={{ marginBottom: 6 }}><b>Asunto:</b> {previewSubject || <span className="text-muted">vacío</span>}</div>
+              {(draft.attach_invitation || draft.attach_qr) && (
+                <div className="text-muted text-xs" style={{ marginBottom: 6 }}>
+                  📎 {[draft.attach_invitation && 'invitación', draft.attach_qr && 'QR'].filter(Boolean).join(' y ')}
+                  {sample && ((draft.attach_invitation && !sample.invitation_url) || (draft.attach_qr && !sample.qr_url)) ? ' · el registro de ejemplo aún no tiene el archivo' : ''}
+                </div>
+              )}
               <div className="email-preview"><iframe title="preview" srcDoc={previewHtml} sandbox="" /></div>
             </div>
           </div>

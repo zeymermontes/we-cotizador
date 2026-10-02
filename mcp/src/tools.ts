@@ -427,6 +427,8 @@ export function registerTools(server: McpServer) {
       event: z.string(), id: z.string().optional(), name: z.string().optional(),
       subject: z.record(z.string()).optional().describe('{ es, en }'),
       body: z.record(z.string()).optional().describe('{ es, en }'),
+      attach_invitation: z.boolean().optional().describe('Adjuntar la invitación del registro como archivo'),
+      attach_qr: z.boolean().optional().describe('Adjuntar el QR del registro como archivo'),
     },
   }, wrap('upsert_template', async (a) => {
     const c = await getClient();
@@ -437,12 +439,14 @@ export function registerTools(server: McpServer) {
       if (a.name) patch.name = a.name;
       if (a.subject) patch.subject = a.subject;
       if (a.body) patch.body = a.body;
+      if (a.attach_invitation !== undefined) patch.attach_invitation = a.attach_invitation;
+      if (a.attach_qr !== undefined) patch.attach_qr = a.attach_qr;
       const { data, error } = await c.from('message_templates').update(patch).eq('id', a.id).eq('event_id', ev.id).select('id, name').single();
       if (error) throw new McpError(error.message);
       return data;
     }
     if (!a.name || !a.subject || !a.body) throw new McpError('Para crear: name, subject y body.');
-    const { data, error } = await c.from('message_templates').insert({ event_id: ev.id, channel: 'email', name: a.name, subject: a.subject, body: a.body, created_by: p.id }).select('id, name').single();
+    const { data, error } = await c.from('message_templates').insert({ event_id: ev.id, channel: 'email', name: a.name, subject: a.subject, body: a.body, attach_invitation: !!a.attach_invitation, attach_qr: !!a.attach_qr, created_by: p.id }).select('id, name').single();
     if (error) throw new McpError(error.message);
     return data;
   }));
