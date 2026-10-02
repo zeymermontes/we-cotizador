@@ -35,9 +35,9 @@ export default function InvitationActions({ ctx }: { ctx: BulkContext }) {
     if (targets.length === 0) return alert('Todos los seleccionados ya tienen invitación.');
     setBusy('img');
     try {
-      const res = await generateGenericInvitations(ctx.event, targets, genericSettings(ctx.event.invitation_config), ctx.event.default_language, p => setProgress(`Invitación ${p.done + p.failed}/${p.total}${p.current ? ` · ${p.current}` : ''}`));
+      const res = await generateGenericInvitations(ctx.event, targets, genericSettings(ctx.event.invitation_config), ctx.event.default_language, p => setProgress(`Invitación ${p.done + p.failed + p.skipped}/${p.total}${p.current ? ` · ${p.current}` : ''}`));
       await ctx.refresh();
-      alert(`Invitaciones generadas: ${res.done}${res.failed ? ` · fallidas: ${res.failed}` : ''}${res.drive_error ? `\nCopia a Drive pendiente: ${res.drive_error}` : ''}`);
+      alert(`Invitaciones generadas: ${res.done}${res.failed ? ` · fallidas: ${res.failed}` : ''}${res.skipped ? `\nOmitidas: ${res.skipped} (cancelados sin QR; una invitación sin código no sirve para entrar)` : ''}${res.drive_error ? `\nCopia a Drive pendiente: ${res.drive_error}` : ''}`);
     } catch (e) { alert((e as Error).message); }
     setBusy(''); setProgress('');
   }

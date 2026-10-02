@@ -139,7 +139,7 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
     if (targets.length === 0) return alert('Todos ya tienen invitación.');
     if (!confirm(`Se generarán ${targets.length} invitaciones con este diseño${force ? ' (reemplazando las existentes)' : ''}. ¿Continuar?`)) return;
     setError('');
-    setProgress({ done: 0, failed: 0, total: targets.length });
+    setProgress({ done: 0, failed: 0, skipped: 0, total: targets.length });
     try {
       const res = await generateGenericInvitations(event, targets, s, lang, setProgress);
       setProgress(res);
@@ -147,7 +147,7 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
     } catch (e) { setError((e as Error).message); setProgress(null); }
   }
 
-  const busy = !!progress && progress.done + progress.failed < progress.total;
+  const busy = !!progress && progress.done + progress.failed + progress.skipped < progress.total;
   const [driveMsg, setDriveMsg] = useState('');
   const [driveBusy, setDriveBusy] = useState(false);
   const withoutDrive = regs.filter(r => r.invitation_url && !r.invitation_drive_id).length;
@@ -201,7 +201,7 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
             <button type="button" className="btn btn-ghost btn-xs" onClick={() => generate(true)} disabled={busy || regs.length === 0}>Regenerar todas</button>
             {progress && (
               <span className="text-muted text-sm">
-                {progress.done + progress.failed}/{progress.total}{progress.failed ? ` · ${progress.failed} fallidas` : ''}{busy && progress.current ? ` · ${progress.current}` : ''}
+                {progress.done + progress.failed + progress.skipped}/{progress.total}{progress.failed ? ` · ${progress.failed} fallidas` : ''}{progress.skipped ? ` · ${progress.skipped} sin QR (cancelados)` : ''}{busy && progress.current ? ` · ${progress.current}` : ''}
               </span>
             )}
           </div>

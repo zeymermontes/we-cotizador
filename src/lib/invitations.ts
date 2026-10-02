@@ -117,7 +117,8 @@ export async function generateQrs(eventId: string, opts: { ids?: string[]; all?:
 
 // ─── Invitación genérica (imagen desde el branding) ──────────
 
-export interface GenericProgress { done: number; failed: number; total: number; current?: string; drive_error?: string }
+/** skipped: registros sin QR (cancelados): no se les dibuja invitación. */
+export interface GenericProgress { done: number; failed: number; skipped: number; total: number; current?: string; drive_error?: string }
 
 /**
  * Genera la invitación genérica de cada registro: asegura su QR, la dibuja
@@ -130,7 +131,7 @@ export async function generateGenericInvitations(
   lang: Lang,
   onProgress?: (p: GenericProgress) => void,
 ): Promise<GenericProgress> {
-  const p: GenericProgress = { done: 0, failed: 0, total: regs.length };
+  const p: GenericProgress = { done: 0, failed: 0, skipped: 0, total: regs.length };
   const missingQr = regs.filter(r => !r.qr_url).map(r => r.id);
   if (missingQr.length) {
     onProgress?.({ ...p, current: `QR de ${missingQr.length} registros…` });
@@ -145,6 +146,8 @@ export async function generateGenericInvitations(
   for (const reg of regs) {
     const r = fresh.get(reg.id) ?? reg;
     onProgress?.({ ...p, current: r.name ?? r.id });
+    // Sin QR (generate-qr omite los cancelados): una invitación sin código engaña.
+    if (!r.qr_url) { p.skipped++; onProgress?.({ ...p }); continue; }
     try {
       const img = await renderGenericInvitation(event, { name: r.name, party_size: r.party_size, qr_url: r.qr_url }, settings, lang);
       const path = `${event.id}/invitations/${r.id}-${Date.now()}.${img.extension}`;

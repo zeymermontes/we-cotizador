@@ -50,6 +50,7 @@ export default function RegistrationDrawer({ registration: r, schema, lang, even
       if (kind === 'regenerate') {
         if (!event) throw new Error('Abre la ficha desde el evento para regenerar');
         const res = await regenerateInvitation(event, r, genericSettings(event.invitation_config), lang);
+        if (res.skipped) throw new Error('Este registro está cancelado y no tiene QR, así que no se genera invitación. Cámbialo a Registrado primero.');
         if (res.failed) throw new Error('No se pudo generar la invitación');
         if (res.drive_error) alert(`Invitación lista. Copia a Drive pendiente: ${res.drive_error}`);
         await reloadInvitation();
