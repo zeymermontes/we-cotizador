@@ -6,7 +6,9 @@ import { type FormSchema, type Lang, normalizeSchema } from '../../../../lib/for
 import {
   type Registration, type RegistrationStatus, type ViewConfig, type ColumnKey,
   DEFAULT_VIEW, STATUS_ORDER, STATUS_LABEL, allColumns, applyView, toCsv, downloadFile,
+  type Registration as RegistrationRow,
 } from '../../../../lib/registrations';
+import { downloadAnswersExcel } from '../../../../lib/export';
 import FilterBar from './FilterBar';
 import RegistrationsTable from './RegistrationsTable';
 import RegistrationDrawer from './RegistrationDrawer';
@@ -201,8 +203,10 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
 
   const exportCsv = (rows: Registration[], suffix: string) => {
     const cols = allColumns(schema, lang);
-    downloadFile(`${event.slug}-registros-${suffix}.csv`, toCsv(rows, cols, lang));
+    // BOM para que Excel abra los acentos bien
+    downloadFile(`${event.slug}-registros-${suffix}.csv`, '\ufeff' + toCsv(rows, cols, lang));
   };
+  const exportAnswers = (rows: RegistrationRow[], suffix: string) => downloadAnswersExcel(event, schema, rows, lang, suffix);
 
   const setSort = (key: ColumnKey) =>
     setView(v => ({ ...v, sort: { key, dir: v.sort.key === key && v.sort.dir === 'asc' ? 'desc' : 'asc' } }));
@@ -255,7 +259,8 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
             </div>
           )}
         </div>
-        <button className="btn btn-secondary btn-xs" onClick={() => exportCsv(filtered, 'filtrados')} disabled={filtered.length === 0}>Exportar CSV</button>
+        <button className="btn btn-secondary btn-xs" onClick={() => exportAnswers(filtered, 'filtrados')} disabled={filtered.length === 0} title="Excel con todas las respuestas del formulario y los datos del registro">⬇ Exportar respuestas</button>
+        <button className="btn btn-ghost btn-xs" onClick={() => exportCsv(filtered, 'filtrados')} disabled={filtered.length === 0} title="CSV con las columnas de la tabla">CSV</button>
         <button className="btn btn-primary btn-xs" onClick={() => setShowManual(true)}>+ Manual</button>
         {extraToolbar?.(ctx)}
       </div>
@@ -295,7 +300,8 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
           <input className="input-field" placeholder="Etiqueta" value={bulkTag} onChange={e => setBulkTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') bulkTagApply(false); }} />
           <button className="btn btn-secondary btn-xs" disabled={!bulkTag.trim() || bulkBusy} onClick={() => bulkTagApply(false)}>+ etiqueta</button>
           <button className="btn btn-ghost btn-xs" disabled={!bulkTag.trim() || bulkBusy} onClick={() => bulkTagApply(true)}>− etiqueta</button>
-          <button className="btn btn-secondary btn-xs" onClick={() => exportCsv(selectedRows, 'seleccionados')}>CSV</button>
+          <button className="btn btn-secondary btn-xs" onClick={() => exportAnswers(selectedRows, 'seleccionados')}>⬇ Respuestas</button>
+          <button className="btn btn-ghost btn-xs" onClick={() => exportCsv(selectedRows, 'seleccionados')}>CSV</button>
           {extraBulkActions?.(ctx)}
           <span style={{ flex: 1 }} />
           <button className="btn btn-ghost btn-xs" onClick={bulkDelete} disabled={bulkBusy}>Eliminar</button>
