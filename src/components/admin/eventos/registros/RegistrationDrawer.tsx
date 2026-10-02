@@ -224,7 +224,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', gap: 8, padding: '4px 0' }}>
       <span className="text-muted" style={{ width: 90, flexShrink: 0 }}>{label}</span>
-      <span>{value || <span className="text-muted">—</span>}</span>
+      <span className="detail-info-value">{value || <span className="text-muted">—</span>}</span>
     </div>
   );
 }

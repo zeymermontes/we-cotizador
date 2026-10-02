@@ -2513,6 +2513,10 @@ h6 {
 }
 @keyframes drawerIn { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
 .drawer h2 { font-family: var(--font-display); font-weight: 500; font-size: var(--text-xl); }
+/* En el drawer (520 px) los datos van en una sola columna: correos y teléfonos no caben en dos. */
+.drawer .detail-info-grid { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.drawer .detail-info-grid > * { min-width: 0; }
+.drawer .detail-info-value { min-width: 0; overflow-wrap: anywhere; }
 .drawer .answer-row { padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
 .drawer .answer-q { font-size: var(--text-xs); color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
 .drawer .answer-a { font-size: var(--text-sm); white-space: pre-wrap; }
