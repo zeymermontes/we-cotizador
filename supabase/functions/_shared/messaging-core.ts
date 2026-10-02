@@ -66,6 +66,8 @@ export function buildVars(event: EventLike, r: RegistrationLike, schema: FormSch
     correo: r.email ?? '',
     telefono: r.phone ?? '',
     personas: String(r.party_size ?? 1),
+    // Vacío con un solo pase; útil en invitaciones ("Válida para 3 personas")
+    pases_texto: (r.party_size ?? 1) > 1 ? (lang === 'en' ? `Valid for ${r.party_size} people` : `Válida para ${r.party_size} personas`) : '',
     empresa: r.company ?? '',
     evento: event.name,
     fecha,

@@ -3,9 +3,16 @@
 // registro de una corrida (invitation_jobs) desde la plantilla de
 // Slides, con el QR del invitado. Solo super.
 //
-// Body: { job_id, batch_size? }
-// Procesa unos pocos registros por llamada (el navegador repite hasta
-// que remaining = 0). Un lock cooperativo evita dos lotes a la vez.
+// Body: { job_id, batch_size?, cron_secret?, chain_depth? }
+// Procesa unos pocos registros por llamada y encadena la siguiente por sí
+// misma (EdgeRuntime.waitUntil), así que el navegador solo arranca la
+// corrida y luego mira el progreso en invitation_jobs. Si la cadena se
+// corta, invitations_watchdog (pg_cron) la revive con cron_secret.
+// Un lock cooperativo evita dos lotes a la vez.
+//
+// Salida (config.output_format): 'png' (por defecto) exporta la primera
+// diapositiva como imagen vía la miniatura de Slides → bucket event-assets
+// + copia en Drive; 'pdf' exporta el PDF a Drive como antes.
 //
 // El QR entra de dos formas:
 //   - texto {{qr}} dentro de una forma → replaceAllShapesWithImage
@@ -22,6 +29,7 @@ import {
   sanitizeFileName, sleep, withRetry,
 } from "../_shared/google.ts";
 import { normalizeSchema } from "../_shared/form-engine.ts";
+import { trashFile } from "../_shared/drive-folders.ts";
 import { buildVars, renderTemplate } from "../_shared/messaging-core.ts";
 import { loadPublishedSchema } from "../_shared/messaging.ts";
 
@@ -30,14 +38,22 @@ const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const EXPORT_DELAY_MS = Number(Deno.env.get('EXPORT_DELAY_MS') ?? 1200);
 const LOCK_TTL_MS = 120_000;
+const CRON_SECRET = Deno.env.get('JOBS_CRON_SECRET') ?? '';
+const MAX_CHAIN_DEPTH = 400;
 const QR_RE = /^\s*\{\{\s*qr\s*\}\}\s*$/i;
 
 interface Mapping { source: 'field' | 'question' | 'literal' | 'qr' | 'empty'; field?: string; questionId?: string; value?: string }
 
 const FIELD_TO_VAR: Record<string, string> = {
   name: 'nombre', first_name: 'primer_nombre', email: 'correo', phone: 'telefono', party_size: 'personas',
-  company: 'empresa', event: 'evento', date: 'fecha', time: 'hora', venue: 'lugar',
+  company: 'empresa', event: 'evento', date: 'fecha', time: 'hora', venue: 'lugar', party_text: 'pases_texto',
 };
+
+/** Ruta dentro del bucket a partir de una URL pública de event-assets. */
+function bucketPath(url: string | null): string | null {
+  const m = (url ?? '').match(/\/object\/public\/event-assets\/(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -47,15 +63,19 @@ serve(async (req) => {
   let lockToken = '';
 
   try {
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const caller = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user } } = await caller.auth.getUser();
-    if (!user) return fail('unauthorized', 'Sesión inválida');
-    const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (profile?.role !== 'super') return fail('forbidden', 'Solo el equipo puede generar invitaciones');
-
     const body = await req.json().catch(() => ({}));
+    // Llamadas del propio encadenado o del vigilante: llevan el secreto; las demás, un super.
+    const trusted = !!CRON_SECRET && body.cron_secret === CRON_SECRET;
+    if (!trusted) {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      const caller = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await caller.auth.getUser();
+      if (!user) return fail('unauthorized', 'Sesión inválida');
+      const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (profile?.role !== 'super') return fail('forbidden', 'Solo el equipo puede generar invitaciones');
+    }
     jobId = String(body.job_id ?? '');
+    const chainDepth = Number(body.chain_depth ?? 0);
     const batchSize = Math.max(1, Math.min(10, Number(body.batch_size ?? 6)));
     if (!jobId) return fail('bad_request', 'Falta job_id');
 
@@ -75,8 +95,11 @@ serve(async (req) => {
 
     const cfg = job.config as {
       event_folder_id: string; template_id: string; output_folder_name?: string;
-      placeholder_map: Record<string, Mapping>; file_name_template?: string;
+      placeholder_map: Record<string, Mapping>; file_name_template?: string; output_format?: 'png' | 'pdf';
     };
+    const asPdf = cfg.output_format === 'pdf';
+    const ext = asPdf ? 'pdf' : 'png';
+    const mime = asPdf ? 'application/pdf' : 'image/png';
 
     const g = getGoogleClients();
     serviceAccountEmail = g.serviceAccountEmail;
@@ -120,7 +143,7 @@ serve(async (req) => {
     // ── Pendientes de esta corrida ────────────────────────────
     const ids: string[] = job.registration_ids ?? [];
     const failedIds = new Set(((job.row_errors ?? []) as { registration_id: string }[]).map(e => e.registration_id));
-    let q = db.from('registrations').select('*').in('id', ids).neq('status', 'cancelled');
+    let q = db.from('registrations').select('*').in('id', ids).neq('status', 'cancelled').not('qr_url', 'is', null);
     if (!job.force) q = q.is('invitation_url', null);
     const { data: candidates } = await q.order('created_at');
     const pending = (candidates ?? []).filter((r: { id: string }) => !failedIds.has(r.id));
@@ -139,6 +162,7 @@ serve(async (req) => {
       }
     };
     for (const page of tplDoc.data.slides ?? []) walk(page.pageElements, page.objectId);
+    const firstSlideId = tplDoc.data.slides?.[0]?.objectId as string | undefined;
 
     const results: { id: string; url?: string; error?: string; retryable?: boolean; name: string }[] = [];
 
@@ -155,7 +179,7 @@ serve(async (req) => {
         else values[ph] = '';
       }
       const baseName = sanitizeFileName(renderTemplate(cfg.file_name_template || '{{nombre}}', vars)) || 'invitacion';
-      const fileName = `${baseName}-${String(r.id).slice(0, 6)}.pdf`;
+      const fileName = `${baseName}-${String(r.id).slice(0, 6)}.${ext}`;
       const guestName = r.name ?? baseName;
 
       let copyId: string | null = null;
@@ -183,35 +207,55 @@ serve(async (req) => {
         }
 
         await sleep(EXPORT_DELAY_MS);
-        const pdf = await withRetry('exportar el PDF', () =>
-          drive.files.export({ fileId: copyId as string, mimeType: 'application/pdf', supportsAllDrives: true }, { responseType: 'arraybuffer' }));
-        const pdfBytes = new Uint8Array(pdf.data as ArrayBuffer);
-        unwrapPdfLinks(pdfBytes);
+        let bytes: Uint8Array;
+        if (asPdf) {
+          const pdf = await withRetry('exportar el PDF', () =>
+            drive.files.export({ fileId: copyId as string, mimeType: 'application/pdf', supportsAllDrives: true }, { responseType: 'arraybuffer' }));
+          bytes = new Uint8Array(pdf.data as ArrayBuffer);
+          unwrapPdfLinks(bytes);
+        } else {
+          // Miniatura LARGE = 1600 px de ancho (2400 de alto en 2:3), PNG nítido para WhatsApp
+          const thumb = await withRetry('exportar la imagen', () =>
+            slides.presentations.pages.getThumbnail({
+              presentationId: copyId as string, pageObjectId: firstSlideId as string,
+              'thumbnailProperties.mimeType': 'PNG', 'thumbnailProperties.thumbnailSize': 'LARGE',
+            }));
+          const res = await fetch(thumb.data.contentUrl as string);
+          if (!res.ok) throw new Error(`No se pudo descargar la imagen (${res.status})`);
+          bytes = new Uint8Array(await res.arrayBuffer());
+        }
 
-        // Si ya existe un PDF con ese nombre (regeneración), se reemplaza
+        // Si ya existe un archivo con ese nombre en Drive (regeneración), se reemplaza
         const prev = await drive.files.list({
           q: `'${escapeQ(outputFolderId as string)}' in parents and trashed=false and name='${escapeQ(fileName)}'`,
           fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true,
         });
-        for (const f of prev.data.files ?? []) {
-          await drive.files.delete({ fileId: f.id, supportsAllDrives: true }).catch(() =>
-            drive.files.update({ fileId: f.id, requestBody: { trashed: true }, supportsAllDrives: true }).catch(() => {}));
-        }
+        for (const f of prev.data.files ?? []) await trashFile(drive, f.id as string);
+        if (r.invitation_drive_id) await trashFile(drive, r.invitation_drive_id);
 
-        const uploaded = await withRetry('subir el PDF', () =>
+        const uploaded = await withRetry('subir a Drive', () =>
           drive.files.create({
-            requestBody: { name: fileName, mimeType: 'application/pdf', parents: [outputFolderId as string] },
-            media: { mimeType: 'application/pdf', body: Readable.from([pdfBytes]) },
+            requestBody: { name: fileName, mimeType: mime, parents: [outputFolderId as string] },
+            media: { mimeType: mime, body: Readable.from([bytes]) },
             fields: 'id, webViewLink', supportsAllDrives: true,
           }));
-        await withRetry('hacer público el PDF', () =>
-          drive.permissions.create({ fileId: uploaded.data.id as string, requestBody: { role: 'reader', type: 'anyone' }, supportsAllDrives: true }));
+        await trashFile(drive, copyId);
 
-        await drive.files.delete({ fileId: copyId, supportsAllDrives: true }).catch(() =>
-          drive.files.update({ fileId: copyId as string, requestBody: { trashed: true }, supportsAllDrives: true }).catch(() => {}));
-
-        const url = uploaded.data.webViewLink as string;
-        await db.from('registrations').update({ invitation_url: url }).eq('id', r.id);
+        let url: string;
+        if (asPdf) {
+          await withRetry('hacer público el PDF', () =>
+            drive.permissions.create({ fileId: uploaded.data.id as string, requestBody: { role: 'reader', type: 'anyone' }, supportsAllDrives: true }));
+          url = uploaded.data.webViewLink as string;
+        } else {
+          // La URL que viaja al bot y al correo es la del bucket (directa y estable)
+          const path = `${event.id}/invitations/${r.id}-${Date.now()}.png`;
+          const { error: upErr } = await db.storage.from('event-assets').upload(path, bytes, { contentType: 'image/png', cacheControl: '31536000', upsert: false });
+          if (upErr) throw new Error(upErr.message);
+          url = db.storage.from('event-assets').getPublicUrl(path).data.publicUrl;
+          const old = bucketPath(r.invitation_url);
+          if (old && old !== path) await db.storage.from('event-assets').remove([old]).catch(() => {});
+        }
+        await db.from('registrations').update({ invitation_url: url, invitation_drive_id: uploaded.data.id, invitation_drive_url: uploaded.data.webViewLink }).eq('id', r.id);
         results.push({ id: r.id, url, name: guestName });
       } catch (e) {
         const link = copyId ? ` (copia: https://docs.google.com/presentation/d/${copyId}/edit)` : '';
@@ -240,6 +284,19 @@ serve(async (req) => {
       completed_at: completed ? new Date().toISOString() : null,
       lock_token: null, locked_at: null,
     }).eq('id', jobId);
+
+    // ── Auto-encadenado: el siguiente lote no depende del navegador ──
+    const stalled = okCount === 0 && newErrors.length > 0 && remaining > 0 && pending.length === batch.length;
+    if (!completed && !stalled && CRON_SECRET && chainDepth < MAX_CHAIN_DEPTH) {
+      const chain = fetch(`${SUPABASE_URL}/functions/v1/invitations-run-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SERVICE_KEY}` },
+        body: JSON.stringify({ job_id: jobId, cron_secret: CRON_SECRET, chain_depth: chainDepth + 1 }),
+      }).catch(() => {});
+      // @ts-expect-error EdgeRuntime solo existe en el runtime de Supabase Edge Functions
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(chain);
+      else await sleep(300);
+    }
 
     return json({ ok: true, processed: okCount, failed: newErrors.length, remaining, completed });
   } catch (e) {

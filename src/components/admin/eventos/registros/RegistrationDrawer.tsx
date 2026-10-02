@@ -8,7 +8,7 @@ import {
 } from '../../../../lib/registrations';
 import { useAuth } from '../../../../hooks/useAuth';
 import type { EventRow } from '../../../../lib/events-types';
-import { genericSettings, regenerateInvitation, removeInvitation, downloadInvitation } from '../../../../lib/invitations';
+import { genericSettings, regenerateInvitation, removeInvitation, downloadInvitation, slidesConfig, runCloudInvitations } from '../../../../lib/invitations';
 
 interface Props {
   registration: Registration;
@@ -49,10 +49,16 @@ export default function RegistrationDrawer({ registration: r, schema, lang, even
       if (kind === 'download') await downloadInvitation(r);
       if (kind === 'regenerate') {
         if (!event) throw new Error('Abre la ficha desde el evento para regenerar');
-        const res = await regenerateInvitation(event, r, genericSettings(event.invitation_config), lang);
-        if (res.skipped) throw new Error('Este registro está cancelado y no tiene QR, así que no se genera invitación. Cámbialo a Registrado primero.');
-        if (res.failed) throw new Error('No se pudo generar la invitación');
-        if (res.drive_error) alert(`Invitación lista. Copia a Drive pendiente: ${res.drive_error}`);
+        if (r.status === 'cancelled') throw new Error('Este registro está cancelado, así que no se genera invitación. Cámbialo a Registrado primero.');
+        if (slidesConfig(event.invitation_config)) {
+          const res = await runCloudInvitations(event, [r], true);
+          if (res.status === 'failed' || res.failed) throw new Error(res.job?.row_errors?.[0]?.message ?? res.job?.last_error ?? 'No se pudo generar la invitación en la nube');
+        } else {
+          const res = await regenerateInvitation(event, r, genericSettings(event.invitation_config), lang);
+          if (res.skipped) throw new Error('Este registro no tiene QR, así que no se genera invitación.');
+          if (res.failed) throw new Error('No se pudo generar la invitación');
+          if (res.drive_error) alert(`Invitación lista. Copia a Drive pendiente: ${res.drive_error}`);
+        }
         await reloadInvitation();
       }
       if (kind === 'remove') {

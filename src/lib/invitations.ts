@@ -29,6 +29,7 @@ export const FIELD_OPTIONS: { key: string; label: string }[] = [
   { key: 'date', label: 'Fecha del evento' },
   { key: 'time', label: 'Hora del evento' },
   { key: 'venue', label: 'Lugar' },
+  { key: 'party_text', label: 'Texto de pases ("Válida para N personas", vacío si es 1)' },
 ];
 
 export interface InvitationConfig {
@@ -44,6 +45,11 @@ export interface InvitationConfig {
   qr_shapes: number;
   /** Diseño genérico (sin Slides); convive con la plantilla. */
   generic?: GenericInvitationSettings;
+  /** png (imagen para WhatsApp, por defecto) o pdf en Drive. */
+  output_format?: 'png' | 'pdf';
+  /** La plantilla la creó invitations-create-template a partir del diseño. */
+  auto_template?: boolean;
+  template_created_at?: string;
 }
 
 /** La parte de Slides solo cuenta como configurada si hay plantilla. */
@@ -238,6 +244,95 @@ export async function inspectInvitationTemplate(eventFolderUrl: string): Promise
 }
 
 export interface BatchResult { ok: true; processed: number; failed: number; remaining: number; completed: boolean }
+
+// ─── Plantilla creada desde el diseño + corrida en la nube ───
+
+export interface CreateTemplateResult { ok: true; template: { id: string; url: string; name: string }; folder: { id: string; url: string }; config: InvitationConfig }
+
+/** Slides solo acepta PNG, JPEG y GIF: el logo y el fondo (WebP al subirse) se copian convertidos. */
+async function slidesSafeImage(eventId: string, kind: 'logo' | 'background', url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  if (/\.(png|jpe?g|gif)(\?|$)/i.test(url)) return url;
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error(`No se pudo leer la imagen de ${kind === 'logo' ? 'logo' : 'fondo'}`));
+    i.src = url;
+  });
+  const canvas = document.createElement('canvas');
+  // El fondo no necesita más de 2160 px de alto; el logo se deja como está
+  const scale = kind === 'background' ? Math.min(1, 2160 / Math.max(img.width, img.height)) : 1;
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const png = kind === 'logo';
+  const blob = await new Promise<Blob>((res, rej) => canvas.toBlob(b => (b ? res(b) : rej(new Error('No se pudo convertir la imagen'))), png ? 'image/png' : 'image/jpeg', 0.9));
+  const path = `${eventId}/slides/${kind}-${Date.now()}.${png ? 'png' : 'jpg'}`;
+  const { error } = await supabase.storage.from('event-assets').upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from('event-assets').getPublicUrl(path).data.publicUrl;
+}
+
+/** Arma (o vuelve a armar) la plantilla de Slides con el diseño del evento en su carpeta de Drive. */
+export async function createInvitationTemplate(event: EventRow, replace = false): Promise<CreateTemplateResult | FunctionError> {
+  let logo_url: string | null, background_url: string | null;
+  try {
+    [logo_url, background_url] = await Promise.all([
+      slidesSafeImage(event.id, 'logo', event.branding?.logo_url),
+      slidesSafeImage(event.id, 'background', event.branding?.background_url),
+    ]);
+  } catch (e) { return { ok: false, code: 'assets', message: (e as Error).message }; }
+  const { data, error } = await supabase.functions.invoke<CreateTemplateResult | FunctionError>('invitations-create-template', {
+    body: { event_id: event.id, replace, logo_url: logo_url ?? '', background_url: background_url ?? '' },
+  });
+  if (error || !data) return { ok: false, code: 'network', message: error?.message ?? 'Sin respuesta' };
+  return data;
+}
+
+export interface CloudProgress { done: number; failed: number; skipped: number; total: number; job?: InvitationJob; status: 'qr' | 'running' | 'completed' | 'failed' }
+
+/**
+ * Genera invitaciones en la nube con la plantilla de Slides: asegura los QR,
+ * crea la corrida, arranca el primer lote y después solo observa el progreso
+ * (los lotes siguientes se encadenan en el servidor; cerrar la pestaña no los
+ * detiene). Los cancelados o sin QR se cuentan como omitidos.
+ */
+export async function runCloudInvitations(event: EventRow, regs: Registration[], force: boolean, onProgress?: (p: CloudProgress) => void): Promise<CloudProgress> {
+  const cfg = slidesConfig(event.invitation_config);
+  if (!cfg) throw new Error('Este evento no tiene plantilla en Drive todavía.');
+  const eligible = regs.filter(r => r.status !== 'cancelled');
+  const p: CloudProgress = { done: 0, failed: 0, skipped: regs.length - eligible.length, total: regs.length, status: 'qr' };
+  const missingQr = eligible.filter(r => !r.qr_url).map(r => r.id);
+  if (missingQr.length) { onProgress?.({ ...p }); await generateQrs(event.id, { ids: missingQr }); }
+  const { data: job, error } = await supabase.from('invitation_jobs').insert({
+    event_id: event.id,
+    name: `${eligible.length} invitaciones · ${new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}`,
+    config: cfg, registration_ids: eligible.map(r => r.id), force, total_rows: eligible.length,
+  }).select('*').single();
+  if (error) throw new Error(error.message);
+  p.status = 'running'; p.job = job as InvitationJob;
+  onProgress?.({ ...p });
+  if (eligible.length === 0) {
+    await supabase.from('invitation_jobs').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', job.id);
+    return { ...p, status: 'completed' };
+  }
+  const first = await runInvitationBatch(job.id);
+  if (!first.ok && !first.retryable) throw new Error(first.message);
+  // Observar la corrida hasta que termine (máx. ~2 h)
+  for (let i = 0; i < 2400; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const { data: j } = await supabase.from('invitation_jobs').select('*').eq('id', job.id).maybeSingle();
+    if (!j) break;
+    const jr = j as InvitationJob;
+    p.job = jr; p.done = jr.processed_rows; p.failed = jr.failed_rows;
+    if (jr.status === 'completed' || jr.status === 'failed') { p.status = jr.status; onProgress?.({ ...p }); return p; }
+    onProgress?.({ ...p });
+    // Si la cadena se cortó, el vigilante la revive en ≤2 min; entre tanto empujamos desde aquí
+    if (i % 10 === 9) runInvitationBatch(job.id).catch(() => {});
+  }
+  return p;
+}
 
 export async function runInvitationBatch(jobId: string): Promise<BatchResult | FunctionError> {
   const { data, error } = await supabase.functions.invoke<BatchResult | FunctionError>('invitations-run-batch', { body: { job_id: jobId } });

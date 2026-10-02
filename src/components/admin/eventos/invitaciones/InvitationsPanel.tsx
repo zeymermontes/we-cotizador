@@ -5,8 +5,9 @@ import { type FormSchema, normalizeSchema, text } from '../../../../lib/form-typ
 import type { Registration } from '../../../../lib/registrations';
 import {
   type InvitationConfig, type InvitationJob, type InspectResult, type PlaceholderMapping,
-  FIELD_OPTIONS, JOB_STATUS_LABEL, JOB_STATUS_BADGE, generateQrs, inspectInvitationTemplate, runInvitationBatch,
+  FIELD_OPTIONS, JOB_STATUS_LABEL, JOB_STATUS_BADGE, generateQrs, inspectInvitationTemplate,
   slidesConfig, genericSettings, generateGenericInvitations, type GenericProgress, syncInvitationsToDrive, type DriveSyncError,
+  createInvitationTemplate, runCloudInvitations, type CloudProgress,
 } from '../../../../lib/invitations';
 import { DEFAULT_GENERIC, defaultSubtitle, drawGenericInvitation, type GenericInvitationSettings } from '../../../../lib/invitation-canvas';
 import { ExcelModal } from './InvitationActions';
@@ -48,8 +49,10 @@ export default function InvitationsPanel({ event, onEventPatch }: Props) {
   return (
     <div>
       <QrSection event={event} regs={active} onDone={load} />
-      <GenericSection event={event} regs={active} onEventPatch={onEventPatch} onReload={load} />
-      <SlidesSection event={event} schema={schema} regs={active} jobs={jobs} onEventPatch={onEventPatch} onReload={load} />
+      <GenericSection event={event} regs={active} jobs={jobs} onEventPatch={onEventPatch} onReload={load} />
+      {!slidesConfig(event.invitation_config)?.auto_template && (
+        <SlidesSection event={event} schema={schema} regs={active} jobs={jobs} onEventPatch={onEventPatch} onReload={load} />
+      )}
       <ExcelSection ctx={ctx} />
     </div>
   );
@@ -94,10 +97,15 @@ function QrSection({ event, regs, onDone }: { event: EventRow; regs: Registratio
 
 // ─── Diseño genérico (sin Slides) ───────────────────────────
 
-function GenericSection({ event, regs, onEventPatch, onReload }: {
-  event: EventRow; regs: Registration[]; onEventPatch: Props['onEventPatch']; onReload: () => Promise<void>;
+function GenericSection({ event, regs, jobs, onEventPatch, onReload }: {
+  event: EventRow; regs: Registration[]; jobs: InvitationJob[]; onEventPatch: Props['onEventPatch']; onReload: () => Promise<void>;
 }) {
   const lang = event.default_language;
+  const slides = slidesConfig(event.invitation_config);
+  const cloud = !!slides;
+  const [tplBusy, setTplBusy] = useState(false);
+  const [tplMsg, setTplMsg] = useState<{ text: string; error?: boolean; email?: string } | null>(null);
+  const [cloudProgress, setCloudProgress] = useState<CloudProgress | null>(null);
   const [s, setS] = useState<Required<GenericInvitationSettings>>({ ...DEFAULT_GENERIC, ...genericSettings(event.invitation_config) });
   const [preview, setPreview] = useState<string>('');
   const [saving, setSaving] = useState(false);
@@ -134,7 +142,35 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
     a.click();
   }
 
+  /** Crea (o rehace) la plantilla de Slides en Drive con el diseño actual. */
+  async function createTemplate(replace: boolean) {
+    if (replace && !confirm('Se creará una plantilla nueva con el diseño actual y la anterior irá a la papelera de Drive. Los cambios hechos a mano en la plantilla anterior se pierden. ¿Continuar?')) return;
+    setTplBusy(true); setTplMsg(null);
+    // El diseño que se dibuja es el guardado: se guarda primero
+    const current = (event.invitation_config as InvitationConfig | null) ?? ({} as InvitationConfig);
+    await onEventPatch({ invitation_config: { ...current, generic: s } });
+    const res = await createInvitationTemplate(event, replace);
+    setTplBusy(false);
+    if (!res.ok) { setTplMsg({ text: res.message, error: true, email: res.service_account_email }); return; }
+    await onEventPatch({ invitation_config: res.config }, 'Plantilla creada en Drive');
+    setTplMsg({ text: 'Plantilla lista. Desde ahora las invitaciones se generan en la nube.' });
+    await onReload();
+  }
+
+  async function generateCloud(force: boolean) {
+    const targets = regs.filter(r => force || !r.invitation_url);
+    if (targets.length === 0) return alert('Todos ya tienen invitación.');
+    if (!confirm(`Se generarán ${targets.length} invitaciones en la nube con la plantilla de Drive${force ? ' (reemplazando las existentes)' : ''}. Puedes cerrar la pestaña: el proceso sigue solo. ¿Continuar?`)) return;
+    setError('');
+    try {
+      const res = await runCloudInvitations(event, targets, force, setCloudProgress);
+      setCloudProgress(res);
+      await onReload();
+    } catch (e) { setError((e as Error).message); setCloudProgress(null); }
+  }
+
   async function generate(force: boolean) {
+    if (cloud) return generateCloud(force);
     const targets = regs.filter(r => force || !r.invitation_url);
     if (targets.length === 0) return alert('Todos ya tienen invitación.');
     if (!confirm(`Se generarán ${targets.length} invitaciones con este diseño${force ? ' (reemplazando las existentes)' : ''}. ¿Continuar?`)) return;
@@ -147,7 +183,8 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
     } catch (e) { setError((e as Error).message); setProgress(null); }
   }
 
-  const busy = !!progress && progress.done + progress.failed + progress.skipped < progress.total;
+  const cloudBusy = !!cloudProgress && (cloudProgress.status === 'qr' || cloudProgress.status === 'running');
+  const busy = cloudBusy || (!!progress && progress.done + progress.failed + progress.skipped < progress.total);
   const [driveMsg, setDriveMsg] = useState('');
   const [driveBusy, setDriveBusy] = useState(false);
   const withoutDrive = regs.filter(r => r.invitation_url && !r.invitation_drive_id).length;
@@ -169,7 +206,8 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
     <div className="section-card">
       <h3>Invitación con el diseño del evento</h3>
       <p className="section-hint">
-        Sin plantilla de Slides: una imagen por invitado con el fondo, logo, colores y fuentes de Diseño, su nombre y su QR. Lista para mandarse por WhatsApp o correo (variable <code>{'{{invitacion_url}}'}</code>).
+        Una imagen por invitado con el fondo, logo, colores y fuentes de Diseño, su nombre y su QR. Lista para mandarse por WhatsApp o correo (variable <code>{'{{invitacion_url}}'}</code>).
+        {cloud ? ' La plantilla vive en Drive y las invitaciones se generan en la nube.' : ' Crea la plantilla en Drive para generarlas en la nube sin depender de esta pestaña.'}
       </p>
       <div className="invite-generic">
         <div className="invite-generic-fields">
@@ -194,19 +232,49 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
             <button type="button" className="btn btn-secondary btn-sm" onClick={save} disabled={saving}>{saving ? 'Guardando…' : 'Guardar diseño'}</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={downloadSample} disabled={!preview}>Descargar ejemplo</button>
           </div>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Plantilla en Google Drive</div>
+            {cloud && slides.auto_template ? (
+              <p className="text-muted text-xs" style={{ margin: '4px 0 8px' }}>
+                Creada desde este diseño{slides.template_created_at ? ` el ${new Date(slides.template_created_at).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}: <a href={slides.template_url} target="_blank" rel="noopener noreferrer">abrir en Slides ↗</a>.
+                Puedes retocarla a mano ahí (deja los marcadores <code>{'{{nombre}}'}</code>, <code>{'{{pases_texto}}'}</code> y la forma con texto alternativo <code>{'{{qr}}'}</code>). Si cambias el diseño aquí o en Diseño, vuelve a crearla.
+              </p>
+            ) : cloud ? (
+              <p className="text-muted text-xs" style={{ margin: '4px 0 8px' }}>Este evento usa una plantilla propia: <a href={slides.template_url} target="_blank" rel="noopener noreferrer">abrir en Slides ↗</a>. Si creas una desde el diseño, la sustituye en la configuración (el archivo propio no se toca).</p>
+            ) : (
+              <p className="text-muted text-xs" style={{ margin: '4px 0 8px' }}>Arma un Google Slides con este diseño en la carpeta del evento. Se hace una vez; después cada invitación se genera en la nube a partir de él.</p>
+            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button type="button" className={`btn ${cloud ? 'btn-secondary' : 'btn-primary'} btn-sm`} onClick={() => createTemplate(cloud)} disabled={tplBusy || busy}>
+                {tplBusy ? 'Creando en Drive…' : cloud ? 'Volver a crear desde el diseño' : 'Crear plantilla en Drive'}
+              </button>
+              {tplMsg && (
+                <span className={`text-xs ${tplMsg.error ? '' : 'text-muted'}`} style={tplMsg.error ? { color: 'var(--color-error)' } : undefined}>
+                  {tplMsg.text}{tplMsg.email && <> · Cuenta de servicio: <code>{tplMsg.email}</code></>}
+                </span>
+              )}
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => generate(false)} disabled={busy || regs.length === 0}>
-              {busy ? 'Generando…' : `Generar para los ${regs.length - withInvitation} sin invitación`}
+              {busy ? 'Generando…' : `Generar para los ${regs.length - withInvitation} sin invitación${cloud ? ' (en la nube)' : ''}`}
             </button>
             <button type="button" className="btn btn-ghost btn-xs" onClick={() => generate(true)} disabled={busy || regs.length === 0}>Regenerar todas</button>
-            {progress && (
+            {cloudProgress && (
+              <span className="text-muted text-sm">
+                {cloudProgress.status === 'qr' ? 'Generando QR…' : `${cloudProgress.done + cloudProgress.failed}/${cloudProgress.total - cloudProgress.skipped}`}
+                {cloudProgress.failed ? ` · ${cloudProgress.failed} fallidas` : ''}{cloudProgress.skipped ? ` · ${cloudProgress.skipped} omitidas (cancelados)` : ''}
+                {cloudProgress.status === 'running' ? ' · en la nube, puedes cerrar la pestaña' : cloudProgress.status === 'failed' ? ` · falló: ${cloudProgress.job?.last_error ?? ''}` : cloudProgress.status === 'completed' ? ' · listo' : ''}
+              </span>
+            )}
+            {!cloud && progress && (
               <span className="text-muted text-sm">
                 {progress.done + progress.failed + progress.skipped}/{progress.total}{progress.failed ? ` · ${progress.failed} fallidas` : ''}{progress.skipped ? ` · ${progress.skipped} sin QR (cancelados)` : ''}{busy && progress.current ? ` · ${progress.current}` : ''}
               </span>
             )}
           </div>
           {error && <div className="inline-alert error" style={{ marginTop: 8 }}>{error}</div>}
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+          {!cloud && <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
             <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Copia en Google Drive</div>
             <p className="text-muted text-xs" style={{ margin: '4px 0 8px' }}>
               Cada invitación se guarda también en Drive, en una carpeta por evento, para que el equipo las tenga ordenadas. La URL que viaja al bot y al correo sigue siendo la del archivo directo.
@@ -216,13 +284,38 @@ function GenericSection({ event, regs, onEventPatch, onReload }: {
               <button type="button" className="btn btn-secondary btn-xs" onClick={copyToDrive} disabled={driveBusy || withoutDrive === 0}>{driveBusy ? 'Copiando…' : `Copiar a Drive las ${withoutDrive} que faltan`}</button>
               {driveMsg && <span className="text-muted text-xs">{driveMsg}</span>}
             </div>
-          </div>
+          </div>}
         </div>
         <div className="invite-generic-preview">
           {preview ? <img src={preview} alt="Vista previa de la invitación" /> : <div className="text-muted text-sm">Dibujando vista previa…</div>}
-          <span className="text-muted text-xs">{sample ? `Ejemplo con ${sample.name ?? 'el primer registro'}` : 'Ejemplo con un invitado ficticio'} · 1080×1620</span>
+          <span className="text-muted text-xs">{sample ? `Ejemplo con ${sample.name ?? 'el primer registro'}` : 'Ejemplo con un invitado ficticio'} · 1080×1620{cloud ? ' · la plantilla de Drive puede diferir si la editaste a mano' : ''}</span>
         </div>
       </div>
+      {cloud && slides.auto_template && jobs.length > 0 && <JobsTable jobs={jobs} />}
+    </div>
+  );
+}
+
+function JobsTable({ jobs }: { jobs: InvitationJob[] }) {
+  return (
+    <div className="data-table-wrapper" style={{ marginTop: 12 }}>
+      <table className="data-table">
+        <thead><tr><th>Corrida</th><th>Estado</th><th>Progreso</th><th>Errores</th><th>Carpeta</th></tr></thead>
+        <tbody>
+          {jobs.map(j => (
+            <tr key={j.id}>
+              <td>{j.name}</td>
+              <td><span className={`badge ${JOB_STATUS_BADGE[j.status]}`}>{JOB_STATUS_LABEL[j.status]}</span></td>
+              <td>{j.processed_rows} / {j.total_rows}</td>
+              <td style={{ color: j.failed_rows ? 'var(--color-error)' : 'var(--text-muted)' }}>
+                {j.failed_rows || '—'}
+                {j.row_errors?.slice(0, 3).map((e, i) => <div key={i} className="text-xs">{e.name}: {e.message}</div>)}
+              </td>
+              <td>{j.output_folder_url ? <a href={j.output_folder_url} target="_blank" rel="noopener noreferrer">Drive ↗</a> : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -241,6 +334,7 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
   const [map, setMap] = useState<Record<string, PlaceholderMapping>>(saved?.placeholder_map ?? {});
   const [fileName, setFileName] = useState(saved?.file_name_template ?? '{{nombre}}');
   const [outputName, setOutputName] = useState(saved?.output_folder_name ?? 'Invitaciones');
+  const [outputFormat, setOutputFormat] = useState<'png' | 'pdf'>(saved?.output_format ?? 'png');
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState<string>('');
   const questions = (schema?.questions ?? []).filter(q => q.type !== 'statement');
@@ -281,6 +375,8 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
       placeholders: base?.template.placeholders ?? saved!.placeholders,
       qr_shapes: base?.template.qr_shapes ?? saved!.qr_shapes,
       generic: genericSettings(event.invitation_config),
+      output_format: outputFormat,
+      auto_template: false,
     };
     await onEventPatch({ invitation_config: cfg }, 'Plantilla de invitación guardada');
     setSaving(false);
@@ -290,25 +386,12 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
     if (!saved) return;
     const targets = regs.filter(r => force || !r.invitation_url);
     if (targets.length === 0) return alert('Todos ya tienen invitación.');
-    if (!confirm(`Se generarán ${targets.length} PDF en Drive${force ? ' (regenerando los existentes)' : ''}. ¿Continuar?`)) return;
+    if (!confirm(`Se generarán ${targets.length} invitaciones en la nube${force ? ' (regenerando las existentes)' : ''}. Puedes cerrar la pestaña: el proceso sigue solo. ¿Continuar?`)) return;
     setRunning('Preparando…');
     try {
-      const missingQr = targets.filter(r => !r.qr_url).map(r => r.id);
-      if (missingQr.length) { setRunning(`QR ${missingQr.length}…`); await generateQrs(event.id, { ids: missingQr }); }
-      const { data: job, error: jErr } = await supabase.from('invitation_jobs').insert({
-        event_id: event.id, name: `${targets.length} invitaciones · ${new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}`,
-        config: saved, registration_ids: targets.map(r => r.id), force, total_rows: targets.length,
-      }).select('id').single();
-      if (jErr) throw new Error(jErr.message);
-      let done = 0;
-      for (let i = 0; i < 1000; i++) {
-        setRunning(`PDF ${done}/${targets.length}`);
-        const res = await runInvitationBatch(job.id);
-        if (!res.ok) { if (res.retryable) { await new Promise(r => setTimeout(r, 4000)); continue; } throw new Error(res.message); }
-        done += res.processed;
-        if (res.completed) break;
-      }
+      const res = await runCloudInvitations(event, targets, force, p => setRunning(p.status === 'qr' ? 'QR…' : `${p.done + p.failed}/${p.total - p.skipped} en la nube`));
       setRunning('');
+      if (res.status === 'failed') alert(res.job?.last_error ?? 'La corrida falló');
       await onReload();
     } catch (e) { setRunning(''); alert((e as Error).message); await onReload(); }
   }
@@ -317,9 +400,9 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
 
   return (
     <div className="section-card">
-      <h3>Invitación en PDF desde Google Slides</h3>
+      <h3>Plantilla propia de Google Slides</h3>
       <p className="section-hint">
-        Igual que el rotulado: una carpeta de Drive compartida con la cuenta de servicio, dentro una sola presentación con marcadores <code>{'{{nombre}}'}</code>, <code>{'{{pases}}'}</code>… y una forma con texto o texto alternativo <code>{'{{qr}}'}</code> donde va el código.
+        Para un diseño hecho a mano. Igual que el rotulado: una carpeta de Drive compartida con la cuenta de servicio, dentro una sola presentación con marcadores <code>{'{{nombre}}'}</code>, <code>{'{{pases}}'}</code>… y una forma con texto o texto alternativo <code>{'{{qr}}'}</code> donde va el código.
       </p>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -384,6 +467,13 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
                 <label className="input-label">Subcarpeta de salida</label>
                 <input className="input-field" value={outputName} onChange={e => setOutputName(e.target.value)} placeholder="Invitaciones" />
               </div>
+              <div className="input-group">
+                <label className="input-label">Formato de salida</label>
+                <select className="glass-select" value={outputFormat} onChange={e => setOutputFormat(e.target.value as 'png' | 'pdf')}>
+                  <option value="png">Imagen PNG (WhatsApp y correo)</option>
+                  <option value="pdf">PDF en Drive</option>
+                </select>
+              </div>
             </div>
             <div className="modal-actions">
               <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? 'Guardando…' : 'Guardar plantilla'}</button>
@@ -395,33 +485,13 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
       {saved && (
         <div className="editor-section">
           <h4>Generar</h4>
-          <p className="section-hint">{withPdf} de {regs.length} registros ya tienen PDF. Para un subconjunto, selecciónalos en Registros y usa "Invitación" en la barra.</p>
+          <p className="section-hint">{withPdf} de {regs.length} registros ya tienen invitación. Para un subconjunto, selecciónalos en Registros y usa "Invitación" en la barra.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button className="btn btn-primary btn-sm" onClick={() => generateAll(false)} disabled={!!running}>{running || `Generar los ${regs.length - withPdf} que faltan`}</button>
             <button className="btn btn-ghost btn-xs" onClick={() => generateAll(true)} disabled={!!running}>Regenerar todos</button>
           </div>
 
-          {jobs.length > 0 && (
-            <div className="data-table-wrapper" style={{ marginTop: 12 }}>
-              <table className="data-table">
-                <thead><tr><th>Corrida</th><th>Estado</th><th>Progreso</th><th>Errores</th><th>Carpeta</th></tr></thead>
-                <tbody>
-                  {jobs.map(j => (
-                    <tr key={j.id}>
-                      <td>{j.name}</td>
-                      <td><span className={`badge ${JOB_STATUS_BADGE[j.status]}`}>{JOB_STATUS_LABEL[j.status]}</span></td>
-                      <td>{j.processed_rows} / {j.total_rows}</td>
-                      <td style={{ color: j.failed_rows ? 'var(--color-error)' : 'var(--text-muted)' }}>
-                        {j.failed_rows || '—'}
-                        {j.row_errors?.slice(0, 3).map((e, i) => <div key={i} className="text-xs">{e.name}: {e.message}</div>)}
-                      </td>
-                      <td>{j.output_folder_url ? <a href={j.output_folder_url} target="_blank" rel="noopener noreferrer">Drive ↗</a> : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {jobs.length > 0 && <JobsTable jobs={jobs} />}
         </div>
       )}
     </div>
