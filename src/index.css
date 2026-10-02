@@ -2968,3 +2968,9 @@ html.we-public body, html.we-public #root { min-height: 100svh; }
 .chip.chip-xs { font-size: 11px; padding: 3px 9px; }
 .chip.chip-xs:not(.active) { opacity: 0.55; text-decoration: line-through; }
 .chip:disabled { cursor: default; }
+
+/* ─── Invitación genérica ─── */
+.invite-generic { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.invite-generic-preview { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.invite-generic-preview img { width: 100%; max-width: 300px; border-radius: 16px; box-shadow: var(--shadow-lg); }
+@media (max-width: 860px) { .invite-generic { grid-template-columns: 1fr; } }

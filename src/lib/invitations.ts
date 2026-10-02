@@ -5,6 +5,9 @@ import type { FormSchema, Lang } from './form-types';
 import { text } from './form-types';
 import type { Registration } from './registrations';
 import { answerText } from './registrations';
+import type { EventRow } from './events-types';
+import { removeEventImage } from './images';
+import { renderGenericInvitation, type GenericInvitationSettings } from './invitation-canvas';
 
 export type MappingSource = 'field' | 'question' | 'literal' | 'qr' | 'empty';
 
@@ -39,6 +42,18 @@ export interface InvitationConfig {
   file_name_template: string;
   placeholders: string[];
   qr_shapes: number;
+  /** Diseño genérico (sin Slides); convive con la plantilla. */
+  generic?: GenericInvitationSettings;
+}
+
+/** La parte de Slides solo cuenta como configurada si hay plantilla. */
+export function slidesConfig(cfg: unknown): InvitationConfig | null {
+  const c = cfg as InvitationConfig | null;
+  return c && c.template_id ? c : null;
+}
+
+export function genericSettings(cfg: unknown): GenericInvitationSettings {
+  return ((cfg as InvitationConfig | null)?.generic) ?? {};
 }
 
 export interface InspectResult {
@@ -98,6 +113,54 @@ export async function generateQrs(eventId: string, opts: { ids?: string[]; all?:
     if (data.remaining === 0 || (data.done === 0 && data.failed > 0)) break;
   }
   return total;
+}
+
+// ─── Invitación genérica (imagen desde el branding) ──────────
+
+export interface GenericProgress { done: number; failed: number; total: number; current?: string }
+
+/**
+ * Genera la invitación genérica de cada registro: asegura su QR, la dibuja
+ * en el navegador, la sube al bucket y guarda la URL en invitation_url.
+ */
+export async function generateGenericInvitations(
+  event: EventRow,
+  regs: Registration[],
+  settings: GenericInvitationSettings,
+  lang: Lang,
+  onProgress?: (p: GenericProgress) => void,
+): Promise<GenericProgress> {
+  const p: GenericProgress = { done: 0, failed: 0, total: regs.length };
+  const missingQr = regs.filter(r => !r.qr_url).map(r => r.id);
+  if (missingQr.length) {
+    onProgress?.({ ...p, current: `QR de ${missingQr.length} registros…` });
+    await generateQrs(event.id, { ids: missingQr });
+  }
+  // Releer: los QR recién generados y la invitación anterior a reemplazar
+  const fresh = new Map<string, Pick<Registration, 'id' | 'name' | 'party_size' | 'qr_url' | 'invitation_url'>>();
+  for (let i = 0; i < regs.length; i += 200) {
+    const { data } = await supabase.from('registrations').select('id, name, party_size, qr_url, invitation_url').in('id', regs.slice(i, i + 200).map(r => r.id));
+    for (const r of (data ?? []) as Registration[]) fresh.set(r.id, r);
+  }
+  for (const reg of regs) {
+    const r = fresh.get(reg.id) ?? reg;
+    onProgress?.({ ...p, current: r.name ?? r.id });
+    try {
+      const img = await renderGenericInvitation(event, { name: r.name, party_size: r.party_size, qr_url: r.qr_url }, settings, lang);
+      const path = `${event.id}/invitations/${r.id}-${Date.now()}.${img.extension}`;
+      const { error } = await supabase.storage.from('event-assets').upload(path, img.blob, { contentType: img.contentType, cacheControl: '31536000', upsert: false });
+      if (error) throw new Error(error.message);
+      const { data } = supabase.storage.from('event-assets').getPublicUrl(path);
+      const { error: uErr } = await supabase.from('registrations').update({ invitation_url: data.publicUrl }).eq('id', r.id);
+      if (uErr) throw new Error(uErr.message);
+      if (r.invitation_url && r.invitation_url.includes('/event-assets/')) removeEventImage(r.invitation_url).catch(() => {});
+      p.done++;
+    } catch {
+      p.failed++;
+    }
+    onProgress?.({ ...p });
+  }
+  return p;
 }
 
 // ─── Invitaciones ────────────────────────────────────────────

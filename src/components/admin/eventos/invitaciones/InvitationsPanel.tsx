@@ -6,7 +6,9 @@ import type { Registration } from '../../../../lib/registrations';
 import {
   type InvitationConfig, type InvitationJob, type InspectResult, type PlaceholderMapping,
   FIELD_OPTIONS, JOB_STATUS_LABEL, JOB_STATUS_BADGE, generateQrs, inspectInvitationTemplate, runInvitationBatch,
+  slidesConfig, genericSettings, generateGenericInvitations, type GenericProgress,
 } from '../../../../lib/invitations';
+import { DEFAULT_GENERIC, defaultSubtitle, drawGenericInvitation, type GenericInvitationSettings } from '../../../../lib/invitation-canvas';
 import { ExcelModal } from './InvitationActions';
 import type { BulkContext } from '../registros/RegistrationsPanel';
 
@@ -46,6 +48,7 @@ export default function InvitationsPanel({ event, onEventPatch }: Props) {
   return (
     <div>
       <QrSection event={event} regs={active} onDone={load} />
+      <GenericSection event={event} regs={active} onEventPatch={onEventPatch} onReload={load} />
       <SlidesSection event={event} schema={schema} regs={active} jobs={jobs} onEventPatch={onEventPatch} onReload={load} />
       <ExcelSection ctx={ctx} />
     </div>
@@ -89,13 +92,121 @@ function QrSection({ event, regs, onDone }: { event: EventRow; regs: Registratio
   );
 }
 
+// ─── Diseño genérico (sin Slides) ───────────────────────────
+
+function GenericSection({ event, regs, onEventPatch, onReload }: {
+  event: EventRow; regs: Registration[]; onEventPatch: Props['onEventPatch']; onReload: () => Promise<void>;
+}) {
+  const lang = event.default_language;
+  const [s, setS] = useState<Required<GenericInvitationSettings>>({ ...DEFAULT_GENERIC, ...genericSettings(event.invitation_config) });
+  const [preview, setPreview] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState<GenericProgress | null>(null);
+  const [error, setError] = useState('');
+  const sample = regs.find(r => r.qr_url) ?? regs[0];
+  const withInvitation = regs.filter(r => r.invitation_url).length;
+
+  // Vista previa con el primer registro (o un invitado de ejemplo), con pausa para no redibujar en cada tecla
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const guest = sample ? { name: sample.name, party_size: sample.party_size, qr_url: sample.qr_url } : { name: 'Nombre Apellido', party_size: 1, qr_url: null };
+        const canvas = await drawGenericInvitation(event, guest, s, lang);
+        if (!cancelled) setPreview(canvas.toDataURL('image/jpeg', 0.85));
+      } catch (e) { if (!cancelled) setError((e as Error).message); }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [event, s, lang, sample]);
+
+  async function save() {
+    setSaving(true);
+    const current = (event.invitation_config as InvitationConfig | null) ?? ({} as InvitationConfig);
+    await onEventPatch({ invitation_config: { ...current, generic: s } }, 'Diseño de invitación guardado');
+    setSaving(false);
+  }
+
+  function downloadSample() {
+    if (!preview) return;
+    const a = document.createElement('a');
+    a.href = preview;
+    a.download = `invitacion-ejemplo-${event.slug}.jpg`;
+    a.click();
+  }
+
+  async function generate(force: boolean) {
+    const targets = regs.filter(r => force || !r.invitation_url);
+    if (targets.length === 0) return alert('Todos ya tienen invitación.');
+    if (!confirm(`Se generarán ${targets.length} invitaciones con este diseño${force ? ' (reemplazando las existentes)' : ''}. ¿Continuar?`)) return;
+    setError('');
+    setProgress({ done: 0, failed: 0, total: targets.length });
+    try {
+      const res = await generateGenericInvitations(event, targets, s, lang, setProgress);
+      setProgress(res);
+      await onReload();
+    } catch (e) { setError((e as Error).message); setProgress(null); }
+  }
+
+  const busy = !!progress && progress.done + progress.failed < progress.total;
+
+  return (
+    <div className="section-card">
+      <h3>Invitación con el diseño del evento</h3>
+      <p className="section-hint">
+        Sin plantilla de Slides: una imagen por invitado con el fondo, logo, colores y fuentes de Diseño, su nombre y su QR. Lista para mandarse por WhatsApp o correo (variable <code>{'{{invitacion_url}}'}</code>).
+      </p>
+      <div className="invite-generic">
+        <div className="invite-generic-fields">
+          <div className="input-group">
+            <label className="input-label">Título</label>
+            <input className="input-field" value={s.title} onChange={e => setS(x => ({ ...x, title: e.target.value }))} placeholder={event.name} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Fecha y lugar</label>
+            <input className="input-field" value={s.subtitle} onChange={e => setS(x => ({ ...x, subtitle: e.target.value }))} placeholder={defaultSubtitle(event, lang) || 'Vacío = fecha · lugar del evento'} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Mensaje bajo el QR</label>
+            <input className="input-field" value={s.message} onChange={e => setS(x => ({ ...x, message: e.target.value }))} />
+          </div>
+          <label className="switch-row" style={{ gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={s.show_name} onChange={e => setS(x => ({ ...x, show_name: e.target.checked }))} />
+            <span className="text-sm">Mostrar el nombre del invitado</span>
+          </label>
+          <p className="text-muted text-xs" style={{ marginTop: 8 }}>Fondo, logo, colores y fuentes se toman de la pestaña Diseño. Si hay más de un boleto se indica "Válida para N personas".</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={save} disabled={saving}>{saving ? 'Guardando…' : 'Guardar diseño'}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={downloadSample} disabled={!preview}>Descargar ejemplo</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => generate(false)} disabled={busy || regs.length === 0}>
+              {busy ? 'Generando…' : `Generar para los ${regs.length - withInvitation} sin invitación`}
+            </button>
+            <button type="button" className="btn btn-ghost btn-xs" onClick={() => generate(true)} disabled={busy || regs.length === 0}>Regenerar todas</button>
+            {progress && (
+              <span className="text-muted text-sm">
+                {progress.done + progress.failed}/{progress.total}{progress.failed ? ` · ${progress.failed} fallidas` : ''}{busy && progress.current ? ` · ${progress.current}` : ''}
+              </span>
+            )}
+          </div>
+          {error && <div className="inline-alert error" style={{ marginTop: 8 }}>{error}</div>}
+        </div>
+        <div className="invite-generic-preview">
+          {preview ? <img src={preview} alt="Vista previa de la invitación" /> : <div className="text-muted text-sm">Dibujando vista previa…</div>}
+          <span className="text-muted text-xs">{sample ? `Ejemplo con ${sample.name ?? 'el primer registro'}` : 'Ejemplo con un invitado ficticio'} · 1080×1620</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Plantilla de Slides ─────────────────────────────────────
 
 function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
   event: EventRow; schema: FormSchema | null; regs: Registration[]; jobs: InvitationJob[];
   onEventPatch: Props['onEventPatch']; onReload: () => Promise<void>;
 }) {
-  const saved = event.invitation_config as InvitationConfig | null;
+  const saved = slidesConfig(event.invitation_config);
   const [folderUrl, setFolderUrl] = useState(saved?.event_folder_url ?? '');
   const [inspecting, setInspecting] = useState(false);
   const [result, setResult] = useState<InspectResult | null>(null);
@@ -142,6 +253,7 @@ function SlidesSection({ event, schema, regs, jobs, onEventPatch, onReload }: {
       file_name_template: fileName.trim() || '{{nombre}}',
       placeholders: base?.template.placeholders ?? saved!.placeholders,
       qr_shapes: base?.template.qr_shapes ?? saved!.qr_shapes,
+      generic: genericSettings(event.invitation_config),
     };
     await onEventPatch({ invitation_config: cfg }, 'Plantilla de invitación guardada');
     setSaving(false);
