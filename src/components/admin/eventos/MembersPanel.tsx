@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { EventRow, EventMember, MemberRole } from '../../../lib/events-types';
+import { EVENT_TABS } from '../../../lib/events-types';
 
 interface Props {
   event: EventRow;
@@ -32,6 +33,9 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
   const [password, setPassword] = useState('');
   const [resetPassword, setResetPassword] = useState(false);
   const [role, setRole] = useState<MemberRole>('admin');
+  const [tabs, setTabs] = useState<string[]>(EVENT_TABS.map(t => t.key));
+  const allTabs = EVENT_TABS.map(t => t.key);
+  const toggleTab = (list: string[], key: string) => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -49,7 +53,7 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
     e.preventDefault();
     setBusy(true);
     const { data, error } = await supabase.functions.invoke<InviteResult>('event-admin-invite', {
-      body: { event_id: event.id, email, full_name: fullName, password: password || undefined, member_role: role, reset_password: resetPassword },
+      body: { event_id: event.id, email, full_name: fullName, password: password || undefined, member_role: role, reset_password: resetPassword, tabs: tabs.length === allTabs.length ? null : tabs },
     });
     setBusy(false);
     if (error || !data?.ok) {
@@ -61,7 +65,13 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
     } else {
       onFlash({ kind: 'success', text: OUTCOME_TEXT[data.outcome ?? 'existing'] });
     }
-    setEmail(''); setFullName(''); setPassword(''); setResetPassword(false);
+    setEmail(''); setFullName(''); setPassword(''); setResetPassword(false); setTabs(allTabs);
+    load();
+  }
+
+  async function updateMember(m: EventMember, patch: { role?: MemberRole; tabs?: string[] | null }) {
+    const { error } = await supabase.from('event_members').update(patch).match({ event_id: m.event_id, user_id: m.user_id });
+    if (error) return onFlash({ kind: 'error', text: error.message });
     load();
   }
 
@@ -89,9 +99,39 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
                 <div style={{ fontWeight: 500 }}>{m.full_name || m.email}</div>
                 <div className="member-email">{m.email}{m.profile_role === 'super' ? ' · equipo We.Page' : ''}</div>
               </div>
-              <span className="badge badge-nuevo">{ROLE_LABEL[m.role]}</span>
+              {isSuper && m.profile_role !== 'super' ? (
+                <select className="glass-select" value={m.role} onChange={e => updateMember(m, { role: e.target.value as MemberRole })} title="Permiso">
+                  <option value="owner">Dueño</option>
+                  <option value="admin">Administrador</option>
+                  <option value="viewer">Solo lectura</option>
+                </select>
+              ) : (
+                <span className="badge badge-nuevo">{m.profile_role === 'super' ? 'Equipo' : ROLE_LABEL[m.role]}</span>
+              )}
               {isSuper && (
                 <button className="btn btn-ghost btn-xs" onClick={() => remove(m)}>Quitar</button>
+              )}
+              {m.profile_role !== 'super' && (
+                <div className="member-tabs">
+                  {EVENT_TABS.map(t => {
+                    const on = !m.tabs || m.tabs.includes(t.key);
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        className={`chip chip-xs ${on ? 'active' : ''}`}
+                        disabled={!isSuper}
+                        title={on ? 'Quitar acceso a esta pestaña' : 'Dar acceso a esta pestaña'}
+                        onClick={() => {
+                          const next = toggleTab(m.tabs ?? allTabs, t.key);
+                          updateMember(m, { tabs: next.length === allTabs.length ? null : next });
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           ))}
@@ -125,10 +165,21 @@ export default function MembersPanel({ event, isSuper, onFlash }: Props) {
                 <option value="viewer">Solo lectura</option>
                 <option value="owner">Dueño</option>
               </select>
+              <small className="text-muted text-xs">Solo lectura consulta sin guardar nada.</small>
+            </div>
+          </div>
+          <div className="input-group" style={{ marginTop: 12 }}>
+            <label className="input-label">Pestañas a las que tendrá acceso</label>
+            <div className="chip-row">
+              {EVENT_TABS.map(t => (
+                <button key={t.key} type="button" className={`chip ${tabs.includes(t.key) ? 'active' : ''}`} onClick={() => setTabs(x => toggleTab(x, t.key))}>
+                  {t.label}
+                </button>
+              ))}
             </div>
           </div>
           <div className="modal-actions">
-            <button type="submit" className="btn btn-secondary btn-sm" disabled={busy || !email}>
+            <button type="submit" className="btn btn-secondary btn-sm" disabled={busy || !email || tabs.length === 0}>
               {busy ? 'Enviando...' : 'Dar acceso'}
             </button>
           </div>

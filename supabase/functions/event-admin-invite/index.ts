@@ -7,7 +7,7 @@
 // Queda como miembro y recibe por Resend un correo con cómo entrar; la
 // contraseña se la comparte el super por otro canal.
 //
-// Body: { event_id, email, full_name?, password?, member_role?, reset_password? }
+// Body: { event_id, email, full_name?, password?, member_role?, reset_password?, tabs? }
 // La contraseña solo se aplica a cuentas nuevas. Para cambiar la de una
 // cuenta existente hay que mandar reset_password: true, y nunca se toca
 // la de una cuenta del equipo (profiles.role = super).
@@ -78,6 +78,7 @@ serve(async (req) => {
     const full_name = String(body.full_name ?? '').trim();
     const password = body.password ? String(body.password) : '';
     const resetPassword = body.reset_password === true;
+    const tabs = Array.isArray(body.tabs) ? (body.tabs as unknown[]).filter((t): t is string => typeof t === 'string') : null;
     const member_role = ['owner', 'admin', 'viewer'].includes(body.member_role) ? body.member_role : 'admin';
 
     if (!event_id) return fail('bad_request', 'Falta event_id');
@@ -125,7 +126,7 @@ serve(async (req) => {
     // 5. Membresía
     const { error: memberErr } = await admin
       .from('event_members')
-      .upsert({ event_id, user_id: userId, role: member_role }, { onConflict: 'event_id,user_id' });
+      .upsert({ event_id, user_id: userId, role: member_role, tabs: tabs && tabs.length ? tabs : null }, { onConflict: 'event_id,user_id' });
     if (memberErr) return fail('db_error', memberErr.message);
 
     // 6. Aviso por correo (Resend). Si falla, el acceso ya quedó dado: se

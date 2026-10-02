@@ -2961,3 +2961,10 @@ html.we-public body, html.we-public #root { min-height: 100svh; }
   .panel-brand span { display: none; }
   .panel-main { padding: 16px; }
 }
+
+/* ─── Equipo: pestañas por miembro ─── */
+.member-row { flex-wrap: wrap; }
+.member-tabs { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 0 2px; }
+.chip.chip-xs { font-size: 11px; padding: 3px 9px; }
+.chip.chip-xs:not(.active) { opacity: 0.55; text-decoration: line-through; }
+.chip:disabled { cursor: default; }

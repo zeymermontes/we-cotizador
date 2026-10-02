@@ -5,8 +5,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { publicUrls } from '../../lib/host';
 import { eventsBase, eventPath } from '../../lib/paths';
 import {
-  type EventRow, type EventStatus, type EventLanguage,
-  EVENT_STATUS_BADGE, EVENT_STATUS_LABEL, LANGUAGE_LABEL, slugify,
+  type EventRow, type EventStatus, type EventLanguage, type MemberRole,
+  EVENT_STATUS_BADGE, EVENT_STATUS_LABEL, LANGUAGE_LABEL, slugify, memberAllows,
 } from '../../lib/events-types';
 import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
 import MembersPanel from '../../components/admin/eventos/MembersPanel';
@@ -43,8 +43,11 @@ function toLocalInput(iso: string | null): string {
 export default function EventDetailPage() {
   const { id, tab: tabParam } = useParams<{ id: string; tab?: string }>();
   const navigate = useNavigate();
-  const { isSuper } = useAuth();
-  const tab: Tab = (TABS.some(t => t.key === tabParam) ? tabParam : 'resumen') as Tab;
+  const { isSuper, session } = useAuth();
+  const [membership, setMembership] = useState<{ role: MemberRole; tabs: string[] | null } | null>(null);
+  const visibleTabs = TABS.filter(t => (!t.superOnly || isSuper) && (isSuper || memberAllows(membership, t.key)));
+  const tab: Tab = (visibleTabs.some(t => t.key === tabParam) ? tabParam : (visibleTabs[0]?.key ?? 'resumen')) as Tab;
+  const readOnly = !isSuper && membership?.role === 'viewer';
 
   const [event, setEvent] = useState<EventRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +64,13 @@ export default function EventDetailPage() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Rol y pestañas del usuario en este evento (el equipo no lo necesita).
+  useEffect(() => {
+    if (!id || isSuper || !session) return;
+    supabase.from('event_members').select('role, tabs').eq('event_id', id).eq('user_id', session.user.id).maybeSingle()
+      .then(({ data }) => setMembership(data ? { role: data.role as MemberRole, tabs: (data.tabs as string[] | null) ?? null } : null));
+  }, [id, isSuper, session]);
 
   useEffect(() => {
     if (!flash) return;
@@ -112,9 +122,10 @@ export default function EventDetailPage() {
       </div>
 
       {flash && <div className={`inline-alert ${flash.kind}`}>{flash.text}</div>}
+      {readOnly && <div className="inline-alert">Tienes acceso de solo lectura a este evento: puedes consultar, pero no guardar cambios.</div>}
 
       <div className="tabs">
-        {TABS.filter(t => !t.superOnly || isSuper).map(t => (
+        {visibleTabs.map(t => (
           <button
             key={t.key}
             className={`tab ${tab === t.key ? 'active' : ''}`}

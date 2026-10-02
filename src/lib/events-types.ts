@@ -16,6 +16,22 @@ export type EventLanguage = 'es' | 'en';
 export type LoginMethod = 'password';
 export type MemberRole = 'owner' | 'admin' | 'viewer';
 
+/** Pestañas de un evento que se pueden conceder a un miembro (Invitaciones es solo del equipo). */
+export const EVENT_TABS = [
+  { key: 'resumen', label: 'Resumen' },
+  { key: 'formulario', label: 'Formulario' },
+  { key: 'diseno', label: 'Diseño' },
+  { key: 'registros', label: 'Registros' },
+  { key: 'comunicaciones', label: 'Comunicaciones' },
+  { key: 'scanner', label: 'Scanner' },
+  { key: 'ajustes', label: 'Ajustes' },
+] as const;
+export type EventTabKey = typeof EVENT_TABS[number]['key'];
+
+export function memberAllows(m: { tabs: string[] | null } | null | undefined, tab: string): boolean {
+  return !m?.tabs || m.tabs.includes(tab);
+}
+
 /** Texto por idioma. Si el evento es bilingüe, ambas claves vienen llenas. */
 export type Localized = Partial<Record<EventLanguage, string>>;
 
@@ -216,6 +232,8 @@ export interface EventMember {
   event_id: string;
   user_id: string;
   role: MemberRole;
+  /** Pestañas permitidas; null = todas. */
+  tabs: string[] | null;
   created_at: string;
   email: string | null;
   full_name: string | null;
