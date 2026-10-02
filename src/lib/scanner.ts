@@ -86,13 +86,13 @@ export const SCANNER_TEXT = {
     enter: 'Entrar', wrong: 'PIN incorrecto', scanning: 'Apunta la cámara al QR', manual: 'Buscar por nombre', search: 'Nombre, correo o teléfono…',
     ok: 'Adelante', duplicate: 'Ya entró', cancelled: 'Registro cancelado', invalid: 'QR no válido', people: 'personas', person: 'persona',
     entered: 'Entraron', of: 'de', at: 'a las', admit: 'Dar acceso', undo: 'Deshacer', logout: 'Salir', camera_error: 'No se pudo abrir la cámara. Revisa los permisos o usa la búsqueda manual.',
-    stats: 'Asistencia', expected: 'esperados', noResults: 'Sin resultados', notes: 'Nota',
+    stats: 'Asistencia', expected: 'esperados', noResults: 'Sin resultados', notes: 'Nota', recent: 'Últimos accesos',
   },
   en: {
     title: 'Check-in', subtitle: 'Enter the staff PIN to start scanning.', device: 'This device name (optional)',
     enter: 'Enter', wrong: 'Wrong PIN', scanning: 'Point the camera at the QR', manual: 'Search by name', search: 'Name, email or phone…',
     ok: 'Welcome', duplicate: 'Already in', cancelled: 'Cancelled registration', invalid: 'Invalid QR', people: 'people', person: 'person',
     entered: 'Entered', of: 'of', at: 'at', admit: 'Admit', undo: 'Undo', logout: 'Log out', camera_error: 'Could not open the camera. Check permissions or use manual search.',
-    stats: 'Attendance', expected: 'expected', noResults: 'No results', notes: 'Note',
+    stats: 'Attendance', expected: 'expected', noResults: 'No results', notes: 'Note', recent: 'Latest check-ins',
   },
 };

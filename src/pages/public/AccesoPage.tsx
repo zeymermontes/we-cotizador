@@ -61,9 +61,9 @@ function PinScreen({ event, slug, lang, onOpen }: { event: PublicEvent; slug: st
       {elementShown(sc, 'title') && <h1 style={{ fontSize: '1.6rem', marginBottom: 4, ...elementFont(sc, 'title') }}>{title}</h1>}
       {elementShown(sc, 'name') && <p style={{ opacity: 0.7, ...elementFont(sc, 'name') }}>{event.name}</p>}
       {elementShown(sc, 'subtitle') && <p style={{ opacity: 0.7, marginTop: 8, ...elementFont(sc, 'subtitle') }}>{subtitle}</p>}
-      <form onSubmit={submit}>
+      <form onSubmit={submit} className="scan-panel pin-panel">
         <input className="pin-input" inputMode="numeric" pattern="[0-9]*" maxLength={8} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" autoFocus />
-        <input className="input-field" style={{ fontSize: 'var(--text-sm)', textAlign: 'center', marginBottom: 16 }} value={device} onChange={e => setDevice(e.target.value)} placeholder={t.device} />
+        <input className="input-field" value={device} onChange={e => setDevice(e.target.value)} placeholder={t.device} />
         {error && <div className="reg-error" style={{ marginBottom: 12 }}>{error}</div>}
         <button className="branded-btn" type="submit" disabled={busy || pin.length < 4}>{busy ? '…' : t.enter} →</button>
       </form>
@@ -144,7 +144,9 @@ function ScannerScreen({ event, session, lang, onLogout }: { event: PublicEvent;
     ).catch(err => { setCameraError(`${t.camera_error} (${String(err).slice(0, 80)})`); });
     return () => {
       stopped = true;
-      scanner.stop().then(() => scanner.clear()).catch(() => {});
+      // stop() lanza de forma síncrona si la cámara aún no arrancó (p. ej. al cambiar a
+      // búsqueda enseguida); no debe tumbar la pantalla.
+      try { scanner.stop().then(() => scanner.clear()).catch(() => {}); } catch { try { scanner.clear(); } catch { /* sin cámara */ } }
       scannerRef.current = null;
     };
   }, [mode, handleCode, t.camera_error]);
@@ -202,7 +204,7 @@ function ScannerScreen({ event, session, lang, onLogout }: { event: PublicEvent;
           {cameraError ? <div className="reg-error">{cameraError}</div> : <p className="reg-hint" style={{ textAlign: 'center', marginTop: 8 }}>{t.scanning}</p>}
         </div>
       ) : (
-        <div className="scan-search">
+        <div className="scan-search scan-panel">
           <input className="search-input" style={{ width: '100%', maxWidth: 'none', fontSize: '1rem', padding: 12 }} value={query} onChange={e => { setQuery(e.target.value); if (e.target.value.trim().length < 2) setResults([]); }} placeholder={t.search} autoFocus />
           <div className="scan-results">
             {query.trim().length >= 2 && results.length === 0 && <p className="reg-hint" style={{ textAlign: 'center', padding: 16 }}>{t.noResults}</p>}
@@ -226,7 +228,8 @@ function ScannerScreen({ event, session, lang, onLogout }: { event: PublicEvent;
       )}
 
       {recent.length > 0 && (
-        <div className="scan-recent">
+        <div className="scan-recent scan-panel">
+          <div className="scan-recent-title">{t.recent}</div>
           {recent.slice(0, 6).map(c => (
             <div key={c.id} className="scan-recent-row"><span>{c.name}</span><span className="reg-hint">{c.count > 1 ? `+${c.count} · ` : ''}{timeStr(c.at)}</span></div>
           ))}

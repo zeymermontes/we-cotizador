@@ -2177,14 +2177,27 @@ h6 {
   width: 100%;
   max-width: 260px;
   padding: 12px;
-  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border: 1.5px solid color-mix(in srgb, var(--brand-text, #1a1a1a) 18%, transparent);
   border-radius: var(--brand-radius, 12px);
-  background: rgba(0, 0, 0, 0.03);
+  background: color-mix(in srgb, var(--brand-text, #1a1a1a) 6%, transparent);
+  color: inherit;
   font-family: inherit;
-  margin: 16px auto;
+  margin: 0 auto 16px;
   display: block;
 }
+.pin-input::placeholder { color: inherit; opacity: 0.35; }
 .pin-input:focus { outline: none; border-color: var(--brand-primary, #BBEBE8); }
+/* Pantalla del PIN y buscador del scanner: un panel que se lee sobre cualquier fondo
+   (en modo sin tarjeta queda como vidrio sobre la foto; con tarjeta, un bloque suave). */
+.scan-panel {
+  background: color-mix(in srgb, var(--brand-text, #1a1a1a) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-text, #1a1a1a) 10%, transparent);
+  border-radius: 20px;
+  padding: 20px;
+}
+.no-card .scan-panel { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.pin-panel { margin-top: 24px; }
+.pin-panel .input-field { text-align: center; font-size: var(--text-sm); margin-bottom: 16px; }
 
 /* ─── Formulario público: tokens del wizard → branding del evento ── */
 .branded-page {
@@ -2547,13 +2560,25 @@ h6 {
 .scan-camera { padding: 0 20px; }
 #we-reader { width: 100%; border-radius: var(--radius-lg); overflow: hidden; background: #000; min-height: 240px; }
 #we-reader video { border-radius: var(--radius-lg); }
-.scan-search { padding: 0 20px; }
+.scan-search { margin: 0 20px; padding: 14px; }
+.scan-search .search-input {
+  width: 100%; padding: 12px 14px; font: inherit; font-size: 1rem; color: inherit; outline: none;
+  border: 1px solid var(--border-default); border-radius: var(--brand-radius, 12px);
+  background: color-mix(in srgb, var(--brand-surface, #fff) 85%, transparent);
+}
+.scan-search .search-input::placeholder { color: var(--text-muted); }
+.scan-search .search-input:focus { border-color: var(--brand-primary, #BBEBE8); }
+.no-card .scan-search .search-input { background: color-mix(in srgb, var(--brand-text, #1a1a1a) 8%, transparent); }
 .scan-results { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
-.scan-result { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-elevated); }
+.scan-results:empty { display: none; }
+.scan-result { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--brand-radius, 12px); background: var(--bg-elevated); }
+.no-card .scan-result { background: color-mix(in srgb, var(--brand-text, #1a1a1a) 8%, transparent); border-color: color-mix(in srgb, var(--brand-text, #1a1a1a) 12%, transparent); }
 .scan-result.done { opacity: 0.6; }
 .scan-result.cancelled { opacity: 0.5; }
-.scan-recent { margin: 12px 20px 0; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
-.scan-recent-row { display: flex; justify-content: space-between; font-size: var(--text-sm); padding: 4px 0; }
+.scan-recent { margin: 12px 20px 0; padding: 12px 16px; }
+.scan-recent-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55; margin-bottom: 4px; }
+.scan-recent-row { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-sm); padding: 5px 0; border-top: 1px solid var(--border-subtle); }
+.scan-recent-row:first-of-type { border-top: none; }
 .scan-overlay {
   position: absolute; inset: 0; z-index: 30;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
