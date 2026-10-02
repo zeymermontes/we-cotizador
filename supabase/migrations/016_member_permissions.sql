@@ -39,12 +39,17 @@ $$;
 
 -- ─── Formulario ───────────────────────────────────────────────
 DROP POLICY IF EXISTS "event_forms member or super" ON event_forms;
+DROP POLICY IF EXISTS "event_forms read" ON event_forms;
 CREATE POLICY "event_forms read" ON event_forms FOR SELECT USING (member_tab(event_id, 'formulario'));
+DROP POLICY IF EXISTS "event_forms insert" ON event_forms;
 CREATE POLICY "event_forms insert" ON event_forms FOR INSERT WITH CHECK (member_can_edit(event_id, 'formulario'));
+DROP POLICY IF EXISTS "event_forms update" ON event_forms;
 CREATE POLICY "event_forms update" ON event_forms FOR UPDATE USING (member_can_edit(event_id, 'formulario')) WITH CHECK (member_can_edit(event_id, 'formulario'));
+DROP POLICY IF EXISTS "event_forms delete" ON event_forms;
 CREATE POLICY "event_forms delete" ON event_forms FOR DELETE USING (member_can_edit(event_id, 'formulario'));
 
 DROP POLICY IF EXISTS "form_versions select member or super" ON form_versions;
+DROP POLICY IF EXISTS "form_versions read" ON form_versions;
 CREATE POLICY "form_versions read" ON form_versions FOR SELECT USING (member_tab(event_id, 'formulario'));
 
 CREATE OR REPLACE FUNCTION publish_event_form(p_event_id UUID)
@@ -78,47 +83,73 @@ $$;
 
 -- ─── Registros (los leen también comunicaciones, scanner e invitaciones) ──
 DROP POLICY IF EXISTS "registrations member or super" ON registrations;
+DROP POLICY IF EXISTS "registrations read" ON registrations;
 CREATE POLICY "registrations read" ON registrations FOR SELECT
   USING (member_any_tab(event_id, ARRAY['registros', 'comunicaciones', 'scanner', 'invitaciones']));
+DROP POLICY IF EXISTS "registrations insert" ON registrations;
 CREATE POLICY "registrations insert" ON registrations FOR INSERT WITH CHECK (member_can_edit(event_id, 'registros'));
+DROP POLICY IF EXISTS "registrations update" ON registrations;
 CREATE POLICY "registrations update" ON registrations FOR UPDATE USING (member_can_edit(event_id, 'registros')) WITH CHECK (member_can_edit(event_id, 'registros'));
+DROP POLICY IF EXISTS "registrations delete" ON registrations;
 CREATE POLICY "registrations delete" ON registrations FOR DELETE USING (member_can_edit(event_id, 'registros'));
 
 DROP POLICY IF EXISTS "saved_views member or super" ON saved_views;
+DROP POLICY IF EXISTS "saved_views read" ON saved_views;
 CREATE POLICY "saved_views read" ON saved_views FOR SELECT USING (member_tab(event_id, 'registros'));
+DROP POLICY IF EXISTS "saved_views write" ON saved_views;
 CREATE POLICY "saved_views write" ON saved_views FOR INSERT WITH CHECK (member_can_edit(event_id, 'registros'));
+DROP POLICY IF EXISTS "saved_views update" ON saved_views;
 CREATE POLICY "saved_views update" ON saved_views FOR UPDATE USING (member_can_edit(event_id, 'registros')) WITH CHECK (member_can_edit(event_id, 'registros'));
+DROP POLICY IF EXISTS "saved_views delete" ON saved_views;
 CREATE POLICY "saved_views delete" ON saved_views FOR DELETE USING (member_can_edit(event_id, 'registros'));
 
 -- ─── Comunicaciones ───────────────────────────────────────────
 DROP POLICY IF EXISTS "templates member or super" ON message_templates;
+DROP POLICY IF EXISTS "templates read" ON message_templates;
 CREATE POLICY "templates read" ON message_templates FOR SELECT USING (member_tab(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "templates insert" ON message_templates;
 CREATE POLICY "templates insert" ON message_templates FOR INSERT WITH CHECK (member_can_edit(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "templates update" ON message_templates;
 CREATE POLICY "templates update" ON message_templates FOR UPDATE USING (member_can_edit(event_id, 'comunicaciones')) WITH CHECK (member_can_edit(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "templates delete" ON message_templates;
 CREATE POLICY "templates delete" ON message_templates FOR DELETE USING (member_can_edit(event_id, 'comunicaciones'));
 
 DROP POLICY IF EXISTS "messages member or super" ON messages;
+DROP POLICY IF EXISTS "messages read" ON messages;
 CREATE POLICY "messages read" ON messages FOR SELECT USING (member_any_tab(event_id, ARRAY['comunicaciones', 'registros']));
+DROP POLICY IF EXISTS "messages insert" ON messages;
 CREATE POLICY "messages insert" ON messages FOR INSERT WITH CHECK (member_can_edit(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "messages update" ON messages;
 CREATE POLICY "messages update" ON messages FOR UPDATE USING (member_can_edit(event_id, 'comunicaciones')) WITH CHECK (member_can_edit(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "messages delete" ON messages;
 CREATE POLICY "messages delete" ON messages FOR DELETE USING (member_can_edit(event_id, 'comunicaciones'));
 
 DROP POLICY IF EXISTS "automations member or super" ON automations;
+DROP POLICY IF EXISTS "automations read" ON automations;
 CREATE POLICY "automations read" ON automations FOR SELECT USING (member_tab(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "automations insert" ON automations;
 CREATE POLICY "automations insert" ON automations FOR INSERT WITH CHECK (member_can_edit(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "automations update" ON automations;
 CREATE POLICY "automations update" ON automations FOR UPDATE USING (member_can_edit(event_id, 'comunicaciones')) WITH CHECK (member_can_edit(event_id, 'comunicaciones'));
+DROP POLICY IF EXISTS "automations delete" ON automations;
 CREATE POLICY "automations delete" ON automations FOR DELETE USING (member_can_edit(event_id, 'comunicaciones'));
 
 -- ─── Scanner ──────────────────────────────────────────────────
 DROP POLICY IF EXISTS "sessions select member or super" ON scanner_sessions;
 DROP POLICY IF EXISTS "sessions delete member or super" ON scanner_sessions;
+DROP POLICY IF EXISTS "sessions read" ON scanner_sessions;
 CREATE POLICY "sessions read" ON scanner_sessions FOR SELECT USING (member_tab(event_id, 'scanner'));
+DROP POLICY IF EXISTS "sessions delete" ON scanner_sessions;
 CREATE POLICY "sessions delete" ON scanner_sessions FOR DELETE USING (member_can_edit(event_id, 'scanner'));
 
 DROP POLICY IF EXISTS "check_ins member or super" ON check_ins;
+DROP POLICY IF EXISTS "check_ins read" ON check_ins;
 CREATE POLICY "check_ins read" ON check_ins FOR SELECT USING (member_any_tab(event_id, ARRAY['scanner', 'registros']));
+DROP POLICY IF EXISTS "check_ins insert" ON check_ins;
 CREATE POLICY "check_ins insert" ON check_ins FOR INSERT WITH CHECK (member_can_edit(event_id, 'scanner'));
+DROP POLICY IF EXISTS "check_ins update" ON check_ins;
 CREATE POLICY "check_ins update" ON check_ins FOR UPDATE USING (member_can_edit(event_id, 'scanner')) WITH CHECK (member_can_edit(event_id, 'scanner'));
+DROP POLICY IF EXISTS "check_ins delete" ON check_ins;
 CREATE POLICY "check_ins delete" ON check_ins FOR DELETE USING (member_can_edit(event_id, 'scanner'));
 
 CREATE OR REPLACE FUNCTION set_event_scanner_pin(p_event_id UUID, p_pin TEXT)
