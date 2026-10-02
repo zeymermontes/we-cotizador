@@ -108,8 +108,22 @@ export default function RegistrationDrawer({ registration: r, schema, lang, onCl
               <Row label="Teléfono" value={r.phone} />
               <Row label="Personas" value={String(r.party_size)} />
               <Row label="Empresa" value={r.company} />
-              {r.qr_token && <Row label="QR" value="generado ✓" />}
-              {r.invitation_url && <Row label="Invitación" value={<a href={r.invitation_url} target="_blank" rel="noopener noreferrer">abrir PDF ↗</a>} />}
+              {r.qr_url ? (
+                <Row label="QR" value={
+                  <a href={r.qr_url} target="_blank" rel="noopener noreferrer" title="Abrir el QR en grande" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <img src={r.qr_url} alt="QR" style={{ width: 56, height: 56, borderRadius: 6, background: '#fff' }} />
+                    <span>abrir ↗</span>
+                  </a>
+                } />
+              ) : r.qr_token ? <Row label="QR" value="generado ✓" /> : null}
+              {r.invitation_url && (
+                <Row label="Invitación" value={
+                  <a href={r.invitation_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {/\.(png|jpe?g|webp)(\?|$)/i.test(r.invitation_url) && <img src={r.invitation_url} alt="Invitación" style={{ width: 56, height: 84, objectFit: 'cover', borderRadius: 6 }} />}
+                    <span>{/\.(png|jpe?g|webp)(\?|$)/i.test(r.invitation_url) ? 'abrir imagen ↗' : 'abrir PDF ↗'}</span>
+                  </a>
+                } />
+              )}
             </div>
           )}
         </div>
