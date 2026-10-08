@@ -43,6 +43,7 @@ export const FORM_SCHEMA_GUIDE = `
 ## Settings
 { "showProgress": true, "showStepCounter": true, "keyboardShortcuts": true,
   "duplicates": "allow" | "block_email" | "block_phone" | "block_both", "submitLabel": { "es": "Enviar" },
+  "ending": { "title": { "es": "¡Listo, {{nombre}}!" }, "subtitle": { "es": "…" } },   // pantalla final por defecto (vacío = estándar)
   "endings": [ { "id": "vip", "name": "VIP", "title": { "es": "…" }, "subtitle": { "es": "…" } } ] }   // finales alternativos para "end:<id>"
 
 ## Linter

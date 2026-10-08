@@ -226,8 +226,10 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
   if (stage === 'done') {
     const th = event.screens?.thank_you;
     const ending = flow.endingId ? (schema.settings.endings ?? []).find(e => e.id === flow.endingId) : undefined;
-    const title = ending ? fill(text(ending.title, lang, copy.thanks)) : fill(pickLocalized(th?.title, lang, copy.thanks));
-    const subtitle = ending ? fill(text(ending.subtitle, lang)) : fill(pickLocalized(th?.subtitle, lang, copy.thanksSub));
+    // Prioridad: final alternativo del salto → final por defecto del formulario → texto de Diseño → estándar
+    const def = schema.settings.ending;
+    const title = ending ? fill(text(ending.title, lang, copy.thanks)) : fill(text(def?.title, lang) || pickLocalized(th?.title, lang, copy.thanks));
+    const subtitle = ending ? fill(text(ending.subtitle, lang)) : fill(text(def?.subtitle, lang) || pickLocalized(th?.subtitle, lang, copy.thanksSub));
     const checkSize = elementSize(th, 'check');
     return (
       <div className="reg-thanks animate-fade-in">

@@ -127,8 +127,8 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'foot
   ],
   thank_you: [
     { key: 'check', label: 'Palomita', defaultSize: 64 },
-    { key: 'title', label: 'Título', text: 'title', placeholder: { es: '¡Listo, {{nombre}}!', en: 'All set, {{nombre}}!' }, defaultSize: 32 },
-    { key: 'subtitle', label: 'Mensaje', text: 'subtitle', placeholder: { es: 'Recibirás tu invitación por correo o WhatsApp.', en: 'You will receive your invitation by email or WhatsApp.' }, defaultSize: 16 },
+    { key: 'title', label: 'Título', text: 'title', placeholder: { es: '¡Listo, {{nombre}}!', en: 'All set, {{nombre}}!' }, defaultSize: 32, hint: 'si el formulario define su pantalla final, manda ese texto' },
+    { key: 'subtitle', label: 'Mensaje', text: 'subtitle', placeholder: { es: 'Recibirás tu invitación por correo o WhatsApp.', en: 'You will receive your invitation by email or WhatsApp.' }, defaultSize: 16, hint: 'si el formulario define su pantalla final, manda ese texto' },
   ],
   scanner: [
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Control de acceso', en: 'Check-in' }, defaultSize: 26 },

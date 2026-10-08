@@ -23,6 +23,8 @@ interface Props {
   traffic: { answers: Answers; lang: Lang }[] | null;
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
+  /** Doble clic en el final por defecto: abre los ajustes del formulario. */
+  onEditEnding?: () => void;
   onLoadTraffic: () => Promise<void>;
 }
 
@@ -214,7 +216,8 @@ function buildGraph(o: BuildOpts): { nodes: Node<QNodeData>[]; edges: Edge[] } {
   });
   for (const t of endTargets) {
     const ending = t.startsWith('end:') ? (schema.settings.endings ?? []).find(e => e.id === t.slice(4)) : null;
-    nodes.push({ id: t, type: 'q', position: { x: 0, y: 0 }, data: { kind: 'end', title: ending ? `Final: ${ending.name || text(ending.title, lang) || ending.id}` : 'Enviar · Gracias', dimmed: dim(t), traffic: tr(t), trafficTotal: o.trafficTotal } });
+    const defaultTitle = text(schema.settings.ending?.title, lang);
+    nodes.push({ id: t, type: 'q', position: { x: 0, y: 0 }, data: { kind: 'end', title: ending ? `Final: ${ending.name || text(ending.title, lang) || ending.id}` : defaultTitle ? `Enviar · ${defaultTitle}` : 'Enviar · Gracias', dimmed: dim(t), traffic: tr(t), trafficTotal: o.trafficTotal } });
   }
   // Preguntas quitadas (modo diff): fantasmas sin flechas
   for (const q of o.removedQuestions) {
@@ -377,7 +380,7 @@ function SimInput({ q, value, answers, lang, onChange }: { q: Question; value: A
 
 // ─── Componente ──────────────────────────────────────────────
 
-export default function FormFlow({ schema, lang, selectedId, issues, published, traffic, onSelect, onEdit, onLoadTraffic }: Props) {
+export default function FormFlow({ schema, lang, selectedId, issues, published, traffic, onSelect, onEdit, onEditEnding, onLoadTraffic }: Props) {
   const [showSim, setShowSim] = useState(false);
   const [diffMode, setDiffMode] = useState(false);
   const [trafficMode, setTrafficMode] = useState(false);
@@ -498,7 +501,7 @@ export default function FormFlow({ schema, lang, selectedId, issues, published, 
               setFocusNode(f => (f === n.id ? null : n.id));
               if (byId.has(n.id)) onSelect(n.id);
             }}
-            onNodeDoubleClick={(_, n) => { if (byId.has(n.id)) onEdit(n.id); }}
+            onNodeDoubleClick={(_, n) => { if (byId.has(n.id)) onEdit(n.id); else if (n.id === 'end') onEditEnding?.(); }}
             onPaneClick={() => setFocusNode(null)}
             proOptions={{ hideAttribution: true }}
             minZoom={0.15}
@@ -529,7 +532,7 @@ export default function FormFlow({ schema, lang, selectedId, issues, published, 
               </div>
             ))}
             <div className="sim-end">
-              → {sim.endingId ? `Final: ${(schema.settings.endings ?? []).find(e => e.id === sim.endingId)?.name || sim.endingId}` : 'Enviar · Gracias'}
+              → {sim.endingId ? `Final: ${(schema.settings.endings ?? []).find(e => e.id === sim.endingId)?.name || sim.endingId}` : `Enviar · ${text(schema.settings.ending?.title, lang) || 'Gracias'}`}
             </div>
           </div>
         )}

@@ -382,6 +382,7 @@ export default function FormBuilder({ event }: Props) {
           traffic={traffic}
           onSelect={id => { setSelectedId(id); setAdding(false); }}
           onEdit={id => { setSelectedId(id); setAdding(false); setView('editor'); }}
+          onEditEnding={() => setShowSettings(true)}
           onLoadTraffic={loadTraffic}
         />
       ) : (
@@ -461,6 +462,18 @@ export default function FormBuilder({ event }: Props) {
               <label className="input-label">Texto del botón final</label>
               {langs.map(l => (
                 <input key={l} className="input-field" style={{ padding: '8px 0' }} placeholder={l === 'es' ? 'Enviar' : 'Submit'} value={schema.settings.submitLabel?.[l] ?? ''} onChange={e => update({ ...schema, settings: { ...schema.settings, submitLabel: { ...(schema.settings.submitLabel ?? {}), [l]: e.target.value } } })} />
+              ))}
+            </div>
+
+            <div className="editor-section">
+              <h4>Pantalla final</h4>
+              <p className="section-hint">Lo que ve la persona al terminar. Puedes usar <code>{'{{nombre}}'}</code> y <code>{'{{evento}}'}</code>. Vacío = "¡Listo, {'{{nombre}}'}!". El estilo (tamaño, fuente, palomita) se ajusta en Diseño.</p>
+              {langs.map(l => (
+                <div key={l} className="lang-input">
+                  {langs.length > 1 && <span className="lang-tag">{l.toUpperCase()}</span>}
+                  <input className="input-field" style={{ padding: '6px 0' }} value={schema.settings.ending?.title?.[l] ?? ''} placeholder={l === 'es' ? 'Título · ¡Listo, {{nombre}}!' : 'Title · All set, {{nombre}}!'} onChange={ev => update({ ...schema, settings: { ...schema.settings, ending: { ...(schema.settings.ending ?? {}), title: { ...(schema.settings.ending?.title ?? {}), [l]: ev.target.value } } } })} />
+                  <textarea className="input-field" rows={2} style={{ padding: '6px 0', fontSize: 'var(--text-sm)' }} value={schema.settings.ending?.subtitle?.[l] ?? ''} placeholder={l === 'es' ? 'Mensaje · Tu registro quedó guardado.' : 'Message · Your registration has been saved.'} onChange={ev => update({ ...schema, settings: { ...schema.settings, ending: { ...(schema.settings.ending ?? {}), subtitle: { ...(schema.settings.ending?.subtitle ?? {}), [l]: ev.target.value } } } })} />
+                </div>
               ))}
             </div>
 

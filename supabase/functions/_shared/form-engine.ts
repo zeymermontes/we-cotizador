@@ -136,6 +136,8 @@ export interface FormSettings {
   /** Qué hacer si ya existe un registro con el mismo correo/teléfono. */
   duplicates: 'allow' | 'block_email' | 'block_phone' | 'block_both';
   submitLabel?: Localized;
+  /** Pantalla final por defecto (la de "Gracias"); vacío = texto estándar. */
+  ending?: { title?: Localized; subtitle?: Localized };
   /** Finales alternativos; los saltos apuntan con 'end:<id>'. */
   endings?: Ending[];
 }
