@@ -5,7 +5,7 @@ import type { EventRow } from '../../../../lib/events-types';
 import { type FormSchema, type Lang, normalizeSchema } from '../../../../lib/form-types';
 import {
   type Registration, type RegistrationStatus, type ViewConfig, type ColumnKey,
-  DEFAULT_VIEW, STATUS_ORDER, STATUS_LABEL, allColumns, applyView, toCsv, downloadFile,
+  DEFAULT_VIEW, STATUS_ORDER, STATUS_LABEL, allColumns, applyView, toCsv, downloadFile, expandColumns, ALL_ANSWERS,
   type Registration as RegistrationRow,
 } from '../../../../lib/registrations';
 import { downloadAnswersExcel } from '../../../../lib/export';
@@ -97,7 +97,14 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
 
   // ─── Derivados ─────────────────────────────────────────────
   const columns = useMemo(() => allColumns(schema, lang), [schema, lang]);
-  const visibleColumns = useMemo(() => view.columns.map(k => columns.find(c => c.key === k)).filter((c): c is NonNullable<typeof c> => !!c), [view.columns, columns]);
+  const visibleColumns = useMemo(() => expandColumns(view.columns, columns), [view.columns, columns]);
+  const allAnswers = view.columns.includes(ALL_ANSWERS);
+  const questionKeys = useMemo(() => columns.filter(c => c.question).map(c => c.key), [columns]);
+  /** Quitar una pregunta cuando están "todas": se vuelven explícitas menos esa. */
+  const toggleColumn = (key: ColumnKey) => setView(v => {
+    const cols = v.columns.includes(ALL_ANSWERS) && key.startsWith('q:') ? [...v.columns.filter(k => k !== ALL_ANSWERS), ...questionKeys] : v.columns;
+    return { ...v, columns: cols.includes(key) ? cols.filter(k => k !== key) : [...cols, key] };
+  });
   const filtered = useMemo(() => applyView(regs, view, schema, lang), [regs, view, schema, lang]);
   const selectedInFiltered = filtered.filter(r => selected.has(r.id)).length;
   const selectedRows = useMemo(() => regs.filter(r => selected.has(r.id)), [regs, selected]);
@@ -250,11 +257,19 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
             <div className="columns-menu" onMouseLeave={() => setShowColumns(false)}>
               <div className="menu-group">DATOS</div>
               {columns.filter(c => !c.question).map(c => (
-                <label key={c.key}><input type="checkbox" checked={view.columns.includes(c.key)} onChange={() => setView(v => ({ ...v, columns: v.columns.includes(c.key) ? v.columns.filter(k => k !== c.key) : [...v.columns, c.key] }))} />{c.label}</label>
+                <label key={c.key}><input type="checkbox" checked={view.columns.includes(c.key)} onChange={() => toggleColumn(c.key)} />{c.label}</label>
               ))}
-              {columns.some(c => c.question) && <div className="menu-group">PREGUNTAS</div>}
+              {columns.some(c => c.question) && (
+                <>
+                  <div className="menu-group">PREGUNTAS</div>
+                  <label style={{ fontWeight: 600 }}>
+                    <input type="checkbox" checked={allAnswers} onChange={() => setView(v => ({ ...v, columns: allAnswers ? v.columns.filter(k => k !== ALL_ANSWERS && !k.startsWith('q:')) : [...v.columns.filter(k => !k.startsWith('q:')), ALL_ANSWERS] }))} />
+                    Todas las respuestas (al final)
+                  </label>
+                </>
+              )}
               {columns.filter(c => c.question).map(c => (
-                <label key={c.key}><input type="checkbox" checked={view.columns.includes(c.key)} onChange={() => setView(v => ({ ...v, columns: v.columns.includes(c.key) ? v.columns.filter(k => k !== c.key) : [...v.columns, c.key] }))} />{c.label}</label>
+                <label key={c.key}><input type="checkbox" checked={allAnswers || view.columns.includes(c.key)} onChange={() => toggleColumn(c.key)} />{c.label}</label>
               ))}
             </div>
           )}

@@ -58,7 +58,9 @@ export const STATUS_BADGE: Record<RegistrationStatus, string> = {
 
 // ─── Columnas ────────────────────────────────────────────────
 
-export type ColumnKey = 'name' | 'email' | 'phone' | 'party_size' | 'company' | 'status' | 'tags' | 'lang' | 'created_at' | `q:${string}`;
+/** '*answers' = todas las preguntas del formulario, al final (se expande al mostrar). */
+export type ColumnKey = 'name' | 'email' | 'phone' | 'party_size' | 'company' | 'status' | 'tags' | 'lang' | 'created_at' | '*answers' | `q:${string}`;
+export const ALL_ANSWERS: ColumnKey = '*answers';
 
 export interface ColumnDef {
   key: ColumnKey;
@@ -78,7 +80,18 @@ export const FIXED_COLUMNS: ColumnDef[] = [
   { key: 'created_at', label: 'Registrado' },
 ];
 
-export const DEFAULT_COLUMNS: ColumnKey[] = ['name', 'email', 'phone', 'party_size', 'status', 'tags', 'created_at'];
+export const DEFAULT_COLUMNS: ColumnKey[] = ['name', 'email', 'phone', 'party_size', 'status', 'tags', 'created_at', '*answers'];
+
+/** Expande '*answers' en las columnas de pregunta disponibles, sin repetir. */
+export function expandColumns(keys: ColumnKey[], columns: ColumnDef[]): ColumnDef[] {
+  const out: ColumnDef[] = [];
+  const seen = new Set<string>();
+  for (const k of keys) {
+    const defs = k === '*answers' ? columns.filter(c => c.question) : columns.filter(c => c.key === k);
+    for (const d of defs) if (!seen.has(d.key)) { seen.add(d.key); out.push(d); }
+  }
+  return out;
+}
 
 /** Columnas disponibles: fijas + una por pregunta (sin identidad, que ya tienen columna). */
 export function allColumns(schema: FormSchema | null, lang: Lang): ColumnDef[] {
