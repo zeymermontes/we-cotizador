@@ -19,8 +19,7 @@ node bin.js setup
 `setup` te pregunta cómo iniciar sesión:
 
 1. **En el navegador**: abre una pestaña en `http://localhost:4879` donde entras con tu
-   contraseña o pides un enlace mágico. Para el enlace mágico, esa URL debe estar en
-   Supabase → Authentication → URL Configuration → Redirect URLs (`http://localhost:4879/**`).
+   correo y contraseña del panel.
 2. **En la terminal**: correo y contraseña (no se muestra al escribir).
 
 Solo se guarda el **refresh token** en `~/.we-eventos-mcp/credentials.json` (permisos 600),
@@ -28,7 +27,10 @@ nunca la contraseña. Al terminar te imprime el comando de Claude Code y ofrece 
 el bloque para Claude Desktop y un prompt para empezar. Para cambiar de usuario, vuelve a
 correr `node bin.js setup`.
 
-Alternativa sin setup: credenciales fijas en `mcp/.env` (ver `.env.example`).
+Alternativa sin setup: credenciales fijas en `mcp/.env` (ver `.env.example`). El proyecto y la
+clave pública ya vienen configurados; solo hace falta tu sesión.
+
+Instalación paso a paso en Mac: `INSTALACION-MAC.md`.
 
 ## Herramientas
 

@@ -17,11 +17,15 @@ export class McpError extends Error {
 let client: SupabaseClient | null = null;
 let profile: { id: string; email: string; role: 'super' | 'event_admin' } | null = null;
 
+// Proyecto de We.Page Eventos. La clave anon es pública (va en el sitio);
+// quien manda es la sesión del usuario y las políticas RLS.
+const DEFAULT_URL = 'https://ancnlambjsqattfgrjyt.supabase.co';
+const DEFAULT_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuY25sYW1ianNxYXR0Zmdyanl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDk2MTYsImV4cCI6MjA5MjAyNTYxNn0.JcDlY6Ke9DfS2P-iaOLARzych9aedt0pefQ-K4JZG6w';
+
 export function projectConfig(): { url: string; anon: string } {
   const stored = loadCredentials();
-  const url = process.env.SUPABASE_URL || stored?.url;
-  const anon = process.env.SUPABASE_ANON_KEY || stored?.anon_key;
-  if (!url || !anon) throw new McpError('Faltan SUPABASE_URL y SUPABASE_ANON_KEY (mcp/.env) o corre `node bin.js setup`.', 'config');
+  const url = process.env.SUPABASE_URL || stored?.url || DEFAULT_URL;
+  const anon = process.env.SUPABASE_ANON_KEY || stored?.anon_key || DEFAULT_ANON;
   return { url, anon };
 }
 
