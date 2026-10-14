@@ -10,6 +10,7 @@ import {
 } from '../../lib/events-types';
 import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
 import MembersPanel from '../../components/admin/eventos/MembersPanel';
+import RsvpSettings from '../../components/admin/eventos/RsvpSettings';
 import ScreensEditor from '../../components/admin/eventos/ScreensEditor';
 import DevicePreview from '../../components/admin/eventos/DevicePreview';
 import FormBuilder from '../../components/admin/eventos/builder/FormBuilder';
@@ -407,6 +408,8 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
           <button type="submit" className="btn btn-primary btn-sm" disabled={savingGeneral}>{savingGeneral ? 'Guardando...' : 'Guardar'}</button>
         </div>
       </form>
+
+      <RsvpSettings event={event} canEdit onPatch={onPatch} />
 
       <MembersPanel event={event} isSuper={isSuper} onChanged={onReload} onFlash={onFlash} />
 

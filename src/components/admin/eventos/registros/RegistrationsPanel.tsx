@@ -9,6 +9,7 @@ import {
   type Registration as RegistrationRow,
 } from '../../../../lib/registrations';
 import { downloadAnswersExcel } from '../../../../lib/export';
+import VipImportModal from './VipImportModal';
 import FilterBar from './FilterBar';
 import RegistrationsTable from './RegistrationsTable';
 import RegistrationDrawer from './RegistrationDrawer';
@@ -48,6 +49,7 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
   const [openId, setOpenId] = useState<string | null>(null);
   const [showColumns, setShowColumns] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [showVip, setShowVip] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkTag, setBulkTag] = useState('');
   const lastClick = useRef<string | null>(null);
@@ -277,6 +279,7 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
         <button className="btn btn-secondary btn-xs" onClick={() => exportAnswers(filtered, 'filtrados')} disabled={filtered.length === 0} title="Excel con todas las respuestas del formulario y los datos del registro">⬇ Exportar respuestas</button>
         <button className="btn btn-ghost btn-xs" onClick={() => exportCsv(filtered, 'filtrados')} disabled={filtered.length === 0} title="CSV con las columnas de la tabla">CSV</button>
         <button className="btn btn-primary btn-xs" onClick={() => setShowManual(true)}>+ Manual</button>
+        <button className="btn btn-secondary btn-xs" onClick={() => setShowVip(true)} title="Invitados especiales que confirman con un enlace, sin llenar el formulario">+ VIP</button>
         {extraToolbar?.(ctx)}
       </div>
 
@@ -335,6 +338,7 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
         />
       )}
 
+      {showVip && <VipImportModal event={event} onClose={() => setShowVip(false)} onDone={async n => { setShowVip(false); await loadAll(); alert(`${n} VIP agregados.`); }} />}
       {showManual && (
         <ManualModal
           event={event}

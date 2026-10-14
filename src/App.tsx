@@ -16,6 +16,7 @@ import RotuladoDetailPage from './pages/RotuladoDetailPage';
 import EventsPage from './pages/eventos/EventsPage';
 import EventDetailPage from './pages/eventos/EventDetailPage';
 import RegistroPage from './pages/public/RegistroPage';
+import ConfirmPage from './pages/public/ConfirmPage';
 import AccesoPage from './pages/public/AccesoPage';
 import PublicHome from './pages/public/PublicHome';
 import type { ReactNode } from 'react';
@@ -90,6 +91,7 @@ function AdminApp() {
 
       {/* Vistas públicas de eventos, para probar en local sin subdominios */}
       <Route path="/r/:slug" element={<RegistroPage />} />
+      <Route path="/r/:slug/c/:token" element={<ConfirmPage />} />
       <Route path="/s/:slug" element={<AccesoPage />} />
       <Route path="/panel/*" element={<PanelRoutes />} />
 
@@ -128,6 +130,7 @@ function RegistroApp() {
   return (
     <Routes>
       <Route path="/:slug" element={<RegistroPage />} />
+      <Route path="/:slug/c/:token" element={<ConfirmPage />} />
       <Route path="*" element={<PublicHome kind="registro" />} />
     </Routes>
   );

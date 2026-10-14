@@ -215,6 +215,8 @@ export interface EventRow {
   reply_to: string | null;
   // Ver InvitationConfig en lib/invitations.ts
   invitation_config: object | null;
+  /** Textos y opciones de la confirmación VIP (ver lib/rsvp.ts). */
+  rsvp_config: object | null;
   /** Carpeta del evento en Drive (espejo de invitaciones), creada al primer uso */
   drive_folder_id: string | null;
   drive_folder_url: string | null;

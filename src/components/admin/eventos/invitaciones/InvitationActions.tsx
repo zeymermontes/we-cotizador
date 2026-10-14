@@ -75,7 +75,7 @@ export function ExcelModal({ ctx, onClose, rows }: { ctx: BulkContext; onClose: 
 
   async function download() {
     setBusy(true);
-    const data = buildBotRows(withPhone, ctx.schema, lang, { questionIds, includeEmail, includeQr });
+    const data = buildBotRows(withPhone, ctx.schema, lang, { questionIds, includeEmail, includeQr, slug: ctx.event.slug });
     downloadBotExcel(buildBotExcelName(ctx.event.slug), data);
     await logWhatsappExport(ctx.event.id, withPhone);
     if (markInvited) {

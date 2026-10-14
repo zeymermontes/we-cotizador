@@ -8,6 +8,7 @@ import { answerText } from './registrations';
 import type { EventRow } from './events-types';
 import { removeEventImage } from './images';
 import { renderGenericInvitation, type GenericInvitationSettings } from './invitation-canvas';
+import { confirmUrl } from './rsvp';
 
 export type MappingSource = 'field' | 'question' | 'literal' | 'qr' | 'empty';
 
@@ -350,6 +351,8 @@ export interface ExcelOptions {
   questionIds: string[];
   includeEmail: boolean;
   includeQr: boolean;
+  /** slug del evento para armar el enlace de confirmación de los VIP */
+  slug?: string;
 }
 
 export function buildBotRows(regs: Registration[], schema: FormSchema | null, lang: Lang, opts: ExcelOptions): Record<string, string | number>[] {
@@ -361,7 +364,7 @@ export function buildBotRows(regs: Registration[], schema: FormSchema | null, la
       'N.boletos': r.party_size ?? 1,
       'Confirmados': '',
       'Invitación': r.invitation_url ?? '',
-      'ConfirmationLink': '',
+      'ConfirmationLink': opts.slug && r.rsvp_token ? confirmUrl(opts.slug, r.rsvp_token) : '',
     };
     if (opts.includeEmail) row['Correo'] = r.email ?? '';
     if (opts.includeQr) row['QR'] = r.qr_url ?? '';

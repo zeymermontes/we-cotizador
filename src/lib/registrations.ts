@@ -29,6 +29,10 @@ export interface Registration {
   /** Copia en Drive (solo invitación genérica) */
   invitation_drive_id: string | null;
   invitation_drive_url: string | null;
+  /** VIP: enlace personal de confirmación y su respuesta */
+  rsvp_token: string | null;
+  rsvp_response: 'yes' | 'no' | null;
+  rsvp_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,7 +63,7 @@ export const STATUS_BADGE: Record<RegistrationStatus, string> = {
 // ─── Columnas ────────────────────────────────────────────────
 
 /** '*answers' = todas las preguntas del formulario, al final (se expande al mostrar). */
-export type ColumnKey = 'name' | 'email' | 'phone' | 'party_size' | 'company' | 'status' | 'tags' | 'lang' | 'created_at' | '*answers' | `q:${string}`;
+export type ColumnKey = 'name' | 'email' | 'phone' | 'party_size' | 'company' | 'status' | 'tags' | 'lang' | 'created_at' | 'rsvp' | '*answers' | `q:${string}`;
 export const ALL_ANSWERS: ColumnKey = '*answers';
 
 export interface ColumnDef {
@@ -78,9 +82,17 @@ export const FIXED_COLUMNS: ColumnDef[] = [
   { key: 'tags', label: 'Etiquetas' },
   { key: 'lang', label: 'Idioma' },
   { key: 'created_at', label: 'Registrado' },
+  { key: 'rsvp', label: 'Confirmación' },
 ];
 
-export const DEFAULT_COLUMNS: ColumnKey[] = ['name', 'email', 'phone', 'party_size', 'status', 'tags', 'created_at', '*answers'];
+/** Texto de la respuesta VIP; vacío si no es VIP. */
+export function rsvpText(r: Pick<Registration, 'rsvp_token' | 'rsvp_response'>): string {
+  if (!r.rsvp_token) return '';
+  return r.rsvp_response === 'yes' ? 'Asistirá' : r.rsvp_response === 'no' ? 'No asistirá' : 'Pendiente';
+}
+export const RSVP_BADGE: Record<string, string> = { yes: 'badge-aceptada', no: 'badge-rechazada', pending: 'badge-pendiente' };
+
+export const DEFAULT_COLUMNS: ColumnKey[] = ['name', 'email', 'phone', 'party_size', 'status', 'rsvp', 'tags', 'created_at', '*answers'];
 
 /** Expande '*answers' en las columnas de pregunta disponibles, sin repetir. */
 export function expandColumns(keys: ColumnKey[], columns: ColumnDef[]): ColumnDef[] {
@@ -114,6 +126,7 @@ export function cellText(r: Registration, col: ColumnDef, lang: Lang): string {
     case 'tags': return r.tags.join(', ');
     case 'lang': return r.lang.toUpperCase();
     case 'created_at': return new Date(r.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+    case 'rsvp': return rsvpText(r);
     default:
       return col.question ? answerText(col.question, r.answers[col.question.id], lang) : '';
   }

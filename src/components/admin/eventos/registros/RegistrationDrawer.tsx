@@ -9,6 +9,8 @@ import {
 import { useAuth } from '../../../../hooks/useAuth';
 import type { EventRow } from '../../../../lib/events-types';
 import { genericSettings, regenerateInvitation, removeInvitation, downloadInvitation, slidesConfig, runCloudInvitations } from '../../../../lib/invitations';
+import { confirmUrl } from '../../../../lib/rsvp';
+import { rsvpText, RSVP_BADGE } from '../../../../lib/registrations';
 
 interface Props {
   registration: Registration;
@@ -164,6 +166,17 @@ export default function RegistrationDrawer({ registration: r, schema, lang, even
                 } />
               )}
               {r.invitation_drive_url && <Row label="En Drive" value={<a href={r.invitation_drive_url} target="_blank" rel="noopener noreferrer">abrir copia ↗</a>} />}
+              {r.rsvp_token && event && (
+                <>
+                  <Row label="Confirmación" value={<><span className={`badge ${RSVP_BADGE[r.rsvp_response ?? 'pending']}`}>{rsvpText(r)}</span>{r.rsvp_at && <span className="text-muted text-xs" style={{ marginLeft: 8 }}>{new Date(r.rsvp_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>}</>} />
+                  <Row label="Enlace VIP" value={
+                    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <a href={confirmUrl(event.slug, r.rsvp_token)} target="_blank" rel="noopener noreferrer">abrir ↗</a>
+                      <button type="button" className="btn btn-ghost btn-xs" onClick={() => navigator.clipboard.writeText(confirmUrl(event.slug, r.rsvp_token)).then(() => alert('Enlace copiado'))}>Copiar</button>
+                    </span>
+                  } />
+                </>
+              )}
               {isSuper && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingTop: 6 }}>
                   {r.invitation_url && <button className="btn btn-secondary btn-xs" disabled={!!invBusy} onClick={() => invitationAction('download')}>{invBusy === 'download' ? '…' : '⬇ Descargar'}</button>}

@@ -17,6 +17,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const BATCH = 150;
+const CRON_SECRET = Deno.env.get('JOBS_CRON_SECRET') ?? '';
 
 function newToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -26,15 +27,19 @@ function newToken(): string {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const caller = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user } } = await caller.auth.getUser();
-    if (!user) return fail('unauthorized', 'Sesión inválida');
-    const db = createClient(SUPABASE_URL, SERVICE_KEY);
-    const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (profile?.role !== 'super') return fail('forbidden', 'Solo el equipo puede generar QR');
-
     const body = await req.json().catch(() => ({}));
+    const db = createClient(SUPABASE_URL, SERVICE_KEY);
+    // Llamadas de otras funciones (confirmación VIP) llevan el secreto; las demás, un super.
+    const trusted = !!CRON_SECRET && body.cron_secret === CRON_SECRET;
+    if (!trusted) {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      const caller = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await caller.auth.getUser();
+      if (!user) return fail('unauthorized', 'Sesión inválida');
+      const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (profile?.role !== 'super') return fail('forbidden', 'Solo el equipo puede generar QR');
+    }
+
     const event_id = String(body.event_id ?? '');
     const ids: string[] = Array.isArray(body.registration_ids) ? body.registration_ids.map(String) : [];
     const all = body.all === true;

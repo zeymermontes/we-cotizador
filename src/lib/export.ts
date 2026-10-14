@@ -5,11 +5,12 @@ import * as XLSX from 'xlsx';
 import type { FormSchema, Lang } from './form-types';
 import { text, answerToText } from './form-types';
 import type { Registration } from './registrations';
-import { STATUS_LABEL } from './registrations';
+import { STATUS_LABEL, rsvpText } from './registrations';
+import { confirmUrl } from './rsvp';
 import type { EventRow } from './events-types';
 
 /** Una fila por registro; una columna por pregunta (incluye identidad y ocultas). */
-export function buildAnswerRows(schema: FormSchema | null, regs: Registration[], lang: Lang): Record<string, string | number>[] {
+export function buildAnswerRows(schema: FormSchema | null, regs: Registration[], lang: Lang, slug = ''): Record<string, string | number>[] {
   const qs = (schema?.questions ?? []).filter(q => q.type !== 'statement');
   const seen = new Map<string, number>();
   const header = (q: typeof qs[number]) => {
@@ -33,6 +34,8 @@ export function buildAnswerRows(schema: FormSchema | null, regs: Registration[],
     };
     for (const { q, h } of headers) row[h] = answerToText(q, r.answers[q.id], lang);
     row['Notas'] = r.notes ?? '';
+    row['Confirmación'] = rsvpText(r);
+    row['Enlace de confirmación'] = r.rsvp_token && slug ? confirmUrl(slug, r.rsvp_token) : '';
     row['Origen'] = Object.entries(r.source ?? {}).filter(([k]) => k !== 'ua' && k !== 'referrer').map(([k, v]) => `${k}=${v}`).join(' · ');
     row['QR'] = r.qr_url ?? '';
     row['Invitación'] = r.invitation_url ?? '';
@@ -42,7 +45,7 @@ export function buildAnswerRows(schema: FormSchema | null, regs: Registration[],
 }
 
 export function downloadAnswersExcel(event: EventRow, schema: FormSchema | null, regs: Registration[], lang: Lang, suffix: string) {
-  const rows = buildAnswerRows(schema, regs, lang);
+  const rows = buildAnswerRows(schema, regs, lang, event.slug);
   const ws = XLSX.utils.json_to_sheet(rows);
   // Anchos razonables: según el contenido más largo de cada columna, con tope
   const keys = rows.length ? Object.keys(rows[0]) : [];

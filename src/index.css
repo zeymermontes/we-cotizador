@@ -2316,6 +2316,14 @@ h6 {
 }
 .reg-thanks h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); margin-bottom: 12px; }
 .reg-thanks p { opacity: 0.75; white-space: pre-line; }
+/* Confirmación VIP */
+.rsvp-ask { margin-top: 28px; }
+.rsvp-question { font-size: var(--text-lg); margin-bottom: 18px; white-space: pre-line; }
+.rsvp-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.rsvp-buttons .btn { min-width: 160px; padding: 14px 24px; font-size: var(--text-base); }
+.rsvp-done { margin-top: 24px; }
+.rsvp-done .reg-check.muted { background: color-mix(in srgb, var(--brand-text) 12%, transparent); color: inherit; }
+.rsvp-message { opacity: 0.85; white-space: pre-line; font-size: var(--text-lg); }
 /* Enlaces dentro de textos libres (bienvenida, final, descripciones) */
 .branded-page .reg-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 55%, transparent); font-weight: 600; }
 .branded-page .reg-link:hover { text-decoration-color: currentColor; }

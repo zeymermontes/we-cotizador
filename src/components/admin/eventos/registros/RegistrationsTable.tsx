@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import type { Lang } from '../../../../lib/form-types';
-import { type Registration, type ColumnDef, type ColumnKey, type ViewConfig, cellText, STATUS_BADGE, STATUS_LABEL } from '../../../../lib/registrations';
+import { type Registration, type ColumnDef, type ColumnKey, type ViewConfig, cellText, STATUS_BADGE, STATUS_LABEL, RSVP_BADGE, rsvpText } from '../../../../lib/registrations';
 
 interface Props {
   rows: Registration[];
@@ -51,6 +51,8 @@ export default function RegistrationsTable({ rows, columns, lang, sort, selected
                 <td key={c.key} className="cell" title={cellText(r, c, lang)}>
                   {c.key === 'status' ? (
                     <span className={`badge ${STATUS_BADGE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                  ) : c.key === 'rsvp' ? (
+                    r.rsvp_token ? <span className={`badge ${RSVP_BADGE[r.rsvp_response ?? 'pending']}`}>{rsvpText(r)}</span> : <span className="text-muted">—</span>
                   ) : c.key === 'tags' ? (
                     r.tags.map(t => <span key={t} className="tag-chip">{t}</span>)
                   ) : c.key === 'name' ? (

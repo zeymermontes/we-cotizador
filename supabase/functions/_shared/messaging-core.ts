@@ -2,6 +2,7 @@
 // Render de plantillas de mensajes. TypeScript puro: lo usan el
 // navegador (vista previa) y las edge functions (envío real).
 // ─────────────────────────────────────────────────────────────
+import { confirmUrl } from "./rsvp.ts";
 import { type FormSchema, type Answers, type Lang, answerToText, text } from './form-engine.ts';
 
 export interface TemplateVariable {
@@ -24,6 +25,7 @@ export const BASE_VARIABLES: TemplateVariable[] = [
   { key: 'lugar', label: 'Lugar' },
   { key: 'qr_url', label: 'URL de la imagen del QR', hint: 'Vacío si aún no se genera' },
   { key: 'invitacion_url', label: 'URL del PDF de invitación', hint: 'Vacío si aún no se genera' },
+  { key: 'confirmacion_url', label: 'Enlace de confirmación (VIP)', hint: 'Solo para invitados VIP; vacío en los demás' },
 ];
 
 export interface RegistrationLike {
@@ -36,10 +38,12 @@ export interface RegistrationLike {
   answers: Answers;
   qr_url?: string | null;
   invitation_url?: string | null;
+  rsvp_token?: string | null;
 }
 
 export interface EventLike {
   name: string;
+  slug?: string;
   event_date: string | null;
   timezone: string;
   venue: string | null;
@@ -75,6 +79,7 @@ export function buildVars(event: EventLike, r: RegistrationLike, schema: FormSch
     lugar: event.venue ?? '',
     qr_url: r.qr_url ?? '',
     invitacion_url: r.invitation_url ?? '',
+    confirmacion_url: event.slug && r.rsvp_token ? confirmUrl(event.slug, r.rsvp_token) : '',
   };
   for (const q of schema?.questions ?? []) {
     if (q.type === 'statement') continue;
