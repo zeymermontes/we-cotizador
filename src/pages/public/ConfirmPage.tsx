@@ -74,7 +74,9 @@ export default function ConfirmPage() {
 
         {info && answered && (
           <div className="rsvp-done">
-            <div className={`reg-check ${info.guest.response === 'no' ? 'muted' : ''}`}>{info.guest.response === 'yes' ? '✓' : '·'}</div>
+            <div className={`rsvp-choice ${info.guest.response === 'yes' ? 'yes' : 'no'}`}>
+              {info.guest.response === 'yes' ? '✓ ' : ''}{pickLocalized(info.guest.response === 'yes' ? cfg.yes_label : cfg.no_label, lang, info.guest.response === 'yes' ? t.yes : t.no)}
+            </div>
             <p className="rsvp-message"><RichText text={fill(pickLocalized(info.guest.response === 'yes' ? cfg.message_yes : cfg.message_no, lang, info.guest.response === 'yes' ? t.message_yes : t.message_no))} /></p>
             {info.guest.response === 'yes' && info.guest.party_size > 1 && <p className="reg-hint">{info.guest.party_size} {t.people}</p>}
             <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 16 }} onClick={() => setChanging(true)}>{t.change}</button>

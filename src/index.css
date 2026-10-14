@@ -2322,7 +2322,9 @@ h6 {
 .rsvp-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .rsvp-buttons .btn { min-width: 160px; padding: 14px 24px; font-size: var(--text-base); }
 .rsvp-done { margin-top: 24px; }
-.rsvp-done .reg-check.muted { background: color-mix(in srgb, var(--brand-text) 12%, transparent); color: inherit; }
+.rsvp-choice { display: inline-block; padding: 10px 22px; border-radius: 999px; font-weight: 600; font-size: var(--text-base); margin-bottom: 14px; }
+.rsvp-choice.yes { background: var(--brand-primary, #BBEBE8); color: var(--brand-button-text, var(--brand-text, #1a1a1a)); }
+.rsvp-choice.no { background: color-mix(in srgb, var(--brand-text, #1a1a1a) 12%, transparent); color: inherit; border: 1px solid color-mix(in srgb, var(--brand-text, #1a1a1a) 20%, transparent); }
 .rsvp-message { opacity: 0.85; white-space: pre-line; font-size: var(--text-lg); }
 /* Enlaces dentro de textos libres (bienvenida, final, descripciones) */
 .branded-page .reg-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 55%, transparent); font-weight: 600; }
