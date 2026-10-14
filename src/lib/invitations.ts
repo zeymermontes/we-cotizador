@@ -376,10 +376,10 @@ export function buildBotRows(regs: Registration[], schema: FormSchema | null, la
   });
 }
 
-export function buildBotExcelName(slug: string): string {
+export function buildBotExcelName(slug: string, suffix = ''): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${slug}-whatsapp-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.xlsx`;
+  return `${slug}-whatsapp${suffix ? `-${suffix}` : ''}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.xlsx`;
 }
 
 export function downloadBotExcel(fileName: string, rows: Record<string, string | number>[]) {

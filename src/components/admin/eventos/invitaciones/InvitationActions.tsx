@@ -7,6 +7,7 @@ import {
   generateGenericInvitations, genericSettings, slidesConfig, runCloudInvitations,
 } from '../../../../lib/invitations';
 import { text } from '../../../../lib/form-types';
+import { isVip } from '../../../../lib/rsvp';
 
 /** Acciones de la barra de selección reservadas al equipo: QR, invitación PDF y Excel WhatsApp. */
 export default function InvitationActions({ ctx }: { ctx: BulkContext }) {
@@ -69,14 +70,17 @@ export function ExcelModal({ ctx, onClose, rows }: { ctx: BulkContext; onClose: 
   const [includeEmail, setIncludeEmail] = useState(false);
   const [includeQr, setIncludeQr] = useState(false);
   const [markInvited, setMarkInvited] = useState(true);
+  const [who, setWho] = useState<'all' | 'vip' | 'novip'>('all');
   const [busy, setBusy] = useState(false);
-  const withPhone = regs.filter(r => r.phone);
+  const vipCount = regs.filter(isVip).length;
+  const chosen = who === 'vip' ? regs.filter(isVip) : who === 'novip' ? regs.filter(r => !isVip(r)) : regs;
+  const withPhone = chosen.filter(r => r.phone);
   const withoutPdf = withPhone.filter(r => !r.invitation_url).length;
 
   async function download() {
     setBusy(true);
     const data = buildBotRows(withPhone, ctx.schema, lang, { questionIds, includeEmail, includeQr, slug: ctx.event.slug });
-    downloadBotExcel(buildBotExcelName(ctx.event.slug), data);
+    downloadBotExcel(buildBotExcelName(ctx.event.slug, who === 'vip' ? 'vip' : who === 'novip' ? 'sin-vip' : ''), data);
     await logWhatsappExport(ctx.event.id, withPhone);
     if (markInvited) {
       const ids = withPhone.filter(r => ['registered', 'selected', 'waitlist'].includes(r.status)).map(r => r.id);
@@ -91,8 +95,15 @@ export function ExcelModal({ ctx, onClose, rows }: { ctx: BulkContext; onClose: 
     <div className="modal-backdrop" onClick={() => !busy && onClose()}>
       <div className="modal-card" onClick={e => e.stopPropagation()}>
         <h2>Excel para We Bot</h2>
+        {vipCount > 0 && (
+          <div className="segmented" style={{ marginBottom: 12 }}>
+            <button type="button" className={who === 'all' ? 'active' : ''} onClick={() => setWho('all')}>Todos ({regs.length})</button>
+            <button type="button" className={who === 'vip' ? 'active' : ''} onClick={() => setWho('vip')}>Solo VIP ({vipCount})</button>
+            <button type="button" className={who === 'novip' ? 'active' : ''} onClick={() => setWho('novip')}>Sin VIP ({regs.length - vipCount})</button>
+          </div>
+        )}
         <p className="text-muted text-sm" style={{ marginBottom: 12 }}>
-          <b>{regs.length}</b> registros, <b>{withPhone.length}</b> con teléfono (los demás se omiten).
+          <b>{chosen.length}</b> registros, <b>{withPhone.length}</b> con teléfono (los demás se omiten).
           {withoutPdf > 0 && <> <b>{withoutPdf}</b> aún no tienen PDF de invitación: la columna "Invitación" irá vacía.</>}
         </p>
         <p className="text-muted text-xs" style={{ marginBottom: 12 }}>Columnas: Nombre · Telefono · N.boletos · Confirmados · Invitación · ConfirmationLink, más las que agregues aquí como variables.</p>
