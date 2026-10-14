@@ -7,6 +7,7 @@ import {
   ERROR_TEXT, RUNNER_TEXT,
 } from '../../lib/form-types';
 import QuestionInput from './QuestionInput';
+import RichText from './RichText';
 
 export type SubmitResult = { ok: true } | { ok: false; code: string };
 
@@ -214,7 +215,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
             {showVenue && <span style={elementFont(w, 'venue')}>{event.venue}</span>}
           </div>
         )}
-        {elementShown(w, 'subtitle') && <p style={elementFont(w, 'subtitle')}>{fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))}</p>}
+        {elementShown(w, 'subtitle') && <p style={elementFont(w, 'subtitle')}><RichText text={fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))} /></p>}
         <button className="btn btn-primary" style={elementFont(w, 'button')} onClick={() => setStage('questions')} autoFocus>
           {pickLocalized(w?.button, lang, copy.start)} →
         </button>
@@ -237,7 +238,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
           <div className="reg-check" style={{ ...(checkSize ? { width: checkSize, height: checkSize, fontSize: checkSize * 0.45 } : {}), ...elementFont(th, 'check') }}>✓</div>
         )}
         {elementShown(th, 'title') && <h1 style={elementFont(th, 'title')}>{title.replace(/, !$/, '!')}</h1>}
-        {elementShown(th, 'subtitle') && subtitle && <p style={elementFont(th, 'subtitle')}>{subtitle}</p>}
+        {elementShown(th, 'subtitle') && subtitle && <p style={elementFont(th, 'subtitle')}><RichText text={subtitle} /></p>}
       </div>
     );
   }
@@ -280,7 +281,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
               {title}
               {!current.required && !isStatement && <span className="reg-optional">({t.optional})</span>}
             </h2>
-            {desc && <p className="step-subtitle">{desc}</p>}
+            {desc && <p className="step-subtitle"><RichText text={desc} /></p>}
           </div>
           {current.image && <img src={current.image} alt="" className="question-image" />}
 

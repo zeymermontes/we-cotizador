@@ -2316,6 +2316,16 @@ h6 {
 }
 .reg-thanks h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); margin-bottom: 12px; }
 .reg-thanks p { opacity: 0.75; white-space: pre-line; }
+/* Enlaces dentro de textos libres (bienvenida, final, descripciones) */
+.branded-page .reg-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 55%, transparent); font-weight: 600; }
+.branded-page .reg-link:hover { text-decoration-color: currentColor; }
+/* La lista de ladas siempre sobre fondo sólido: con tarjeta transparente se perdía sobre la foto */
+.branded-page .react-international-phone-country-selector-dropdown { background: #ffffff !important; backdrop-filter: none !important; border-color: rgba(0, 0, 0, 0.08) !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25) !important; }
+.branded-page .react-international-phone-country-selector-dropdown-list-item { color: #1a1a1a !important; }
+.branded-page .react-international-phone-country-selector-dropdown-list-item:hover,
+.branded-page .react-international-phone-country-selector-dropdown-list-item:focus { background: rgba(0, 0, 0, 0.06) !important; }
+.branded-page .react-international-phone-country-selector-dropdown-list-item[data-selected="true"] { background: color-mix(in srgb, var(--brand-primary, #BBEBE8) 35%, #fff) !important; color: #1a1a1a !important; }
+.branded-page .react-international-phone-country-selector-dropdown-list-item-dial-code { color: #6b6b6b !important; }
 .branded-page .react-international-phone-input-container .react-international-phone-input,
 .branded-page .react-international-phone-country-selector-button {
   border-color: var(--border-default);

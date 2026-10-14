@@ -467,12 +467,12 @@ export default function FormBuilder({ event }: Props) {
 
             <div className="editor-section">
               <h4>Pantalla final</h4>
-              <p className="section-hint">Lo que ve la persona al terminar. Puedes usar <code>{'{{nombre}}'}</code> y <code>{'{{evento}}'}</code>. Vacío = "¡Listo, {'{{nombre}}'}!". El estilo (tamaño, fuente, palomita) se ajusta en Diseño.</p>
+              <p className="section-hint">Lo que ve la persona al terminar. Puedes usar <code>{'{{nombre}}'}</code> y <code>{'{{evento}}'}</code>, saltos de línea, <code>**negritas**</code> y enlaces: pega la dirección tal cual o escribe <code>[Reservar hotel](https://…)</code>. Vacío = "¡Listo, {'{{nombre}}'}!". El estilo se ajusta en Diseño.</p>
               {langs.map(l => (
                 <div key={l} className="lang-input">
                   {langs.length > 1 && <span className="lang-tag">{l.toUpperCase()}</span>}
                   <input className="input-field" style={{ padding: '6px 0' }} value={schema.settings.ending?.title?.[l] ?? ''} placeholder={l === 'es' ? 'Título · ¡Listo, {{nombre}}!' : 'Title · All set, {{nombre}}!'} onChange={ev => update({ ...schema, settings: { ...schema.settings, ending: { ...(schema.settings.ending ?? {}), title: { ...(schema.settings.ending?.title ?? {}), [l]: ev.target.value } } } })} />
-                  <textarea className="input-field" rows={2} style={{ padding: '6px 0', fontSize: 'var(--text-sm)' }} value={schema.settings.ending?.subtitle?.[l] ?? ''} placeholder={l === 'es' ? 'Mensaje · Tu registro quedó guardado.' : 'Message · Your registration has been saved.'} onChange={ev => update({ ...schema, settings: { ...schema.settings, ending: { ...(schema.settings.ending ?? {}), subtitle: { ...(schema.settings.ending?.subtitle ?? {}), [l]: ev.target.value } } } })} />
+                  <textarea className="input-field" rows={2} style={{ padding: '6px 0', fontSize: 'var(--text-sm)' }} value={schema.settings.ending?.subtitle?.[l] ?? ''} placeholder={l === 'es' ? 'Mensaje · Tu registro quedó guardado. Reserva tu hotel: [Hotel X](https://…)' : 'Message · Your registration has been saved. Book your hotel: [Hotel X](https://…)'} onChange={ev => update({ ...schema, settings: { ...schema.settings, ending: { ...(schema.settings.ending ?? {}), subtitle: { ...(schema.settings.ending?.subtitle ?? {}), [l]: ev.target.value } } } })} />
                 </div>
               ))}
             </div>
