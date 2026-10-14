@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
+import PhoneField from './PhoneField';
 import type { Question, AnswerValue, Lang, Answers, EvalContext } from '../../lib/form-types';
 import { text, RUNNER_TEXT, letterFor, visibleOptions } from '../../lib/form-types';
 import DateField from './DateField';
@@ -80,11 +79,12 @@ export default function QuestionInput({ q, value, lang, keyboard, answers, ctx, 
 
     case 'phone':
       return (
-        <PhoneInput
-          defaultCountry="mx"
+        <PhoneField
           value={typeof value === 'string' ? value : ''}
+          lang={lang}
           onChange={phone => onChange(phone)}
-          inputProps={{ onKeyDown: enterKey, autoFocus: true, autoComplete: 'tel' }}
+          onKeyDown={enterKey}
+          autoFocus
           placeholder={ph || undefined}
         />
       );

@@ -2319,6 +2319,24 @@ h6 {
 /* Enlaces dentro de textos libres (bienvenida, final, descripciones) */
 .branded-page .reg-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 55%, transparent); font-weight: 600; }
 .branded-page .reg-link:hover { text-decoration-color: currentColor; }
+/* ─── Teléfono con lada y buscador (PhoneField) ─────────────── */
+.phone-field { position: relative; display: flex; align-items: flex-end; gap: 8px; width: 100%; }
+.phone-field .input-field { flex: 1; min-width: 0; }
+.phone-country-btn { display: inline-flex; align-items: center; gap: 4px; height: 48px; padding: 0 4px; background: transparent; border: none; border-bottom: 2px solid var(--border-default); cursor: pointer; color: var(--text-secondary); font: inherit; }
+.phone-country-btn:hover { border-bottom-color: var(--border-active); }
+.phone-caret { font-size: 11px; opacity: 0.6; }
+.phone-dropdown { position: absolute; left: 0; top: calc(100% + 6px); z-index: 1000; width: min(340px, 100%); background: #fff; color: #1a1a1a; border: 1px solid rgba(0,0,0,0.08); border-radius: var(--radius-md); box-shadow: 0 12px 32px rgba(0,0,0,0.25); padding: 8px; }
+.phone-search { width: 100%; box-sizing: border-box; padding: 10px 12px; font: inherit; font-size: var(--text-base); color: #1a1a1a; background: #f3f2f0; border: 1px solid transparent; border-radius: var(--radius-sm); outline: none; margin-bottom: 6px; }
+.phone-search:focus { border-color: var(--brand-primary, #BBEBE8); background: #fff; }
+.phone-search::placeholder { color: #8a8a8a; }
+.phone-options { max-height: 260px; overflow-y: auto; }
+.phone-option { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; background: transparent; border: none; border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); color: #1a1a1a; text-align: left; cursor: pointer; }
+.phone-option:hover, .phone-option:focus { background: rgba(0,0,0,0.06); outline: none; }
+.phone-option.selected { background: color-mix(in srgb, var(--brand-primary, #BBEBE8) 35%, #fff); }
+.phone-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phone-option-code { color: #6b6b6b; font-variant-numeric: tabular-nums; }
+.phone-empty { padding: 12px; color: #8a8a8a; font-size: var(--text-sm); text-align: center; }
+@media (max-width: 600px) { .phone-dropdown { width: 100%; } .phone-options { max-height: 42vh; } }
 /* La lista de ladas siempre sobre fondo sólido: con tarjeta transparente se perdía sobre la foto */
 .branded-page .react-international-phone-country-selector-dropdown { background: #ffffff !important; backdrop-filter: none !important; border-color: rgba(0, 0, 0, 0.08) !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25) !important; }
 .branded-page .react-international-phone-country-selector-dropdown-list-item { color: #1a1a1a !important; }
