@@ -178,9 +178,9 @@ export default function RegistrationDrawer({ registration: r, schema, lang, even
                 </>
               )}
               {isSuper && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingTop: 6 }}>
-                  {r.invitation_url && <button className="btn btn-secondary btn-xs" disabled={!!invBusy} onClick={() => invitationAction('download')}>{invBusy === 'download' ? '…' : '⬇ Descargar'}</button>}
-                  {event && <button className="btn btn-secondary btn-xs" disabled={!!invBusy} onClick={() => invitationAction('regenerate')}>{invBusy === 'regenerate' ? 'Generando…' : r.invitation_url ? '↻ Regenerar invitación' : '🖼 Generar invitación'}</button>}
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', paddingTop: 8, marginTop: 4, borderTop: '1px solid var(--border-subtle)' }}>
+                  {r.invitation_url && <button className="btn btn-ghost btn-xs" disabled={!!invBusy} onClick={() => invitationAction('download')}>{invBusy === 'download' ? 'Descargando…' : 'Descargar invitación'}</button>}
+                  {event && <button className="btn btn-ghost btn-xs" disabled={!!invBusy} onClick={() => invitationAction('regenerate')}>{invBusy === 'regenerate' ? 'Generando…' : r.invitation_url ? 'Regenerar invitación' : 'Generar invitación'}</button>}
                   {r.invitation_url && <button className="btn btn-ghost btn-xs" disabled={!!invBusy} onClick={() => invitationAction('remove')} style={{ color: 'var(--color-error)' }}>Quitar invitación</button>}
                 </div>
               )}
