@@ -10,6 +10,7 @@ import {
 } from '../../../../lib/registrations';
 import { downloadAnswersExcel } from '../../../../lib/export';
 import VipImportModal from './VipImportModal';
+import { isVip, ensureConfirmTokens } from '../../../../lib/rsvp';
 import FilterBar from './FilterBar';
 import RegistrationsTable from './RegistrationsTable';
 import RegistrationDrawer from './RegistrationDrawer';
@@ -50,6 +51,10 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
   const [showColumns, setShowColumns] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showVip, setShowVip] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const vipCount = regs.filter(isVip).length;
+
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkTag, setBulkTag] = useState('');
   const lastClick = useRef<string | null>(null);
@@ -110,6 +115,15 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
   const filtered = useMemo(() => applyView(regs, view, schema, lang), [regs, view, schema, lang]);
   const selectedInFiltered = filtered.filter(r => selected.has(r.id)).length;
   const selectedRows = useMemo(() => regs.filter(r => selected.has(r.id)), [regs, selected]);
+  async function bulkLinks() {
+    const without = selectedRows.filter(r => !r.rsvp_token);
+    if (without.length === 0) return alert('Todos los seleccionados ya tienen enlace de confirmación.');
+    if (!confirm(`Se creará el enlace personal de confirmación para ${without.length} registros. ¿Continuar?`)) return;
+    setLinkBusy(true);
+    try { const n = await ensureConfirmTokens(without); await loadAll(); alert(`Enlaces creados: ${n}. Están en la ficha, en el Excel de respuestas y en el del bot (ConfirmationLink).`); }
+    catch (e) { alert((e as Error).message); }
+    setLinkBusy(false);
+  }
   const activeView = views.find(v => v.id === activeViewId);
   const viewDirty = activeView ? JSON.stringify(activeView.config) !== JSON.stringify(view) : false;
   const people = filtered.reduce((s, r) => s + (r.status === 'cancelled' ? 0 : r.party_size ?? 1), 0);
@@ -276,7 +290,17 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
             </div>
           )}
         </div>
-        <button className="btn btn-secondary btn-xs" onClick={() => exportAnswers(filtered, 'filtrados')} disabled={filtered.length === 0} title="Excel con todas las respuestas del formulario y los datos del registro">⬇ Exportar respuestas</button>
+        <div style={{ position: 'relative' }}>
+          <button className="btn btn-secondary btn-xs" onClick={() => (vipCount ? setShowExport(s => !s) : exportAnswers(filtered, 'filtrados'))} disabled={filtered.length === 0} title="Excel con todas las respuestas del formulario, los datos del registro y el enlace de confirmación">⬇ Exportar respuestas{vipCount ? ' ▾' : ''}</button>
+          {showExport && (
+            <div className="columns-menu" onMouseLeave={() => setShowExport(false)}>
+              <div className="menu-group">LISTA (sobre el filtro actual)</div>
+              <label onClick={() => { setShowExport(false); exportAnswers(filtered, 'todos'); }}>Combinada · {filtered.length}</label>
+              <label onClick={() => { setShowExport(false); exportAnswers(filtered.filter(isVip), 'vip'); }}>Solo VIP · {filtered.filter(isVip).length}</label>
+              <label onClick={() => { setShowExport(false); exportAnswers(filtered.filter(r => !isVip(r)), 'formulario'); }}>Solo formulario · {filtered.filter(r => !isVip(r)).length}</label>
+            </div>
+          )}
+        </div>
         <button className="btn btn-ghost btn-xs" onClick={() => exportCsv(filtered, 'filtrados')} disabled={filtered.length === 0} title="CSV con las columnas de la tabla">CSV</button>
         <button className="btn btn-primary btn-xs" onClick={() => setShowManual(true)}>+ Manual</button>
         <button className="btn btn-secondary btn-xs" onClick={() => setShowVip(true)} title="Invitados especiales que confirman con un enlace, sin llenar el formulario">+ VIP</button>
@@ -319,6 +343,7 @@ export default function RegistrationsPanel({ event, extraBulkActions, extraToolb
           <button className="btn btn-secondary btn-xs" disabled={!bulkTag.trim() || bulkBusy} onClick={() => bulkTagApply(false)}>+ etiqueta</button>
           <button className="btn btn-ghost btn-xs" disabled={!bulkTag.trim() || bulkBusy} onClick={() => bulkTagApply(true)}>− etiqueta</button>
           <button className="btn btn-secondary btn-xs" onClick={() => exportAnswers(selectedRows, 'seleccionados')}>⬇ Respuestas</button>
+          <button className="btn btn-secondary btn-xs" onClick={bulkLinks} disabled={bulkBusy || linkBusy} title="Enlace personal para confirmar asistencia (asistiré / no asistiré), también para quienes se registraron por el formulario">{linkBusy ? 'Creando…' : '🔗 Enlace confirmación'}</button>
           <button className="btn btn-ghost btn-xs" onClick={() => exportCsv(selectedRows, 'seleccionados')}>CSV</button>
           {extraBulkActions?.(ctx)}
           <span style={{ flex: 1 }} />

@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../../../hooks/useAuth';
 import type { EventRow } from '../../../../lib/events-types';
 import { genericSettings, regenerateInvitation, removeInvitation, downloadInvitation, slidesConfig, runCloudInvitations } from '../../../../lib/invitations';
-import { confirmUrl } from '../../../../lib/rsvp';
+import { confirmUrl, newRsvpToken } from '../../../../lib/rsvp';
 import { rsvpText, RSVP_BADGE } from '../../../../lib/registrations';
 
 interface Props {
@@ -176,6 +176,9 @@ export default function RegistrationDrawer({ registration: r, schema, lang, even
                     </span>
                   } />
                 </>
+              )}
+              {!r.rsvp_token && event && (
+                <Row label="Enlace VIP" value={<button type="button" className="btn btn-ghost btn-xs" style={{ padding: 0 }} onClick={() => patch({ rsvp_token: newRsvpToken() })}>Crear enlace de confirmación</button>} />
               )}
               {isSuper && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', paddingTop: 8, marginTop: 4, borderTop: '1px solid var(--border-subtle)' }}>

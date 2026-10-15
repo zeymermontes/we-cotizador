@@ -20,7 +20,20 @@ export const RSVP_DEFAULTS = {
   en: { question: 'Hi {{nombre}}, will you join us?', yes: 'I will attend', no: "I can't attend", message_yes: 'Thanks for confirming! See you there.', message_no: 'Thanks for letting us know. We will miss you.', change: 'Change my answer', people: 'people', invalid: 'This link is not valid or is no longer active.', closed: 'This event is no longer taking confirmations.' },
 };
 
-export const isVip = (r: Pick<Registration, 'rsvp_token' | 'source'>) => !!r.rsvp_token || r.source?.ref === 'vip';
+/** VIP = lo dio de alta el equipo por lista. Los del formulario también pueden tener enlace, pero no son VIP. */
+export const isVip = (r: Pick<Registration, 'source'>) => r.source?.ref === 'vip';
+
+/** Da enlace de confirmación a los registros que no lo tienen (VIP o del formulario). Devuelve cuántos se crearon. */
+export async function ensureConfirmTokens(regs: Pick<Registration, 'id' | 'rsvp_token'>[]): Promise<number> {
+  const missing = regs.filter(r => !r.rsvp_token);
+  let n = 0;
+  for (let i = 0; i < missing.length; i += 20) {
+    const results = await Promise.all(missing.slice(i, i + 20).map(r => supabase.from('registrations').update({ rsvp_token: newRsvpToken() }).eq('id', r.id).is('rsvp_token', null)));
+    for (const res of results) if (res.error) throw new Error(res.error.message);
+    n += results.length;
+  }
+  return n;
+}
 
 export function newRsvpToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
