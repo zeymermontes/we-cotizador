@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import type { EventRow, EventLanguage } from '../../../lib/events-types';
 import { LANGUAGE_LABEL } from '../../../lib/events-types';
 import { slidesConfig } from '../../../lib/invitations';
-import { RSVP_DEFAULTS, type RsvpConfig } from '../../../lib/rsvp';
+import { RSVP_DEFAULTS, type RsvpConfig, type RsvpTexts } from '../../../lib/rsvp';
 import type { Automation, AutomationTrigger, MessageTemplate } from '../../../lib/messaging';
 
 interface Props {
@@ -24,6 +24,7 @@ const FIELDS: { key: TextKey; label: string; def: 'question' | 'yes' | 'no' | 'm
 /** Ajustes → Lista VIP: textos de la página de confirmación y automatismos. */
 export default function RsvpSettings({ event, canEdit, onPatch }: Props) {
   const [cfg, setCfg] = useState<RsvpConfig>((event.rsvp_config as RsvpConfig | null) ?? {});
+  const [audience, setAudience] = useState<'vip' | 'form'>('vip');
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [autos, setAutos] = useState<Partial<Record<AutomationTrigger, Automation>>>({});
@@ -43,7 +44,13 @@ export default function RsvpSettings({ event, canEdit, onPatch }: Props) {
     });
   }, [event.id]);
 
-  const setText = (key: TextKey, lang: EventLanguage, value: string) => setCfg(c => ({ ...c, [key]: { ...(c[key] ?? {}), [lang]: value } }));
+  const setText = (key: TextKey, lang: EventLanguage, value: string) => setCfg(c => {
+    if (audience === 'form') return { ...c, form: { ...(c.form ?? {}), [key]: { ...(c.form?.[key] ?? {}), [lang]: value } } };
+    return { ...c, [key]: { ...(c[key] ?? {}), [lang]: value } };
+  });
+  /** Textos que se muestran según la pestaña; para formulario sin personalizar se ven los VIP en gris. */
+  const shown: RsvpTexts = audience === 'form' ? (cfg.form_custom ? (cfg.form ?? {}) : cfg) : cfg;
+  const textsDisabled = !canEdit || (audience === 'form' && !cfg.form_custom);
 
   async function save() {
     setSaving(true);
@@ -86,9 +93,21 @@ export default function RsvpSettings({ event, canEdit, onPatch }: Props) {
     <div className="section-card">
       <h3>Lista VIP y confirmación por enlace</h3>
       <p className="section-hint">
-        Invitados que agrega el equipo (Registros → "+ VIP") y confirman con un enlace personal, sin llenar el formulario. La página muestra la portada del evento, la pregunta y dos botones. Variable para las plantillas: <code>{'{{confirmacion_url}}'}</code>.
+        Página de confirmación por enlace personal: la usan los VIP (Registros → "+ VIP") y, si les generas enlace, también quienes se registraron por el formulario. Muestra la portada del evento, la pregunta y dos botones. Variable para las plantillas: <code>{'{{confirmacion_url}}'}</code>.
       </p>
 
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        <div className="segmented">
+          <button type="button" className={audience === 'vip' ? 'active' : ''} onClick={() => setAudience('vip')}>Invitados VIP</button>
+          <button type="button" className={audience === 'form' ? 'active' : ''} onClick={() => setAudience('form')}>Registrados por formulario</button>
+        </div>
+        {audience === 'form' && (
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!cfg.form_custom} disabled={!canEdit} onChange={e => setCfg(c => ({ ...c, form_custom: e.target.checked }))} />
+            Usar textos distintos a los de VIP
+          </label>
+        )}
+      </div>
       <div className="field-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
         {FIELDS.map(f => (
           <div key={f.key} className="input-group" style={f.multiline ? { gridColumn: '1 / -1' } : undefined}>
@@ -97,16 +116,16 @@ export default function RsvpSettings({ event, canEdit, onPatch }: Props) {
               <div key={l} className="lang-input">
                 {langs.length > 1 && <span className="lang-tag">{LANGUAGE_LABEL[l]}</span>}
                 {f.multiline ? (
-                  <textarea className="input-field" rows={2} style={{ fontSize: 'var(--text-sm)' }} value={cfg[f.key]?.[l] ?? ''} placeholder={RSVP_DEFAULTS[l === 'en' ? 'en' : 'es'][f.def]} disabled={!canEdit} onChange={e => setText(f.key, l, e.target.value)} />
+                  <textarea className="input-field" rows={2} style={{ fontSize: 'var(--text-sm)' }} value={shown[f.key]?.[l] ?? ''} placeholder={RSVP_DEFAULTS[l === 'en' ? 'en' : 'es'][f.def]} disabled={textsDisabled} onChange={e => setText(f.key, l, e.target.value)} />
                 ) : (
-                  <input className="input-field" style={{ padding: '8px 0' }} value={cfg[f.key]?.[l] ?? ''} placeholder={RSVP_DEFAULTS[l === 'en' ? 'en' : 'es'][f.def]} disabled={!canEdit} onChange={e => setText(f.key, l, e.target.value)} />
+                  <input className="input-field" style={{ padding: '8px 0' }} value={shown[f.key]?.[l] ?? ''} placeholder={RSVP_DEFAULTS[l === 'en' ? 'en' : 'es'][f.def]} disabled={textsDisabled} onChange={e => setText(f.key, l, e.target.value)} />
                 )}
               </div>
             ))}
           </div>
         ))}
       </div>
-      <p className="text-muted text-xs" style={{ marginTop: 6 }}>Puedes usar <code>{'{{nombre}}'}</code>, <code>{'{{evento}}'}</code>, enlaces y <code>**negritas**</code>. Vacío = texto estándar.</p>
+      <p className="text-muted text-xs" style={{ marginTop: 6 }}>Puedes usar <code>{'{{nombre}}'}</code>, <code>{'{{evento}}'}</code>, enlaces y <code>**negritas**</code>. Vacío = texto estándar. El estilo de la página (logo, tamaños, fuentes) se ajusta en Diseño → "Confirmación por enlace", con vista previa. Los registrados por formulario reciben su enlace desde Registros → seleccionar → "Enlace confirmación".</p>
 
       <div className="switch-row" style={{ marginTop: 12 }}>
         <div>

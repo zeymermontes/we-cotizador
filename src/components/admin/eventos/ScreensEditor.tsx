@@ -18,6 +18,7 @@ type FieldKey = 'title' | 'subtitle' | 'button';
 const SCREENS: { key: ScreenKey; label: string; hint: string }[] = [
   { key: 'welcome', label: 'Bienvenida del formulario', hint: 'Primera pantalla que ve el invitado antes de empezar.' },
   { key: 'thank_you', label: 'Mensaje de enviado', hint: 'Se muestra al terminar el registro.' },
+  { key: 'confirm', label: 'Confirmación por enlace', hint: 'La página donde VIP y registrados responden "asistiré / no asistiré". Los textos se editan en Ajustes → Lista VIP.' },
   { key: 'scanner', label: 'Pantalla del scanner', hint: 'Lo que ve el staff en la puerta al escribir el PIN.' },
   { key: 'footer', label: 'Pie de página', hint: 'Aparece abajo en todas las pantallas públicas.' },
 ];

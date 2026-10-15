@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import BrandedShell, { ShellMessage } from '../../components/public/BrandedShell';
-import RichText from '../../components/public/RichText';
+import ConfirmView from '../../components/public/ConfirmView';
 import { usePublicEvent, useEventLanguage } from '../../hooks/usePublicEvent';
-import { pickLocalized, elementShown, elementSize, elementFont } from '../../lib/events-types';
-import { rsvpGet, rsvpAnswer, RSVP_DEFAULTS, type RsvpInfo, type RsvpConfig } from '../../lib/rsvp';
+import { rsvpGet, rsvpAnswer, RSVP_DEFAULTS, type RsvpInfo } from '../../lib/rsvp';
 
-// Confirmación VIP: portada del evento + "asistiré / no asistiré" + mensaje.
-// Sin formulario: la identidad viene del token del enlace.
-
+// Confirmación por enlace personal: la identidad viene del token.
 export default function ConfirmPage() {
   const { slug, token } = useParams<{ slug: string; token: string }>();
   const state = usePublicEvent(slug);
@@ -44,55 +41,19 @@ export default function ConfirmPage() {
   if (state.status === 'loading') return <BrandedShell event={state.cached} loading />;
   if (state.status === 'missing' || !event) return <BrandedShell event={null} title="We.Page"><ShellMessage title={t.invalid} /></BrandedShell>;
 
-  const cfg: RsvpConfig = info?.config ?? {};
-  const name = info?.guest.name ?? '';
-  const fill = (s: string) => s.replace(/\{\{nombre\}\}/g, name).replace(/\{\{evento\}\}/g, event.name).replace(/^Hola ,\s*/, 'Hola, ').replace(/^Hi ,\s*/, 'Hi, ');
-  const w = event.screens?.welcome;
-  const dateStr = event.event_date ? new Date(event.event_date).toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : null;
-  const showDate = elementShown(w, 'date') && !!dateStr;
-  const showVenue = elementShown(w, 'venue') && !!event.venue;
-  const logoSize = elementSize(w, 'logo');
-  const answered = info?.guest.response && !changing;
-
   return (
     <BrandedShell event={event} lang={lang} onLang={setLang} title={`${event.name} · ${lang === 'es' ? 'Confirmación' : 'RSVP'}`} variant="form">
-      <div className="reg-welcome animate-fade-in">
-        {elementShown(w, 'logo') && event.branding?.logo_url && (
-          <img src={event.branding.logo_url} alt="" className="branded-logo" style={{ ...(logoSize ? { maxHeight: logoSize } : {}), ...elementFont(w, 'logo') }} />
-        )}
-        <h1 style={elementFont(w, 'title')}>{event.name}</h1>
-        {(showDate || showVenue) && (
-          <div className="reg-meta">
-            {showDate && <span style={elementFont(w, 'date')}>{dateStr}</span>}
-            {showDate && showVenue && <span className="reg-meta-sep"> · </span>}
-            {showVenue && <span style={elementFont(w, 'venue')}>{event.venue}</span>}
-          </div>
-        )}
-
-        {error && <div className="reg-error" style={{ marginTop: 20 }}>{error}</div>}
-        {!error && !info && <p className="reg-hint" style={{ marginTop: 20 }}>…</p>}
-
-        {info && answered && (
-          <div className="rsvp-done">
-            <div className={`rsvp-choice ${info.guest.response === 'yes' ? 'yes' : 'no'}`}>
-              {info.guest.response === 'yes' ? '✓ ' : ''}{pickLocalized(info.guest.response === 'yes' ? cfg.yes_label : cfg.no_label, lang, info.guest.response === 'yes' ? t.yes : t.no)}
-            </div>
-            <p className="rsvp-message"><RichText text={fill(pickLocalized(info.guest.response === 'yes' ? cfg.message_yes : cfg.message_no, lang, info.guest.response === 'yes' ? t.message_yes : t.message_no))} /></p>
-            {info.guest.response === 'yes' && info.guest.party_size > 1 && <p className="reg-hint">{info.guest.party_size} {t.people}</p>}
-            <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 16 }} onClick={() => setChanging(true)}>{t.change}</button>
-          </div>
-        )}
-
-        {info && !answered && (
-          <div className="rsvp-ask">
-            <p className="rsvp-question"><RichText text={fill(pickLocalized(cfg.question, lang, t.question))} /></p>
-            <div className="rsvp-buttons">
-              <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => answer('yes')}>{busy === 'yes' ? '…' : pickLocalized(cfg.yes_label, lang, t.yes)}</button>
-              <button type="button" className="btn btn-secondary" disabled={!!busy} onClick={() => answer('no')}>{busy === 'no' ? '…' : pickLocalized(cfg.no_label, lang, t.no)}</button>
-            </div>
-          </div>
-        )}
-      </div>
+      <ConfirmView
+        event={event}
+        lang={lang}
+        config={info?.config ?? {}}
+        guest={info ? { ...info.guest, vip: info.guest.vip ?? true } : null}
+        error={error}
+        busy={busy}
+        changing={changing}
+        onAnswer={answer}
+        onChange={() => setChanging(true)}
+      />
     </BrandedShell>
   );
 }

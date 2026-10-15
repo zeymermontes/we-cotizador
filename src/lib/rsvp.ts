@@ -5,14 +5,27 @@ import { publicUrls } from './host';
 import type { EventRow, Localized } from './events-types';
 import type { Registration } from './registrations';
 
-export interface RsvpConfig {
+export interface RsvpTexts {
   question?: Localized;
   yes_label?: Localized;
   no_label?: Localized;
   message_yes?: Localized;
   message_no?: Localized;
+}
+
+export interface RsvpConfig extends RsvpTexts {
   /** Al confirmar: generar QR e invitación (con plantilla en Drive) antes de pasar a "Confirmado". */
   auto_invitation?: boolean;
+  /** Textos distintos para quienes se registraron por el formulario (si form_custom). */
+  form_custom?: boolean;
+  form?: RsvpTexts;
+}
+
+/** Textos que aplican a un invitado: los del formulario si están personalizados, si no los generales (VIP). */
+export function rsvpTexts(cfg: RsvpConfig, vip: boolean): RsvpTexts {
+  if (vip || !cfg.form_custom) return cfg;
+  const f = cfg.form ?? {};
+  return { question: f.question ?? cfg.question, yes_label: f.yes_label ?? cfg.yes_label, no_label: f.no_label ?? cfg.no_label, message_yes: f.message_yes ?? cfg.message_yes, message_no: f.message_no ?? cfg.message_no };
 }
 
 export const RSVP_DEFAULTS = {
@@ -42,7 +55,7 @@ export function newRsvpToken(): string {
 
 export const confirmUrl = (slug: string, token: string | null | undefined) => (token ? `${publicUrls(slug).registro}/c/${token}` : '');
 
-export interface RsvpGuest { name: string | null; party_size: number; response: 'yes' | 'no' | null; status: string }
+export interface RsvpGuest { name: string | null; party_size: number; response: 'yes' | 'no' | null; status: string; vip?: boolean }
 export interface RsvpInfo { ok: true; guest: RsvpGuest; config: RsvpConfig; event_status?: string }
 export interface RsvpFail { ok: false; code: string; message: string }
 

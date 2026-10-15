@@ -4,7 +4,7 @@ import { LANGUAGE_LABEL } from '../../../lib/events-types';
 import { publicUrls } from '../../../lib/host';
 
 type Device = 'mobile' | 'desktop';
-type Stage = 'welcome' | 'done';
+type Stage = 'welcome' | 'done' | 'confirm';
 
 const DEVICES: Record<Device, { w: number; h: number; label: string }> = {
   mobile: { w: 390, h: 780, label: 'Móvil' },
@@ -89,6 +89,7 @@ export default function DevicePreview({ slug, languages, branding, screens }: Pr
         <div className="seg">
           <button type="button" className={`seg-btn ${stage === 'welcome' ? 'active' : ''}`} onClick={() => setStage('welcome')}>Bienvenida</button>
           <button type="button" className={`seg-btn ${stage === 'done' ? 'active' : ''}`} onClick={() => setStage('done')}>Gracias</button>
+          <button type="button" className={`seg-btn ${stage === 'confirm' ? 'active' : ''}`} onClick={() => setStage('confirm')}>Confirmación</button>
         </div>
         {languages.length > 1 && (
           <div className="seg">

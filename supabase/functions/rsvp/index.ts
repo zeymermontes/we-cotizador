@@ -67,7 +67,7 @@ serve(async (req) => {
     if (!TOKEN_RE.test(token)) return fail('not_found', 'Este enlace no es válido');
 
     const { data: reg } = await db.from('registrations')
-      .select('id, event_id, name, party_size, status, lang, rsvp_response, rsvp_at, qr_url, invitation_url')
+      .select('id, event_id, name, party_size, status, lang, rsvp_response, rsvp_at, qr_url, invitation_url, source')
       .eq('rsvp_token', token).maybeSingle();
     if (!reg) return fail('not_found', 'Este enlace no es válido');
     const { data: event } = await db.from('events')
@@ -75,7 +75,7 @@ serve(async (req) => {
       .eq('id', reg.event_id).maybeSingle();
     if (!event) return fail('not_found', 'El evento no existe');
 
-    const guest = { name: reg.name, party_size: reg.party_size, response: reg.rsvp_response, status: reg.status };
+    const guest = { name: reg.name, party_size: reg.party_size, response: reg.rsvp_response, status: reg.status, vip: reg.source?.ref === 'vip' };
     const config = event.rsvp_config ?? {};
 
     if (body.action === 'get') return json({ ok: true, guest, config, event_status: event.status });

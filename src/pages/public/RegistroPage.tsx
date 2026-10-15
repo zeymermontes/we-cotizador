@@ -3,16 +3,18 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import BrandedShell, { ShellMessage } from '../../components/public/BrandedShell';
 import FormRunner, { type SubmitResult } from '../../components/public/FormRunner';
+import ConfirmView from '../../components/public/ConfirmView';
+import type { RsvpConfig } from '../../lib/rsvp';
 import { usePublicEvent, useEventLanguage } from '../../hooks/usePublicEvent';
 import { type FormSchema, type Answers, normalizeSchema } from '../../lib/form-types';
-import type { EventBranding, EventScreens, EventLanguage } from '../../lib/events-types';
+import type { EventBranding, EventScreens, EventLanguage, PublicEvent } from '../../lib/events-types';
 
 /** Mensaje que manda el admin al iframe de vista previa. */
 export interface PreviewMessage {
   type: 'we-preview';
   branding?: EventBranding;
   screens?: EventScreens;
-  stage?: 'welcome' | 'done';
+  stage?: 'welcome' | 'done' | 'confirm';
   lang?: EventLanguage;
 }
 
@@ -131,19 +133,46 @@ export default function RegistroPage() {
     );
   }
 
+  if (IS_PREVIEW && override.stage === 'confirm') {
+    return (
+      <BrandedShell event={event} lang={lang} onLang={setLang} variant="form">
+        <ConfirmPreview event={event} lang={lang} />
+      </BrandedShell>
+    );
+  }
+
   return (
     <BrandedShell event={event} lang={lang} onLang={setLang} variant="form">
       <FormRunner
         key={IS_PREVIEW ? `${lang}-${override.stage ?? 'welcome'}` : lang}
+        initialStage={IS_PREVIEW && override.stage !== 'confirm' ? override.stage : undefined}
         schema={form.schema}
         event={event}
         lang={lang}
         mode={IS_PREVIEW ? 'preview' : 'live'}
         storageKey={IS_PREVIEW ? undefined : `we-reg-${event.slug}-v${form.version}`}
         hiddenValues={params}
-        initialStage={IS_PREVIEW ? override.stage : undefined}
         onSubmit={onSubmit}
       />
     </BrandedShell>
+  );
+}
+
+/** Vista previa de la página de confirmación con un invitado ficticio; los botones simulan la respuesta. */
+function ConfirmPreview({ event, lang }: { event: PublicEvent; lang: EventLanguage }) {
+  const [response, setResponse] = useState<'yes' | 'no' | null>(null);
+  const [cfg, setCfg] = useState<RsvpConfig>({});
+  useEffect(() => {
+    supabase.from('events').select('rsvp_config').eq('id', event.id).maybeSingle().then(({ data }) => setCfg((data?.rsvp_config as RsvpConfig | null) ?? {}));
+  }, [event.id]);
+  return (
+    <ConfirmView
+      event={event}
+      lang={lang}
+      config={cfg}
+      guest={{ name: lang === 'en' ? 'Guest Name' : 'Nombre Apellido', party_size: 2, response, vip: true }}
+      onAnswer={setResponse}
+      onChange={() => setResponse(null)}
+    />
   );
 }

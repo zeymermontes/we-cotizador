@@ -115,7 +115,7 @@ export interface ScreenElementDef {
 }
 
 /** Todo lo que se dibuja en cada pantalla pública, en el orden en que aparece. */
-export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'footer', ScreenElementDef[]> = {
+export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'confirm' | 'footer', ScreenElementDef[]> = {
   welcome: [
     { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto' },
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Regístrate a {{evento}}', en: 'Register for {{evento}}' }, defaultSize: 36 },
@@ -134,6 +134,15 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'foot
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Control de acceso', en: 'Check-in' }, defaultSize: 26 },
     { key: 'name', label: 'Nombre del evento', defaultSize: 16 },
     { key: 'subtitle', label: 'Instrucción', text: 'subtitle', placeholder: { es: 'Escanea el QR de la invitación.', en: 'Scan the invitation QR.' }, defaultSize: 16 },
+  ],
+  confirm: [
+    { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto' },
+    { key: 'title', label: 'Nombre del evento', defaultSize: 36 },
+    { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales' },
+    { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales' },
+    { key: 'question', label: 'Pregunta', defaultSize: 18, hint: 'texto en Ajustes → Lista VIP' },
+    { key: 'buttons', label: 'Botones y respuesta', defaultSize: 16, required: true, hint: 'texto en Ajustes → Lista VIP' },
+    { key: 'message', label: 'Mensaje final', defaultSize: 18, hint: 'texto en Ajustes → Lista VIP' },
   ],
   footer: [
     { key: 'powered', label: 'Powered by We.Page', defaultSize: 11, hint: 'al pie de todas las pantallas' },
@@ -191,6 +200,8 @@ export interface EventScreens {
   welcome?: ScreenCopy;
   thank_you?: ScreenCopy;
   scanner?: ScreenCopy;
+  /** Página de confirmación por enlace (solo estilo; los textos viven en rsvp_config). */
+  confirm?: ScreenCopy;
   /** Pie común a todas las pantallas públicas (solo elementos, sin textos). */
   footer?: ScreenCopy;
 }
