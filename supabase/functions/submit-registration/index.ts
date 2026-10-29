@@ -43,7 +43,7 @@ serve(async (req) => {
     // 1. Evento + formulario publicado
     const { data: event } = await db
       .from('events')
-      .select('id, status, capacity, registration_closes_at')
+      .select('id, status, capacity, registration_closes_at, waitlist_mode')
       .eq('slug', slug)
       .maybeSingle();
     if (!event) return fail('not_found', 'El evento no existe');
@@ -90,8 +90,8 @@ serve(async (req) => {
     }
 
     // 5. Cupo (cuenta personas, no registros)
-    let status: 'registered' | 'waitlist' = 'registered';
-    if (event.capacity) {
+    let status: 'registered' | 'waitlist' = event.waitlist_mode ? 'waitlist' : 'registered';
+    if (event.capacity && status === 'registered') {
       const { data: rows } = await db
         .from('registrations').select('party_size')
         .eq('event_id', event.id).neq('status', 'cancelled').neq('status', 'waitlist');

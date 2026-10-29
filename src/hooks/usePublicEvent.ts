@@ -21,7 +21,7 @@ function writeCache(e: PublicEvent) {
   try { localStorage.setItem(cacheKey(e.slug), JSON.stringify({ ...e, screens: undefined })); } catch { /* sin storage */ }
 }
 
-const PUBLIC_COLUMNS = 'id, slug, name, description, event_date, timezone, venue, status, languages, default_language, registration_closes_at, branding, screens';
+const PUBLIC_COLUMNS = 'id, slug, name, description, event_date, timezone, venue, status, languages, default_language, registration_closes_at, branding, screens, waitlist_mode';
 
 /** Carga un evento publicado por su slug (vista events_public).
  *  En vista previa (admin con sesión) lee la tabla events, así se ve aunque esté en borrador. */

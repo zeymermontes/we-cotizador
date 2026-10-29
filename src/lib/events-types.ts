@@ -97,6 +97,10 @@ export interface ScreenCopy {
   title?: Localized;
   subtitle?: Localized;
   button?: Localized;
+  /** Bienvenida: aviso cuando el evento está en modo lista de espera. */
+  waitlist?: Localized;
+  /** Gracias: mensaje cuando el registro quedó en lista de espera. */
+  waitlist_done?: Localized;
   /** Por elemento (ver SCREEN_ELEMENTS): mostrar/ocultar y tamaño. */
   elements?: Record<string, ElementStyle>;
 }
@@ -105,7 +109,7 @@ export interface ScreenElementDef {
   key: string;
   label: string;
   /** Campo de texto editable que representa, si lo hay. */
-  text?: 'title' | 'subtitle' | 'button';
+  text?: 'title' | 'subtitle' | 'button' | 'waitlist' | 'waitlist_done';
   placeholder?: Localized;
   /** Tamaño por defecto en px (alto para imágenes e iconos). */
   defaultSize: number;
@@ -122,6 +126,7 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'conf
     { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales' },
     { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales' },
     { key: 'subtitle', label: 'Subtítulo', text: 'subtitle', placeholder: { es: 'Te tomará menos de un minuto.', en: 'It takes less than a minute.' }, defaultSize: 16 },
+    { key: 'waitlist', label: 'Aviso de lista de espera', text: 'waitlist', placeholder: { es: 'El evento está lleno, pero puedes anotarte en la lista de espera.', en: 'The event is full, but you can join the waitlist.' }, defaultSize: 15, hint: 'solo con "Modo lista de espera" activo en Ajustes' },
     { key: 'button', label: 'Botón', text: 'button', placeholder: { es: 'Comenzar', en: 'Start' }, defaultSize: 16, required: true },
     { key: 'hint', label: 'Pista "presiona Enter"', defaultSize: 12 },
   ],
@@ -129,6 +134,7 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'conf
     { key: 'check', label: 'Palomita', defaultSize: 64 },
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: '¡Listo, {{nombre}}!', en: 'All set, {{nombre}}!' }, defaultSize: 32, hint: 'si el formulario define su pantalla final, manda ese texto' },
     { key: 'subtitle', label: 'Mensaje', text: 'subtitle', placeholder: { es: 'Recibirás tu invitación por correo o WhatsApp.', en: 'You will receive your invitation by email or WhatsApp.' }, defaultSize: 16, hint: 'si el formulario define su pantalla final, manda ese texto' },
+    { key: 'waitlist_done', label: 'Mensaje en lista de espera', text: 'waitlist_done', placeholder: { es: 'Quedaste en la lista de espera. Te avisaremos si se libera un lugar.', en: 'You are on the waitlist. We will let you know if a spot opens up.' }, defaultSize: 16, hint: 'sustituye al mensaje cuando el registro queda en espera' },
   ],
   scanner: [
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Control de acceso', en: 'Check-in' }, defaultSize: 26 },
@@ -228,6 +234,8 @@ export interface EventRow {
   invitation_config: object | null;
   /** Textos y opciones de la confirmación VIP (ver lib/rsvp.ts). */
   rsvp_config: object | null;
+  /** Todos los registros nuevos entran como lista de espera y la bienvenida lo avisa. */
+  waitlist_mode: boolean;
   /** Carpeta del evento en Drive (espejo de invitaciones), creada al primer uso */
   drive_folder_id: string | null;
   drive_folder_url: string | null;
@@ -241,7 +249,7 @@ export type PublicEvent = Pick<
   EventRow,
   | 'id' | 'slug' | 'name' | 'description' | 'event_date' | 'timezone' | 'venue'
   | 'status' | 'languages' | 'default_language' | 'registration_closes_at'
-  | 'branding' | 'screens'
+  | 'branding' | 'screens' | 'waitlist_mode'
 >;
 
 export interface EventMember {

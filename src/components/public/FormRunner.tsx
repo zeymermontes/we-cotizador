@@ -9,7 +9,7 @@ import {
 import QuestionInput from './QuestionInput';
 import RichText from './RichText';
 
-export type SubmitResult = { ok: true } | { ok: false; code: string };
+export type SubmitResult = { ok: true; status?: 'registered' | 'waitlist' } | { ok: false; code: string };
 
 interface Props {
   schema: FormSchema;
@@ -55,8 +55,8 @@ function load(key?: string): Saved | null {
 }
 
 const DEFAULT_COPY = {
-  es: { welcome: 'Regístrate a {{evento}}', welcomeSub: 'Te tomará menos de un minuto.', start: 'Comenzar', thanks: '¡Listo, {{nombre}}!', thanksSub: 'Tu registro quedó guardado.' },
-  en: { welcome: 'Register for {{evento}}', welcomeSub: 'It takes less than a minute.', start: 'Start', thanks: 'All set, {{nombre}}!', thanksSub: 'Your registration has been saved.' },
+  es: { welcome: 'Regístrate a {{evento}}', welcomeSub: 'Te tomará menos de un minuto.', start: 'Comenzar', thanks: '¡Listo, {{nombre}}!', thanksSub: 'Tu registro quedó guardado.', waitlist: 'El evento está lleno, pero puedes anotarte en la lista de espera.', waitlistDone: 'Quedaste en la lista de espera. Te avisaremos si se libera un lugar.' },
+  en: { welcome: 'Register for {{evento}}', welcomeSub: 'It takes less than a minute.', start: 'Start', thanks: 'All set, {{nombre}}!', thanksSub: 'Your registration has been saved.', waitlist: 'The event is full, but you can join the waitlist.', waitlistDone: 'You are on the waitlist. We will let you know if a spot opens up.' },
 };
 
 export default function FormRunner({ schema, event, lang, mode, storageKey, hiddenValues, initialStage, onSubmit }: Props) {
@@ -110,6 +110,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     setError(null);
   }, [currentId]);
 
+  const [waitlisted, setWaitlisted] = useState(false);
   const submit = useCallback(async (finalAnswers: Answers) => {
     setStage('submitting');
     setSubmitError('');
@@ -119,7 +120,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
       return;
     }
     const res = await onSubmit(finalAnswers, submissionId.current);
-    if (res.ok) { setStage('done'); return; }
+    if (res.ok) { setWaitlisted(res.status === 'waitlist'); setStage('done'); return; }
     const known: Record<string, string> = { duplicate: t.duplicate, full: t.full, closed: t.closed };
     setSubmitError(known[res.code] ?? t.error_generic);
     setStage('error');
@@ -216,6 +217,9 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
           </div>
         )}
         {elementShown(w, 'subtitle') && <p style={elementFont(w, 'subtitle')}><RichText text={fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))} /></p>}
+        {event.waitlist_mode && elementShown(w, 'waitlist') && (
+          <p className="reg-waitlist-notice" style={elementFont(w, 'waitlist')}><RichText text={fill(pickLocalized(w?.waitlist, lang, copy.waitlist))} /></p>
+        )}
         <button className="btn btn-primary" style={elementFont(w, 'button')} onClick={() => setStage('questions')} autoFocus>
           {pickLocalized(w?.button, lang, copy.start)} →
         </button>
@@ -230,7 +234,9 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     // Prioridad: final alternativo del salto → final por defecto del formulario → texto de Diseño → estándar
     const def = schema.settings.ending;
     const title = ending ? fill(text(ending.title, lang, copy.thanks)) : fill(text(def?.title, lang) || pickLocalized(th?.title, lang, copy.thanks));
-    const subtitle = ending ? fill(text(ending.subtitle, lang)) : fill(text(def?.subtitle, lang) || pickLocalized(th?.subtitle, lang, copy.thanksSub));
+    const subtitle = waitlisted
+      ? fill(pickLocalized(th?.waitlist_done, lang, copy.waitlistDone))
+      : ending ? fill(text(ending.subtitle, lang)) : fill(text(def?.subtitle, lang) || pickLocalized(th?.subtitle, lang, copy.thanksSub));
     const checkSize = elementSize(th, 'check');
     return (
       <div className="reg-thanks animate-fade-in">

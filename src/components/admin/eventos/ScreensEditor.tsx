@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EventRow, EventScreens, EventLanguage, ScreenCopy, ElementStyle } from '../../../lib/events-types';
-import { LANGUAGE_LABEL, SCREEN_ELEMENTS, FONT_OPTIONS } from '../../../lib/events-types';
+import { LANGUAGE_LABEL, SCREEN_ELEMENTS, FONT_OPTIONS, type ScreenElementDef } from '../../../lib/events-types';
 import { eventPath } from '../../../lib/paths';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
 }
 
 type ScreenKey = keyof EventScreens;
-type FieldKey = 'title' | 'subtitle' | 'button';
+type FieldKey = NonNullable<ScreenElementDef['text']>;
 
 const SCREENS: { key: ScreenKey; label: string; hint: string }[] = [
   { key: 'welcome', label: 'Bienvenida del formulario', hint: 'Primera pantalla que ve el invitado antes de empezar.' },

@@ -93,7 +93,7 @@ export default function RegistroPage() {
   }, []);
 
   const onSubmit = useCallback(async (answers: Answers, submissionId: string): Promise<SubmitResult> => {
-    const { data, error } = await supabase.functions.invoke<{ ok: boolean; code?: string }>('submit-registration', {
+    const { data, error } = await supabase.functions.invoke<{ ok: boolean; code?: string; status?: 'registered' | 'waitlist' }>('submit-registration', {
       body: {
         slug,
         submission_id: submissionId,
@@ -105,7 +105,7 @@ export default function RegistroPage() {
     });
     if (error || !data) return { ok: false, code: 'network' };
     if (!data.ok) return { ok: false, code: data.code ?? 'unknown' };
-    return { ok: true };
+    return { ok: true, status: data.status };
   }, [slug, lang, params]);
 
   if (state.status === 'loading' || (state.status === 'ready' && form.status === 'loading')) {

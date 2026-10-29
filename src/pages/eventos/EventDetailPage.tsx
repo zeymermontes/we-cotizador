@@ -305,6 +305,7 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
     event_date: toLocalInput(event.event_date),
     venue: event.venue ?? '',
     capacity: event.capacity?.toString() ?? '',
+    waitlist_mode: event.waitlist_mode ?? false,
     registration_closes_at: toLocalInput(event.registration_closes_at),
     languages: event.languages,
     default_language: event.default_language,
@@ -332,6 +333,7 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
       event_date: general.event_date ? new Date(general.event_date).toISOString() : null,
       venue: general.venue.trim() || null,
       capacity: capacity && capacity > 0 ? capacity : null,
+      waitlist_mode: general.waitlist_mode,
       registration_closes_at: general.registration_closes_at ? new Date(general.registration_closes_at).toISOString() : null,
       languages: general.languages,
       default_language: general.default_language,
@@ -374,6 +376,10 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
           <div className="input-group">
             <label className="input-label">Cupo máximo</label>
             <input className="input-field" type="number" min={1} value={general.capacity} onChange={e => setGeneral(g => ({ ...g, capacity: e.target.value }))} placeholder="Sin límite" />
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 10, fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={general.waitlist_mode} onChange={e => setGeneral(g => ({ ...g, waitlist_mode: e.target.checked }))} style={{ marginTop: 3 }} />
+              <span>Modo lista de espera<br /><span className="text-muted text-xs">Mismo enlace: la bienvenida muestra el aviso (texto en Diseño) y todo registro nuevo entra como "Lista de espera". Desactívalo para volver a lo normal.</span></span>
+            </label>
           </div>
           <div className="input-group">
             <label className="input-label">Cierre de registro</label>
