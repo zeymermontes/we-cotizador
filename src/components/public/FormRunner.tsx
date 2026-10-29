@@ -8,6 +8,7 @@ import {
 } from '../../lib/form-types';
 import QuestionInput from './QuestionInput';
 import RichText from './RichText';
+import { previewEl } from '../../lib/preview';
 
 export type SubmitResult = { ok: true; status?: 'registered' | 'waitlist' } | { ok: false; code: string };
 
@@ -207,24 +208,24 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     return (
       <div className="reg-welcome animate-fade-in">
         {elementShown(w, 'logo') && event.branding?.logo_url && (
-          <img src={event.branding.logo_url} alt="" className="branded-logo" style={{ ...(logoSize ? { maxHeight: logoSize } : {}), ...elementFont(w, 'logo') }} />
+          <img {...previewEl('welcome', 'logo')} src={event.branding.logo_url} alt="" className="branded-logo" style={{ ...(logoSize ? { maxHeight: logoSize } : {}), ...elementFont(w, 'logo') }} />
         )}
-        {elementShown(w, 'title') && <h1 style={elementFont(w, 'title')}>{fill(pickLocalized(w?.title, lang, copy.welcome))}</h1>}
+        {elementShown(w, 'title') && <h1 {...previewEl('welcome', 'title')} style={elementFont(w, 'title')}>{fill(pickLocalized(w?.title, lang, copy.welcome))}</h1>}
         {(showDate || showVenue) && (
           <div className="reg-meta">
-            {showDate && <span style={elementFont(w, 'date')}>{dateStr}</span>}
+            {showDate && <span {...previewEl('welcome', 'date')} style={elementFont(w, 'date')}>{dateStr}</span>}
             {showDate && showVenue && <span className="reg-meta-sep"> · </span>}
-            {showVenue && <span style={elementFont(w, 'venue')}>{event.venue}</span>}
+            {showVenue && <span {...previewEl('welcome', 'venue')} style={elementFont(w, 'venue')}>{event.venue}</span>}
           </div>
         )}
-        {elementShown(w, 'subtitle') && <p style={elementFont(w, 'subtitle')}><RichText text={fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))} /></p>}
+        {elementShown(w, 'subtitle') && <p {...previewEl('welcome', 'subtitle')} style={elementFont(w, 'subtitle')}><RichText text={fill(pickLocalized(w?.subtitle, lang, copy.welcomeSub))} /></p>}
         {event.waitlist_mode && elementShown(w, 'waitlist') && (
-          <p className="reg-waitlist-notice" style={elementFont(w, 'waitlist')}><RichText text={fill(pickLocalized(w?.waitlist, lang, copy.waitlist))} /></p>
+          <p {...previewEl('welcome', 'waitlist')} className="reg-waitlist-notice" style={elementFont(w, 'waitlist')}><RichText text={fill(pickLocalized(w?.waitlist, lang, copy.waitlist))} /></p>
         )}
-        <button className="btn btn-primary" style={elementFont(w, 'button')} onClick={() => setStage('questions')} autoFocus>
+        <button {...previewEl('welcome', 'button')} className="btn btn-primary" style={elementFont(w, 'button')} onClick={() => setStage('questions')} autoFocus>
           {pickLocalized(w?.button, lang, copy.start)} →
         </button>
-        {elementShown(w, 'hint') && <div className="reg-hint" style={{ marginTop: 12, ...elementFont(w, 'hint') }}>{t.press_enter}</div>}
+        {elementShown(w, 'hint') && <div {...previewEl('welcome', 'hint')} className="reg-hint" style={{ marginTop: 12, ...elementFont(w, 'hint') }}>{t.press_enter}</div>}
       </div>
     );
   }
@@ -238,14 +239,16 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     const subtitle = waitlisted
       ? fill(pickLocalized(th?.waitlist_done, lang, copy.waitlistDone))
       : ending ? fill(text(ending.subtitle, lang)) : fill(text(def?.subtitle, lang) || pickLocalized(th?.subtitle, lang, copy.thanksSub));
+    // En lista de espera el mensaje es otro elemento, con su propio estilo y visibilidad.
+    const subKey = waitlisted ? 'waitlist_done' : 'subtitle';
     const checkSize = elementSize(th, 'check');
     return (
       <div className="reg-thanks animate-fade-in">
         {elementShown(th, 'check') && (
-          <div className="reg-check" style={{ ...(checkSize ? { width: checkSize, height: checkSize, fontSize: checkSize * 0.45 } : {}), ...elementFont(th, 'check') }}>✓</div>
+          <div {...previewEl('thank_you', 'check')} className="reg-check" style={{ ...(checkSize ? { width: checkSize, height: checkSize, fontSize: checkSize * 0.45 } : {}), ...elementFont(th, 'check') }}>✓</div>
         )}
-        {elementShown(th, 'title') && <h1 style={elementFont(th, 'title')}>{title.replace(/, !$/, '!')}</h1>}
-        {elementShown(th, 'subtitle') && subtitle && <p style={elementFont(th, 'subtitle')}><RichText text={subtitle} /></p>}
+        {elementShown(th, 'title') && <h1 {...previewEl('thank_you', 'title')} style={elementFont(th, 'title')}>{title.replace(/, !$/, '!')}</h1>}
+        {elementShown(th, subKey) && subtitle && <p {...previewEl('thank_you', subKey)} style={elementFont(th, subKey)}><RichText text={subtitle} /></p>}
       </div>
     );
   }

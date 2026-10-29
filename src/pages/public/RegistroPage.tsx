@@ -8,6 +8,7 @@ import type { RsvpConfig } from '../../lib/rsvp';
 import { usePublicEvent, useEventLanguage } from '../../hooks/usePublicEvent';
 import { type FormSchema, type Answers, normalizeSchema } from '../../lib/form-types';
 import type { EventBranding, EventScreens, EventLanguage, PublicEvent } from '../../lib/events-types';
+import { IS_PREVIEW } from '../../lib/preview';
 
 /** Mensaje que manda el admin al iframe de vista previa. */
 export interface PreviewMessage {
@@ -18,9 +19,35 @@ export interface PreviewMessage {
   lang?: EventLanguage;
   /** Enseña la página como si el evento estuviera en modo lista de espera. */
   waitlist?: boolean;
+  /** edit: tocar un elemento lo selecciona para editarlo; test: se recorre como invitado. */
+  mode?: 'edit' | 'test';
+  /** Elemento seleccionado en el editor ("welcome.title"). */
+  selected?: string | null;
 }
 
-const IS_PREVIEW = new URLSearchParams(window.location.search).get('preview') === '1';
+/** Mensaje del iframe al admin cuando se toca un elemento en modo edición. */
+export interface PreviewSelectMessage {
+  type: 'we-preview-select';
+  el: string;
+  rect: { top: number; left: number; width: number; height: number };
+}
+
+/** En modo edición los elementos ocultos se dibujan como fantasma para poder seleccionarlos. */
+function revealHidden(screens: EventScreens): { screens: EventScreens; hidden: string[] } {
+  if (!screens) return { screens, hidden: [] };
+  const hidden: string[] = [];
+  const out: EventScreens = {};
+  for (const [screen, copy] of Object.entries(screens) as [keyof EventScreens, EventScreens[keyof EventScreens]][]) {
+    if (!copy) continue;
+    const elements = { ...(copy.elements ?? {}) };
+    for (const [key, st] of Object.entries(elements)) {
+      if (st?.show === false) { hidden.push(`${screen}.${key}`); elements[key] = { ...st, show: undefined }; }
+    }
+    out[screen] = { ...copy, elements };
+  }
+  return { screens: out, hidden };
+}
+
 
 const COPY = {
   es: {
@@ -49,7 +76,14 @@ export default function RegistroPage() {
   const loaded = state.status === 'ready' ? state.event : null;
   const [override, setOverride] = useState<Omit<PreviewMessage, 'type'>>({});
   // En vista previa el admin manda branding y textos sin guardar; se pintan encima de lo cargado.
-  const event = useMemo(() => (loaded && IS_PREVIEW ? { ...loaded, branding: override.branding ?? loaded.branding, screens: override.screens ?? loaded.screens, waitlist_mode: override.waitlist ?? loaded.waitlist_mode } : loaded), [loaded, override]);
+  const editing = IS_PREVIEW && override.mode === 'edit';
+  const preview = useMemo(() => {
+    if (!loaded || !IS_PREVIEW) return { event: loaded, hidden: [] as string[] };
+    const base = override.screens ?? loaded.screens;
+    const { screens, hidden } = editing ? revealHidden(base) : { screens: base, hidden: [] };
+    return { event: { ...loaded, branding: override.branding ?? loaded.branding, screens, waitlist_mode: override.waitlist ?? loaded.waitlist_mode }, hidden };
+  }, [loaded, override, editing]);
+  const event = preview.event;
   const [langSaved, setLang] = useEventLanguage(event);
   const lang = IS_PREVIEW && override.lang ? override.lang : langSaved;
   const [form, setForm] = useState<FormState>({ status: 'loading' });
@@ -59,13 +93,56 @@ export default function RegistroPage() {
     if (!IS_PREVIEW) return;
     const onMessage = (e: MessageEvent<PreviewMessage>) => {
       if (e.data?.type !== 'we-preview') return;
-      const { branding, screens, stage, lang: l, waitlist } = e.data;
-      setOverride({ branding, screens, stage, lang: l, waitlist });
+      const { branding, screens, stage, lang: l, waitlist, mode, selected } = e.data;
+      const sel = typeof selected === 'string' && /^[a-z_]+\.[a-z_]+$/.test(selected) ? selected : null;
+      setOverride({ branding, screens, stage, lang: l, waitlist, mode, selected: sel });
     };
     window.addEventListener('message', onMessage);
     window.parent?.postMessage({ type: 'we-preview-ready' }, '*');
     return () => window.removeEventListener('message', onMessage);
   }, []);
+
+  // Modo edición: el clic selecciona el elemento marcado (data-el) en vez de accionar la página.
+  useEffect(() => {
+    if (!editing) return;
+    document.documentElement.classList.add('we-edit');
+    const onClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const target = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-el]');
+      if (!target?.dataset.el) return;
+      const r = target.getBoundingClientRect();
+      const msg: PreviewSelectMessage = { type: 'we-preview-select', el: target.dataset.el, rect: { top: r.top, left: r.left, width: r.width, height: r.height } };
+      window.parent?.postMessage(msg, '*');
+    };
+    const block = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') block(e); };
+    window.addEventListener('click', onClick, true);
+    window.addEventListener('submit', block, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.documentElement.classList.remove('we-edit');
+      window.removeEventListener('click', onClick, true);
+      window.removeEventListener('submit', block, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [editing]);
+
+  // El elemento seleccionado en el editor se lleva a la vista.
+  useEffect(() => {
+    if (!editing || !override.selected) return;
+    const id = requestAnimationFrame(() => {
+      document.querySelector(`[data-el="${override.selected}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editing, override.selected, override.stage]);
+
+  const editCss = editing
+    ? [
+        ...preview.hidden.map(k => `[data-el="${k}"]{opacity:.35!important;background-image:repeating-linear-gradient(45deg,transparent 0 6px,rgba(127,127,127,.25) 6px 12px)}`),
+        override.selected ? `[data-el="${override.selected}"]{outline:2px solid #fff;outline-offset:3px;box-shadow:0 0 0 5px #2563eb;border-radius:4px}[data-el="${override.selected}"]::after{display:block}` : '',
+      ].join('')
+    : '';
 
   useEffect(() => {
     if (!slug || state.status !== 'ready') return;
@@ -139,6 +216,7 @@ export default function RegistroPage() {
     return (
       <BrandedShell event={event} lang={lang} onLang={setLang} variant="form">
         <ConfirmPreview event={event} lang={lang} />
+        {editCss && <style>{editCss}</style>}
       </BrandedShell>
     );
   }
@@ -156,6 +234,7 @@ export default function RegistroPage() {
         hiddenValues={params}
         onSubmit={onSubmit}
       />
+      {editCss && <style>{editCss}</style>}
     </BrandedShell>
   );
 }

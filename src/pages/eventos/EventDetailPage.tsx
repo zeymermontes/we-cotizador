@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,13 +6,13 @@ import { publicUrls } from '../../lib/host';
 import { eventsBase, eventPath } from '../../lib/paths';
 import {
   type EventRow, type EventStatus, type EventLanguage, type MemberRole,
-  EVENT_STATUS_BADGE, EVENT_STATUS_LABEL, LANGUAGE_LABEL, slugify, memberAllows,
+  EVENT_STATUS_BADGE, EVENT_STATUS_LABEL, LANGUAGE_LABEL, SCREEN_ELEMENTS, slugify, memberAllows,
 } from '../../lib/events-types';
 import BrandingEditor from '../../components/admin/eventos/BrandingEditor';
 import MembersPanel from '../../components/admin/eventos/MembersPanel';
 import RsvpSettings from '../../components/admin/eventos/RsvpSettings';
 import ScreensEditor from '../../components/admin/eventos/ScreensEditor';
-import DevicePreview from '../../components/admin/eventos/DevicePreview';
+import DevicePreview, { type PreviewView, type PreviewStage } from '../../components/admin/eventos/DevicePreview';
 import FormBuilder from '../../components/admin/eventos/builder/FormBuilder';
 import RegistrationsPanel from '../../components/admin/eventos/registros/RegistrationsPanel';
 import CommunicationsPanel from '../../components/admin/eventos/comunicaciones/CommunicationsPanel';
@@ -153,11 +153,38 @@ export default function EventDetailPage() {
 
 // ─── Diseño (branding + pantallas + vista previa, un solo guardado) ───
 
+type DesignSelection = { el: string; nonce: number; from: 'preview' | 'editor'; anchor?: { top: number; left: number } };
+const STAGE_OF_SCREEN: Record<string, PreviewStage | undefined> = { welcome: 'welcome', thank_you: 'done', confirm: 'confirm' };
+
 function Diseno({ event, onPatch }: { event: EventRow; onPatch: (fields: Partial<EventRow>, okText?: string) => Promise<boolean> }) {
   const [branding, setBranding] = useState<EventRow['branding']>(event.branding);
   const [screens, setScreens] = useState<EventRow['screens']>(event.screens);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [view, setView] = useState<PreviewView>(() => ({
+    stage: 'welcome', waitlist: !!event.waitlist_mode, lang: event.languages[0] ?? 'es', mode: 'edit', floating: false,
+  }));
+  const [selected, setSelected] = useState<DesignSelection | null>(null);
+  const nonce = useRef(0);
+  const onView = useCallback((patch: Partial<PreviewView>) => setView(v => ({ ...v, ...patch })), []);
+  const selectFromPreview = useCallback((el: string, anchor: { top: number; left: number }) => {
+    nonce.current += 1;
+    setSelected({ el, nonce: nonce.current, from: 'preview', anchor });
+    // Un elemento propio de una variante (lista de espera) cambia la vista a esa variante.
+    const [screen, key] = el.split('.');
+    const variant = SCREEN_ELEMENTS[screen as keyof typeof SCREEN_ELEMENTS]?.find(d => d.key === key)?.variant;
+    if (variant) setView(v => ({ ...v, waitlist: variant === 'waitlist' }));
+  }, []);
+  const selectFromEditor = useCallback((el: string | null) => {
+    if (!el) { setSelected(null); return; }
+    setSelected(prev => {
+      if (prev?.el === el) return prev;
+      nonce.current += 1;
+      return { el, nonce: nonce.current, from: 'editor' };
+    });
+    const stage = STAGE_OF_SCREEN[el.split('.')[0]];
+    if (stage) setView(v => (v.stage === stage ? v : { ...v, stage }));
+  }, []);
 
   const dirty = JSON.stringify(branding) !== JSON.stringify(event.branding) || JSON.stringify(screens) !== JSON.stringify(event.screens);
 
@@ -185,9 +212,18 @@ function Diseno({ event, onPatch }: { event: EventRow; onPatch: (fields: Partial
       <div className="ajustes-live">
         <div className="ajustes-live-editors" key={resetKey}>
           <BrandingEditor event={event} onChange={setBranding} />
-          <ScreensEditor event={event} onChange={setScreens} />
+          <ScreensEditor event={event} onChange={setScreens} view={view} onView={onView} selected={selected} onSelect={selectFromEditor} />
         </div>
-        <DevicePreview slug={event.slug} languages={event.languages} branding={branding} screens={screens} waitlistMode={event.waitlist_mode ?? false} />
+        <DevicePreview
+          slug={event.slug}
+          languages={event.languages}
+          branding={branding}
+          screens={screens}
+          view={view}
+          onView={onView}
+          selected={selected?.el ?? null}
+          onSelect={selectFromPreview}
+        />
       </div>
       <div className={`save-bar ${dirty ? 'show' : ''}`} role="status">
         <span>{dirty ? 'Tienes cambios sin guardar. El público sigue viendo la versión anterior.' : 'Todo guardado.'}</span>

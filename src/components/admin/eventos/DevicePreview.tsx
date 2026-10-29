@@ -4,7 +4,16 @@ import { LANGUAGE_LABEL } from '../../../lib/events-types';
 import { publicUrls } from '../../../lib/host';
 
 type Device = 'mobile' | 'desktop';
-type Stage = 'welcome' | 'done' | 'confirm';
+export type PreviewStage = 'welcome' | 'done' | 'confirm';
+
+/** Lo que enseña la vista previa; lo comparte con el editor de textos. */
+export interface PreviewView {
+  stage: PreviewStage;
+  waitlist: boolean;
+  lang: EventLanguage;
+  mode: 'edit' | 'test';
+  floating: boolean;
+}
 
 const DEVICES: Record<Device, { w: number; h: number; label: string }> = {
   mobile: { w: 390, h: 780, label: 'Móvil' },
@@ -16,8 +25,12 @@ interface Props {
   languages: EventLanguage[];
   branding: EventBranding | null | undefined;
   screens: EventScreens | null | undefined;
-  /** Si el evento está en modo lista de espera (punto de partida del interruptor). */
-  waitlistMode?: boolean;
+  view: PreviewView;
+  onView: (patch: Partial<PreviewView>) => void;
+  /** Elemento seleccionado ("welcome.title"). */
+  selected: string | null;
+  /** Se tocó un elemento en la vista previa; `top` es su altura en la ventana del admin. */
+  onSelect: (el: string, anchor: { top: number; left: number }) => void;
 }
 
 /**
@@ -25,11 +38,9 @@ interface Props {
  * (/r/<slug>?preview=1) y le manda por postMessage el branding y los textos
  * tal como están en los editores, aunque no se hayan guardado.
  */
-export default function DevicePreview({ slug, languages, branding, screens, waitlistMode = false }: Props) {
+export default function DevicePreview({ slug, languages, branding, screens, view, onView, selected, onSelect }: Props) {
   const [device, setDevice] = useState<Device>('mobile');
-  const [stage, setStage] = useState<Stage>('welcome');
-  const [lang, setLang] = useState<EventLanguage>(languages[0] ?? 'es');
-  const [waitlist, setWaitlist] = useState(waitlistMode);
+  const { stage, lang, waitlist, mode } = view;
   const [scale, setScale] = useState(1);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -41,15 +52,28 @@ export default function DevicePreview({ slug, languages, branding, screens, wait
   const openUrl = publicUrls(slug).registro;
 
   const payload = useMemo(
-    () => ({ type: 'we-preview', branding: branding ?? undefined, screens: screens ?? undefined, stage, lang, waitlist }),
-    [branding, screens, stage, lang, waitlist],
+    () => ({ type: 'we-preview', branding: branding ?? undefined, screens: screens ?? undefined, stage, lang, waitlist, mode, selected }),
+    [branding, screens, stage, lang, waitlist, mode, selected],
   );
   const send = () => frameRef.current?.contentWindow?.postMessage(payload, '*');
 
-  // El iframe avisa cuando está listo; a partir de ahí cada cambio se reenvía.
+  // El iframe avisa cuando está listo y cuando se toca un elemento en modo edición.
+  const scaleRef = useRef(1);
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => {
+    scaleRef.current = scale;
+    onSelectRef.current = onSelect;
+  });
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (e.source === frameRef.current?.contentWindow && e.data?.type === 'we-preview-ready') setReady(true);
+      const frame = frameRef.current;
+      if (!frame || e.source !== frame.contentWindow || e.origin !== window.location.origin) return;
+      if (e.data?.type === 'we-preview-ready') setReady(true);
+      if (e.data?.type === 'we-preview-select' && typeof e.data.el === 'string') {
+        const box = frame.getBoundingClientRect();
+        const rect = e.data.rect as { top: number } | undefined;
+        onSelectRef.current(e.data.el, { top: box.top + (rect?.top ?? 0) * scaleRef.current, left: box.left });
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -90,22 +114,31 @@ export default function DevicePreview({ slug, languages, branding, screens, wait
           ))}
         </div>
         <div className="seg">
-          <button type="button" className={`seg-btn ${stage === 'welcome' ? 'active' : ''}`} onClick={() => setStage('welcome')}>Bienvenida</button>
-          <button type="button" className={`seg-btn ${stage === 'done' ? 'active' : ''}`} onClick={() => setStage('done')}>Gracias</button>
-          <button type="button" className={`seg-btn ${stage === 'confirm' ? 'active' : ''}`} onClick={() => setStage('confirm')}>Confirmación</button>
+          <button type="button" className={`seg-btn ${mode === 'edit' ? 'active' : ''}`} title="Toca un texto de la vista previa para editarlo" onClick={() => onView({ mode: 'edit' })}>✎ Editar</button>
+          <button type="button" className={`seg-btn ${mode === 'test' ? 'active' : ''}`} title="Recorre la página como invitado" onClick={() => onView({ mode: 'test' })}>▶ Probar</button>
+        </div>
+        <div className="seg">
+          <button type="button" className={`seg-btn ${stage === 'welcome' ? 'active' : ''}`} onClick={() => onView({ stage: 'welcome' })}>Bienvenida</button>
+          <button type="button" className={`seg-btn ${stage === 'done' ? 'active' : ''}`} onClick={() => onView({ stage: 'done' })}>Gracias</button>
+          <button type="button" className={`seg-btn ${stage === 'confirm' ? 'active' : ''}`} onClick={() => onView({ stage: 'confirm' })}>Confirmación</button>
         </div>
         {stage !== 'confirm' && (
           <div className="seg">
-            <button type="button" className={`seg-btn ${!waitlist ? 'active' : ''}`} onClick={() => setWaitlist(false)}>Normal</button>
-            <button type="button" className={`seg-btn ${waitlist ? 'active' : ''}`} title="Cómo se ve con el modo lista de espera activo" onClick={() => setWaitlist(true)}>Lista de espera</button>
+            <button type="button" className={`seg-btn ${!waitlist ? 'active' : ''}`} onClick={() => onView({ waitlist: false })}>Normal</button>
+            <button type="button" className={`seg-btn ${waitlist ? 'active' : ''}`} title="Cómo se ve con el modo lista de espera activo" onClick={() => onView({ waitlist: true })}>Lista de espera</button>
           </div>
         )}
         {languages.length > 1 && (
           <div className="seg">
             {languages.map(l => (
-              <button key={l} type="button" className={`seg-btn ${lang === l ? 'active' : ''}`} onClick={() => setLang(l)}>{LANGUAGE_LABEL[l]}</button>
+              <button key={l} type="button" className={`seg-btn ${lang === l ? 'active' : ''}`} onClick={() => onView({ lang: l })}>{LANGUAGE_LABEL[l]}</button>
             ))}
           </div>
+        )}
+        {mode === 'edit' && (
+          <label className="device-preview-check" title="Al tocar un texto, el editor se abre junto a la vista previa">
+            <input type="checkbox" checked={view.floating} onChange={e => onView({ floating: e.target.checked })} /> Editor flotante
+          </label>
         )}
         <a className="btn btn-ghost btn-xs" href={openUrl} target="_blank" rel="noreferrer">Abrir ↗</a>
       </div>
@@ -121,7 +154,12 @@ export default function DevicePreview({ slug, languages, branding, screens, wait
           />
         </div>
       </div>
-      <p className="device-preview-hint">Refleja los cambios aunque no los hayas guardado. Puedes recorrer el formulario; en vista previa no se envía nada.</p>
+      <p className="device-preview-hint">
+        {mode === 'edit'
+          ? 'Modo Editar: toca cualquier texto para editarlo. Los elementos ocultos se ven rayados.'
+          : 'Modo Probar: recorre la página como invitado. En vista previa no se envía nada.'}
+        {' '}Refleja los cambios aunque no los hayas guardado.
+      </p>
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import RichText from './RichText';
+import { previewEl } from '../../lib/preview';
 import { pickLocalized, elementShown, elementSize, elementFont, type PublicEvent, type EventLanguage } from '../../lib/events-types';
 import { RSVP_DEFAULTS, rsvpTexts, type RsvpConfig } from '../../lib/rsvp';
 
@@ -37,14 +38,14 @@ export default function ConfirmView({ event, lang, config, guest, error, busy = 
   return (
     <div className="reg-welcome animate-fade-in">
       {elementShown(sc, 'logo') && event.branding?.logo_url && (
-        <img src={event.branding.logo_url} alt="" className="branded-logo" style={{ ...(logoSize ? { maxHeight: logoSize } : {}), ...elementFont(sc, 'logo') }} />
+        <img {...previewEl('confirm', 'logo')} src={event.branding.logo_url} alt="" className="branded-logo" style={{ ...(logoSize ? { maxHeight: logoSize } : {}), ...elementFont(sc, 'logo') }} />
       )}
-      {elementShown(sc, 'title') && <h1 style={elementFont(sc, 'title')}>{event.name}</h1>}
+      {elementShown(sc, 'title') && <h1 {...previewEl('confirm', 'title')} style={elementFont(sc, 'title')}>{event.name}</h1>}
       {(showDate || showVenue) && (
         <div className="reg-meta">
-          {showDate && <span style={elementFont(sc, 'date')}>{dateStr}</span>}
+          {showDate && <span {...previewEl('confirm', 'date')} style={elementFont(sc, 'date')}>{dateStr}</span>}
           {showDate && showVenue && <span className="reg-meta-sep"> · </span>}
-          {showVenue && <span style={elementFont(sc, 'venue')}>{event.venue}</span>}
+          {showVenue && <span {...previewEl('confirm', 'venue')} style={elementFont(sc, 'venue')}>{event.venue}</span>}
         </div>
       )}
 
@@ -53,11 +54,11 @@ export default function ConfirmView({ event, lang, config, guest, error, busy = 
 
       {guest && answered && (
         <div className="rsvp-done">
-          <div className={`rsvp-choice ${guest.response === 'yes' ? 'yes' : 'no'}`} style={elementFont(sc, 'buttons')}>
+          <div {...previewEl('confirm', 'buttons')} className={`rsvp-choice ${guest.response === 'yes' ? 'yes' : 'no'}`} style={elementFont(sc, 'buttons')}>
             {guest.response === 'yes' ? `✓ ${yesLabel}` : noLabel}
           </div>
           {elementShown(sc, 'message') && (
-            <p className="rsvp-message" style={elementFont(sc, 'message')}>
+            <p {...previewEl('confirm', 'message')} className="rsvp-message" style={elementFont(sc, 'message')}>
               <RichText text={fill(pickLocalized(guest.response === 'yes' ? texts.message_yes : texts.message_no, lang, guest.response === 'yes' ? t.message_yes : t.message_no))} />
             </p>
           )}
@@ -68,8 +69,8 @@ export default function ConfirmView({ event, lang, config, guest, error, busy = 
 
       {guest && !answered && (
         <div className="rsvp-ask">
-          {elementShown(sc, 'question') && <p className="rsvp-question" style={elementFont(sc, 'question')}><RichText text={fill(pickLocalized(texts.question, lang, t.question))} /></p>}
-          <div className="rsvp-buttons">
+          {elementShown(sc, 'question') && <p {...previewEl('confirm', 'question')} className="rsvp-question" style={elementFont(sc, 'question')}><RichText text={fill(pickLocalized(texts.question, lang, t.question))} /></p>}
+          <div {...previewEl('confirm', 'buttons')} className="rsvp-buttons">
             <button type="button" className="btn btn-primary" style={elementFont(sc, 'buttons')} disabled={!!busy} onClick={() => onAnswer('yes')}>{busy === 'yes' ? '…' : yesLabel}</button>
             <button type="button" className="btn btn-secondary" style={elementFont(sc, 'buttons')} disabled={!!busy} onClick={() => onAnswer('no')}>{busy === 'no' ? '…' : noLabel}</button>
           </div>

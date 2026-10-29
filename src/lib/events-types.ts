@@ -116,25 +116,29 @@ export interface ScreenElementDef {
   /** No se puede ocultar. */
   required?: boolean;
   hint?: string;
+  /** Solo existe en una variante de la pantalla (modo normal o modo lista de espera). */
+  variant?: 'normal' | 'waitlist';
+  /** De dónde sale el valor de un elemento sin texto editable aquí. */
+  source?: 'ajustes' | 'vip' | 'branding';
 }
 
 /** Todo lo que se dibuja en cada pantalla pública, en el orden en que aparece. */
 export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'confirm' | 'footer', ScreenElementDef[]> = {
   welcome: [
-    { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto' },
+    { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto', source: 'branding' },
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Regístrate a {{evento}}', en: 'Register for {{evento}}' }, defaultSize: 36 },
-    { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales' },
-    { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales' },
+    { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales', source: 'ajustes' },
+    { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales', source: 'ajustes' },
     { key: 'subtitle', label: 'Subtítulo', text: 'subtitle', placeholder: { es: 'Te tomará menos de un minuto.', en: 'It takes less than a minute.' }, defaultSize: 16 },
-    { key: 'waitlist', label: 'Aviso de lista de espera', text: 'waitlist', placeholder: { es: 'El evento está lleno, pero puedes anotarte en la lista de espera.', en: 'The event is full, but you can join the waitlist.' }, defaultSize: 15, hint: 'en la bienvenida, bajo el subtítulo' },
+    { key: 'waitlist', label: 'Aviso de lista de espera', text: 'waitlist', placeholder: { es: 'El evento está lleno, pero puedes anotarte en la lista de espera.', en: 'The event is full, but you can join the waitlist.' }, defaultSize: 15, hint: 'en la bienvenida, bajo el subtítulo', variant: 'waitlist' },
     { key: 'button', label: 'Botón', text: 'button', placeholder: { es: 'Comenzar', en: 'Start' }, defaultSize: 16, required: true },
     { key: 'hint', label: 'Pista "presiona Enter"', defaultSize: 12 },
   ],
   thank_you: [
     { key: 'check', label: 'Palomita', defaultSize: 64 },
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: '¡Listo, {{nombre}}!', en: 'All set, {{nombre}}!' }, defaultSize: 32, hint: 'si el formulario define su pantalla final, manda ese texto' },
-    { key: 'subtitle', label: 'Mensaje', text: 'subtitle', placeholder: { es: 'Recibirás tu invitación por correo o WhatsApp.', en: 'You will receive your invitation by email or WhatsApp.' }, defaultSize: 16, hint: 'si el formulario define su pantalla final, manda ese texto' },
-    { key: 'waitlist_done', label: 'Mensaje en lista de espera', text: 'waitlist_done', placeholder: { es: 'Quedaste en la lista de espera. Te avisaremos si se libera un lugar.', en: 'You are on the waitlist. We will let you know if a spot opens up.' }, defaultSize: 16, hint: 'al terminar, en lugar del mensaje normal' },
+    { key: 'subtitle', label: 'Mensaje', text: 'subtitle', placeholder: { es: 'Recibirás tu invitación por correo o WhatsApp.', en: 'You will receive your invitation by email or WhatsApp.' }, defaultSize: 16, hint: 'si el formulario define su pantalla final, manda ese texto', variant: 'normal' },
+    { key: 'waitlist_done', label: 'Mensaje en lista de espera', text: 'waitlist_done', placeholder: { es: 'Quedaste en la lista de espera. Te avisaremos si se libera un lugar.', en: 'You are on the waitlist. We will let you know if a spot opens up.' }, defaultSize: 16, hint: 'al terminar, en lugar del mensaje normal', variant: 'waitlist' },
   ],
   scanner: [
     { key: 'title', label: 'Título', text: 'title', placeholder: { es: 'Control de acceso', en: 'Check-in' }, defaultSize: 26 },
@@ -142,13 +146,13 @@ export const SCREEN_ELEMENTS: Record<'welcome' | 'thank_you' | 'scanner' | 'conf
     { key: 'subtitle', label: 'Instrucción', text: 'subtitle', placeholder: { es: 'Escanea el QR de la invitación.', en: 'Scan the invitation QR.' }, defaultSize: 16 },
   ],
   confirm: [
-    { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto' },
+    { key: 'logo', label: 'Logo', defaultSize: 72, hint: 'alto', source: 'branding' },
     { key: 'title', label: 'Nombre del evento', defaultSize: 36 },
-    { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales' },
-    { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales' },
-    { key: 'question', label: 'Pregunta', defaultSize: 18, hint: 'texto en Ajustes → Lista VIP' },
-    { key: 'buttons', label: 'Botones y respuesta', defaultSize: 16, required: true, hint: 'texto en Ajustes → Lista VIP' },
-    { key: 'message', label: 'Mensaje final', defaultSize: 18, hint: 'texto en Ajustes → Lista VIP' },
+    { key: 'date', label: 'Fecha del evento', defaultSize: 14, hint: 'se toma de Ajustes generales', source: 'ajustes' },
+    { key: 'venue', label: 'Lugar', defaultSize: 14, hint: 'se toma de Ajustes generales', source: 'ajustes' },
+    { key: 'question', label: 'Pregunta', defaultSize: 18, hint: 'texto en Ajustes → Lista VIP', source: 'vip' },
+    { key: 'buttons', label: 'Botones y respuesta', defaultSize: 16, required: true, hint: 'texto en Ajustes → Lista VIP', source: 'vip' },
+    { key: 'message', label: 'Mensaje final', defaultSize: 18, hint: 'texto en Ajustes → Lista VIP', source: 'vip' },
   ],
   footer: [
     { key: 'powered', label: 'Powered by We.Page', defaultSize: 11, hint: 'al pie de todas las pantallas' },
