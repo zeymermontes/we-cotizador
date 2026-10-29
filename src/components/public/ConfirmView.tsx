@@ -1,6 +1,6 @@
 import RichText from './RichText';
 import { previewEl } from '../../lib/preview';
-import { pickLocalized, elementShown, elementSize, elementFont, type PublicEvent, type EventLanguage } from '../../lib/events-types';
+import { pickLocalized, elementShown, elementSize, elementFont, metaStacked, type PublicEvent, type EventLanguage } from '../../lib/events-types';
 import { RSVP_DEFAULTS, rsvpTexts, type RsvpConfig } from '../../lib/rsvp';
 
 // Pantalla de confirmación (VIP o registrado por formulario): portada,
@@ -42,9 +42,9 @@ export default function ConfirmView({ event, lang, config, guest, error, busy = 
       )}
       {elementShown(sc, 'title') && <h1 {...previewEl('confirm', 'title')} style={elementFont(sc, 'title')}>{event.name}</h1>}
       {(showDate || showVenue) && (
-        <div className="reg-meta">
+        <div className={`reg-meta ${metaStacked(sc) ? 'stacked' : ''}`}>
           {showDate && <span {...previewEl('confirm', 'date')} style={elementFont(sc, 'date')}>{dateStr}</span>}
-          {showDate && showVenue && <span className="reg-meta-sep"> · </span>}
+          {showDate && showVenue && !metaStacked(sc) && <span className="reg-meta-sep"> · </span>}
           {showVenue && <span {...previewEl('confirm', 'venue')} style={elementFont(sc, 'venue')}>{event.venue}</span>}
         </div>
       )}

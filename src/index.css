@@ -2306,6 +2306,8 @@ h6 {
 .reg-welcome .reg-meta { font-size: var(--text-sm); margin-bottom: 20px; }
 /* La atenuación va en cada texto, no en la fila: así la opacidad por elemento sí puede llegar a 100 % */
 .reg-welcome .reg-meta > span { opacity: 0.6; }
+.reg-welcome .reg-meta.stacked > span { display: block; }
+.reg-welcome .reg-meta.stacked > span + span { margin-top: 4px; }
 .reg-thanks { text-align: center; padding: 56px 32px; margin: auto; }
 .reg-thanks .reg-check {
   width: 64px; height: 64px; border-radius: 50%;
@@ -2920,6 +2922,7 @@ h6 {
 .el-style-row { display: flex; align-items: center; gap: 8px; }
 .el-style-row input[type="range"] { flex: 1; accent-color: var(--color-primary-dark); }
 .el-style-num { width: 54px; text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.el-style-pop > label.el-style-check { display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: var(--text-xs); cursor: pointer; }
 .el-style-foot { display: flex; justify-content: space-between; margin-top: 12px; }
 
 .el-float { position: fixed; z-index: 60; width: 400px; max-width: calc(100vw - 16px); background: var(--bg-elevated); border: 1px solid var(--border-default); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 10px; }

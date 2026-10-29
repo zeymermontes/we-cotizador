@@ -402,6 +402,12 @@ function StylePopover({ event, el, style, onElement, onReset, onClose }: {
           </div>
         </>
       )}
+      {(el.key === 'date' || el.key === 'venue') && (
+        <label className="el-style-check">
+          <input type="checkbox" checked={!!style?.own_line} onChange={e => onElement({ own_line: e.target.checked || undefined })} />
+          En su propio renglón (fecha y lugar separados)
+        </label>
+      )}
       <label>{image ? 'Alto' : 'Tamaño'}</label>
       <div className="el-style-row">
         <input type="range" min={8} max={image ? 240 : 120} value={size} onChange={e => onElement({ size: Number(e.target.value) })} />

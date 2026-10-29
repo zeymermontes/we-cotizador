@@ -91,6 +91,8 @@ export interface ElementStyle {
   /** familia: 'display' o 'body' del branding, o el nombre de una fuente de Google */
   font?: 'display' | 'body' | string;
   uppercase?: boolean;
+  /** Fecha y lugar: en su propio renglón en vez de "fecha · lugar". */
+  own_line?: boolean;
 }
 
 export interface ScreenCopy {
@@ -185,6 +187,11 @@ export function elementShown(copy: ScreenCopy | undefined, key: string): boolean
 export function elementSize(copy: ScreenCopy | undefined, key: string): number | undefined {
   const s = copy?.elements?.[key]?.size;
   return typeof s === 'number' && s > 0 ? s : undefined;
+}
+
+/** Fecha y lugar van en renglones separados si cualquiera de los dos lo pide. */
+export function metaStacked(copy: ScreenCopy | undefined): boolean {
+  return !!(copy?.elements?.date?.own_line || copy?.elements?.venue?.own_line);
 }
 
 /** Estilo inline para un elemento de texto (tamaño, peso, cursiva, subrayado, color, familia). */

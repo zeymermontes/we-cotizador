@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { PublicEvent } from '../../lib/events-types';
-import { pickLocalized, elementShown, elementSize, elementFont } from '../../lib/events-types';
+import { pickLocalized, elementShown, elementSize, elementFont, metaStacked } from '../../lib/events-types';
 import {
   type FormSchema, type Answers, type AnswerValue, type Lang, type AnswerError, type Question, type EvalContext,
   resolveFlowDetailed, validateAnswer, extractIdentity, computeScore, text, isEmpty,
@@ -212,9 +212,9 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
         )}
         {elementShown(w, 'title') && <h1 {...previewEl('welcome', 'title')} style={elementFont(w, 'title')}>{fill(pickLocalized(w?.title, lang, copy.welcome))}</h1>}
         {(showDate || showVenue) && (
-          <div className="reg-meta">
+          <div className={`reg-meta ${metaStacked(w) ? 'stacked' : ''}`}>
             {showDate && <span {...previewEl('welcome', 'date')} style={elementFont(w, 'date')}>{dateStr}</span>}
-            {showDate && showVenue && <span className="reg-meta-sep"> · </span>}
+            {showDate && showVenue && !metaStacked(w) && <span className="reg-meta-sep"> · </span>}
             {showVenue && <span {...previewEl('welcome', 'venue')} style={elementFont(w, 'venue')}>{event.venue}</span>}
           </div>
         )}
