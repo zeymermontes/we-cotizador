@@ -15,12 +15,26 @@ interface Props {
 type ScreenKey = keyof EventScreens;
 type FieldKey = NonNullable<ScreenElementDef['text']>;
 
-const SCREENS: { key: ScreenKey; label: string; hint: string }[] = [
-  { key: 'welcome', label: 'Bienvenida del formulario', hint: 'Primera pantalla que ve el invitado antes de empezar.' },
-  { key: 'thank_you', label: 'Mensaje de enviado', hint: 'Se muestra al terminar el registro.' },
-  { key: 'confirm', label: 'Confirmación por enlace', hint: 'La página donde VIP y registrados responden "asistiré / no asistiré". Los textos se editan en Ajustes → Lista VIP.' },
-  { key: 'scanner', label: 'Pantalla del scanner', hint: 'Lo que ve el staff en la puerta al escribir el PIN.' },
-  { key: 'footer', label: 'Pie de página', hint: 'Aparece abajo en todas las pantallas públicas.' },
+const WAITLIST_KEYS = new Set(['waitlist', 'waitlist_done']);
+
+interface Section { id: string; label: string; hint: string; rows: { screen: ScreenKey; el: ScreenElementDef }[] }
+
+const screenRows = (screen: ScreenKey, keep: (el: ScreenElementDef) => boolean = () => true) =>
+  SCREEN_ELEMENTS[screen].filter(keep).map(el => ({ screen, el }));
+const notWaitlist = (el: ScreenElementDef) => !WAITLIST_KEYS.has(el.key);
+
+const SECTIONS: Section[] = [
+  { id: 'welcome', label: 'Bienvenida del formulario', hint: 'Primera pantalla que ve el invitado antes de empezar.', rows: screenRows('welcome', notWaitlist) },
+  { id: 'thank_you', label: 'Mensaje de enviado', hint: 'Se muestra al terminar el registro.', rows: screenRows('thank_you', notWaitlist) },
+  {
+    id: 'waitlist',
+    label: 'Modo lista de espera',
+    hint: 'Textos extra que solo aparecen cuando activas "Modo lista de espera" en Ajustes. Puedes diseñarlos antes: elige "Lista de espera" arriba de la vista previa.',
+    rows: [...screenRows('welcome', el => el.key === 'waitlist'), ...screenRows('thank_you', el => el.key === 'waitlist_done')],
+  },
+  { id: 'confirm', label: 'Confirmación por enlace', hint: 'La página donde VIP y registrados responden "asistiré / no asistiré". Los textos se editan en Ajustes → Lista VIP.', rows: screenRows('confirm') },
+  { id: 'scanner', label: 'Pantalla del scanner', hint: 'Lo que ve el staff en la puerta al escribir el PIN.', rows: screenRows('scanner') },
+  { id: 'footer', label: 'Pie de página', hint: 'Aparece abajo en todas las pantallas públicas.', rows: screenRows('footer') },
 ];
 
 export default function ScreensEditor({ event, onSave, onChange }: Props) {
@@ -61,17 +75,18 @@ export default function ScreensEditor({ event, onSave, onChange }: Props) {
         Desmarca un elemento para ocultarlo. En Estilo: negritas, cursiva, subrayado, mayúsculas, color (clic derecho lo quita), familia, opacidad en % y tamaño en píxeles; lo que dejes vacío usa el branding. Textos vacíos usan el texto por defecto. Puedes usar <code>{'{{evento}}'}</code> y, en el mensaje de enviado, <code>{'{{nombre}}'}</code>.
       </p>
 
-      {SCREENS.map(sc => (
-        <div key={sc.key} style={{ marginBottom: 24 }}>
-          <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{sc.label}</div>
-          <div className="text-muted text-xs" style={{ marginBottom: 8 }}>{sc.hint}</div>
+      {SECTIONS.map(sec => (
+        <div key={sec.id} style={{ marginBottom: 24 }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{sec.label}</div>
+          <div className="text-muted text-xs" style={{ marginBottom: 8 }}>{sec.hint}</div>
           <div className="screen-elements">
             <div className="screen-el-head"><span>Ver</span><span>Elemento</span><span>Texto</span><span>Estilo</span></div>
-            {SCREEN_ELEMENTS[sc.key].map(el => {
+            {sec.rows.map(({ screen, el }) => {
+              const sc = { key: screen };
               const style = screens[sc.key]?.elements?.[el.key];
               const shown = style?.show !== false;
               return (
-                <div key={el.key} className={`screen-el-row ${shown ? '' : 'hidden'}`}>
+                <div key={`${screen}-${el.key}`} className={`screen-el-row ${shown ? '' : 'hidden'}`}>
                   <label className="screen-el-toggle" title={el.required ? 'Este elemento siempre se muestra' : shown ? 'Ocultar' : 'Mostrar'}>
                     <input
                       type="checkbox"

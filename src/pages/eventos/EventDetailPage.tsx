@@ -376,9 +376,13 @@ function Ajustes({ event, isSuper, onPatch, onReload, onFlash }: AjustesProps) {
           <div className="input-group">
             <label className="input-label">Cupo máximo</label>
             <input className="input-field" type="number" min={1} value={general.capacity} onChange={e => setGeneral(g => ({ ...g, capacity: e.target.value }))} placeholder="Sin límite" />
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 10, fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
+            <div className="text-muted text-xs" style={{ marginTop: 4 }}>Al llenarse, los registros nuevos pasan solos a lista de espera.</div>
+          </div>
+          <div className="input-group">
+            <label className="input-label">Lista de espera manual</label>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
               <input type="checkbox" checked={general.waitlist_mode} onChange={e => setGeneral(g => ({ ...g, waitlist_mode: e.target.checked }))} style={{ marginTop: 3 }} />
-              <span>Modo lista de espera<br /><span className="text-muted text-xs">Mismo enlace: la bienvenida muestra el aviso (texto en Diseño) y todo registro nuevo entra como "Lista de espera". Desactívalo para volver a lo normal.</span></span>
+              <span>Activar modo lista de espera<br /><span className="text-muted text-xs">Lo prendes y apagas tú, no depende del cupo. Mismo enlace: la bienvenida muestra el aviso y todo registro nuevo entra como "Lista de espera". Textos en Diseño → Modo lista de espera.</span></span>
             </label>
           </div>
           <div className="input-group">
