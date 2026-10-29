@@ -16,6 +16,8 @@ interface Props {
   languages: EventLanguage[];
   branding: EventBranding | null | undefined;
   screens: EventScreens | null | undefined;
+  /** Si el evento está en modo lista de espera (punto de partida del interruptor). */
+  waitlistMode?: boolean;
 }
 
 /**
@@ -23,10 +25,11 @@ interface Props {
  * (/r/<slug>?preview=1) y le manda por postMessage el branding y los textos
  * tal como están en los editores, aunque no se hayan guardado.
  */
-export default function DevicePreview({ slug, languages, branding, screens }: Props) {
+export default function DevicePreview({ slug, languages, branding, screens, waitlistMode = false }: Props) {
   const [device, setDevice] = useState<Device>('mobile');
   const [stage, setStage] = useState<Stage>('welcome');
   const [lang, setLang] = useState<EventLanguage>(languages[0] ?? 'es');
+  const [waitlist, setWaitlist] = useState(waitlistMode);
   const [scale, setScale] = useState(1);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -38,8 +41,8 @@ export default function DevicePreview({ slug, languages, branding, screens }: Pr
   const openUrl = publicUrls(slug).registro;
 
   const payload = useMemo(
-    () => ({ type: 'we-preview', branding: branding ?? undefined, screens: screens ?? undefined, stage, lang }),
-    [branding, screens, stage, lang],
+    () => ({ type: 'we-preview', branding: branding ?? undefined, screens: screens ?? undefined, stage, lang, waitlist }),
+    [branding, screens, stage, lang, waitlist],
   );
   const send = () => frameRef.current?.contentWindow?.postMessage(payload, '*');
 
@@ -91,6 +94,12 @@ export default function DevicePreview({ slug, languages, branding, screens }: Pr
           <button type="button" className={`seg-btn ${stage === 'done' ? 'active' : ''}`} onClick={() => setStage('done')}>Gracias</button>
           <button type="button" className={`seg-btn ${stage === 'confirm' ? 'active' : ''}`} onClick={() => setStage('confirm')}>Confirmación</button>
         </div>
+        {stage !== 'confirm' && (
+          <div className="seg">
+            <button type="button" className={`seg-btn ${!waitlist ? 'active' : ''}`} onClick={() => setWaitlist(false)}>Normal</button>
+            <button type="button" className={`seg-btn ${waitlist ? 'active' : ''}`} title="Cómo se ve con el modo lista de espera activo" onClick={() => setWaitlist(true)}>Lista de espera</button>
+          </div>
+        )}
         {languages.length > 1 && (
           <div className="seg">
             {languages.map(l => (

@@ -110,12 +110,13 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     setError(null);
   }, [currentId]);
 
-  const [waitlisted, setWaitlisted] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(mode === 'preview' && !!event.waitlist_mode);
   const submit = useCallback(async (finalAnswers: Answers) => {
     setStage('submitting');
     setSubmitError('');
     if (mode === 'preview') {
       await new Promise(r => setTimeout(r, 500));
+      setWaitlisted(!!event.waitlist_mode);
       setStage('done');
       return;
     }
@@ -124,7 +125,7 @@ export default function FormRunner({ schema, event, lang, mode, storageKey, hidd
     const known: Record<string, string> = { duplicate: t.duplicate, full: t.full, closed: t.closed };
     setSubmitError(known[res.code] ?? t.error_generic);
     setStage('error');
-  }, [mode, onSubmit, t]);
+  }, [mode, onSubmit, t, event.waitlist_mode]);
 
   const goNext = useCallback((override?: Answers) => {
     if (!current) return;

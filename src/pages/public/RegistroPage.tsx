@@ -16,6 +16,8 @@ export interface PreviewMessage {
   screens?: EventScreens;
   stage?: 'welcome' | 'done' | 'confirm';
   lang?: EventLanguage;
+  /** Enseña la página como si el evento estuviera en modo lista de espera. */
+  waitlist?: boolean;
 }
 
 const IS_PREVIEW = new URLSearchParams(window.location.search).get('preview') === '1';
@@ -47,7 +49,7 @@ export default function RegistroPage() {
   const loaded = state.status === 'ready' ? state.event : null;
   const [override, setOverride] = useState<Omit<PreviewMessage, 'type'>>({});
   // En vista previa el admin manda branding y textos sin guardar; se pintan encima de lo cargado.
-  const event = useMemo(() => (loaded && IS_PREVIEW ? { ...loaded, branding: override.branding ?? loaded.branding, screens: override.screens ?? loaded.screens } : loaded), [loaded, override]);
+  const event = useMemo(() => (loaded && IS_PREVIEW ? { ...loaded, branding: override.branding ?? loaded.branding, screens: override.screens ?? loaded.screens, waitlist_mode: override.waitlist ?? loaded.waitlist_mode } : loaded), [loaded, override]);
   const [langSaved, setLang] = useEventLanguage(event);
   const lang = IS_PREVIEW && override.lang ? override.lang : langSaved;
   const [form, setForm] = useState<FormState>({ status: 'loading' });
@@ -57,8 +59,8 @@ export default function RegistroPage() {
     if (!IS_PREVIEW) return;
     const onMessage = (e: MessageEvent<PreviewMessage>) => {
       if (e.data?.type !== 'we-preview') return;
-      const { branding, screens, stage, lang: l } = e.data;
-      setOverride({ branding, screens, stage, lang: l });
+      const { branding, screens, stage, lang: l, waitlist } = e.data;
+      setOverride({ branding, screens, stage, lang: l, waitlist });
     };
     window.addEventListener('message', onMessage);
     window.parent?.postMessage({ type: 'we-preview-ready' }, '*');
@@ -144,7 +146,7 @@ export default function RegistroPage() {
   return (
     <BrandedShell event={event} lang={lang} onLang={setLang} variant="form">
       <FormRunner
-        key={IS_PREVIEW ? `${lang}-${override.stage ?? 'welcome'}` : lang}
+        key={IS_PREVIEW ? `${lang}-${override.stage ?? 'welcome'}-${override.waitlist ? 'w' : 'n'}` : lang}
         initialStage={IS_PREVIEW && override.stage !== 'confirm' ? override.stage : undefined}
         schema={form.schema}
         event={event}

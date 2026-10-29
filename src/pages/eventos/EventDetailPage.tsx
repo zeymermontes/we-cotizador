@@ -187,7 +187,7 @@ function Diseno({ event, onPatch }: { event: EventRow; onPatch: (fields: Partial
           <BrandingEditor event={event} onChange={setBranding} />
           <ScreensEditor event={event} onChange={setScreens} />
         </div>
-        <DevicePreview slug={event.slug} languages={event.languages} branding={branding} screens={screens} />
+        <DevicePreview slug={event.slug} languages={event.languages} branding={branding} screens={screens} waitlistMode={event.waitlist_mode ?? false} />
       </div>
       <div className={`save-bar ${dirty ? 'show' : ''}`} role="status">
         <span>{dirty ? 'Tienes cambios sin guardar. El público sigue viendo la versión anterior.' : 'Todo guardado.'}</span>
